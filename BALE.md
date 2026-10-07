@@ -663,8 +663,12 @@ The following flags apply across multiple commands:
   fail()-shaped — stderr, non-zero exit, nothing on stdout — except
   where a report names a refused outcome of its own (apply's
   `*-refused` outcomes; unlock's `unlock-refused`, v0.4.47, §9.3;
-  relay's `relay-refused`, v0.4.48, §5.8),
-  which prints its line beside the stderr error. Landed
+  relay's `relay-refused`, v0.4.48, §5.8; open's `open-refused` and
+  revert's `revert-refused`, v0.4.50, §6.7 and §9.1),
+  which prints its line beside the stderr error. The refused lines of
+  unlock, relay, open and revert carry a `reason` code from a closed
+  vocabulary their renderer's docstring owns — the field a consumer
+  dispatches on, `cause` being stderr's wording. Landed
   per command: pack (v0.2.7), apply (v0.2.8), status (v0.2.9), retry
   (v0.3.14), unlock (v0.3.18), revert (v0.3.19), open and relay
   (v0.4.48); `bale unlock
@@ -1062,10 +1066,14 @@ the bare block — outcome `relayed` (a round recorded) or `re-emitted`
 what human mode prints, or `relay-refused` on any refusal that exits
 1, printed beside the unchanged `[bale] error:` line and carrying the
 refusal's `cause` and, when one was written, the `relay-refused`
-telemetry record's path. stderr and the exit codes are unchanged, and
-without the flag every byte is what it was. The key contract is owned
-by `format_relay_json`'s docstring in `bin/bale_report.py`, never by a
-copy here.
+telemetry record's path. Since v0.4.50 every relay line also carries
+`reason`: null on `relayed` and `re-emitted`, and on `relay-refused`
+a code from a closed vocabulary — one per refusal site, attached by
+the site itself, never read off the stderr text — so a courier
+dispatches on the code and reads `cause`. stderr and the exit codes
+are unchanged, and without the flag every byte is what it was. The
+key contract and the vocabulary are owned by `format_relay_json`'s
+docstring in `bin/bale_report.py`, never by a copy here.
 
 **The two typical invocations.**
 
@@ -1420,9 +1428,21 @@ carries exactly one line of JSON on each path that exits 0: outcome
 line folded in rather than printed twice), `second-desk`, or
 `rehearsed`, each with the bundle's path, file hash and stem, the
 published member hashes, the rehearsal, the checkpoint dry-run's
-verdict and log, and the desk. Refusals are unchanged: exit 1 through
-`fail()`, nothing on stdout. The key contract is owned by
-`format_open_json`'s docstring in `bin/bale_report.py`. Unlike `bale
+verdict and log, and the desk; since v0.4.50 a `second-desk` line
+also carries the outbox request tarball desk one opened with (null
+when it is no longer in the outbox). Every refusal that exits 1 — a
+rehearsal's included — prints one `open-refused` line beside its
+unchanged `[bale] error:` line (v0.4.50) and still exits 1: a
+`reason` code from a closed vocabulary (not a repo, not found, not a
+bundle, an invalid manifest or seal, a member mismatch, no validation
+base, a gate's refusal, a defective oracle, a refused second desk, a
+refused replay, and the rest the docstring lists), the refusal's
+`cause`, and the bundle and member facts the open had verified by
+then; every other key is null. `reason` and `cause` ride every open
+line, null on the three exit-0 outcomes; an argparse usage error
+(exit 2) prints no line, and human mode is byte-identical. The key
+contract and the vocabulary are owned by `format_open_json`'s
+docstring in `bin/bale_report.py`. Unlike `bale
 pack --dry-run`, which refuses `--json` because a pack rehearsal has
 no session to report, an open rehearsal reports the bundle facts it
 verified.
@@ -4256,8 +4276,17 @@ already names the event.
 
 `--json` (v0.3.19) emits the end-of-run revert report as one line of
 JSON on stdout under the shared stream discipline (`[bale] ` lines
-and the human block to stderr; human mode unchanged; refusals stay
-fail()-shaped with empty stdout); the key contract is owned by
+and the human block to stderr; human mode unchanged). Since v0.4.50
+every refusal that exits 1 prints one `revert-refused` line beside
+its unchanged `[bale] error:` line and still exits 1, carrying a
+`reason` code from a closed vocabulary (not a repo, nothing open,
+several open, no session metadata, no `bale/<sid>` branch — the
+already-applied case — already merged, a refused checkout, and the
+rest the docstring lists), the refusal's `cause`, and the sid asked
+for or resolved; every other key is null. `reason` and `cause` ride
+the `reverted` line too, null. The stream discipline now engages
+before the first refusal (the not-a-repo check used to run ahead of
+it). The key contract and the vocabulary are owned by
 `format_revert_json`'s docstring in `bin/bale_report.py`.
 
 ### 9.2 `bale rollback [sid]` — applied, merged into origin

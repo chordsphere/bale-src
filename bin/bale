@@ -159,6 +159,9 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_integration_lock_value,
     format_open_sessions_value,
     format_revert_json,
+    format_revert_refusal_json,
+    REFUSAL_REASON_FALLBACK,
+    REVERT_REFUSAL_REASONS,
     format_scope_value,
     format_staging_row,
     format_staging_value,
@@ -716,7 +719,58 @@ def exit_cause(exc: BaseException) -> str:
     return f"exit {code if code is not None else 0}"
 
 
-def fail(msg: str, code: int = 1) -> None:
+def exit_reason(exc: BaseException, vocabulary: tuple,
+                fallback: str) -> str:
+    """The `reason` code a `--json` refusal line reports for a SystemExit
+    a refusal path raised (v0.4.50): the `bale_reason` fail(reason=)
+    attached — or refusal_reason() attached on the way out of a call —
+    when it is a code of `vocabulary`, the verb's closed vocabulary in
+    bin/bale_report.py; else `fallback`, the vocabulary's own fallback
+    code. The sibling of exit_cause: that one reads the words, this one
+    the code, and neither ever parses the other.
+
+    A code outside `vocabulary` — a shared helper's code this verb's
+    vocabulary does not declare — is logged (a vocabulary to extend,
+    never something to hide) and reported as the fallback, so the line
+    still renders. Never raises: it runs while the refusal's exit is in
+    flight."""
+    reason = getattr(exc, "bale_reason", None)
+    if isinstance(reason, str) and reason in vocabulary:
+        return reason
+    if isinstance(reason, str):
+        log(f"refusal code {reason!r} is outside this verb's reason "
+            f"vocabulary; the --json line reports {fallback!r}")
+    return fallback
+
+
+@contextlib.contextmanager
+def refusal_reason(reason: str, *, override: bool = False):
+    """Attach `reason` to a refusal raised inside the block (v0.4.50) —
+    for a call into code whose fail() sites sit outside the verb's
+    module: a bale_config typed accessor, bale_pack's argv gates, the
+    replayed cmd_pack. The call site is the refusal site from the verb's
+    side, so the code is still keyed on which check refused, never on
+    the message text.
+
+    By default a code the inner site attached itself wins (a shared
+    helper that knows better). `override=True` is for a call that is ONE
+    refusal site from the verb's side however many sites it has inside —
+    `bale open`'s argv gates and its pack replay, whose inner helpers'
+    codes (a brief file's `not-found`, say) would misname the refusal in
+    the open's vocabulary. An exit 0, and any exception that is not a
+    SystemExit, pass through untouched; the exit always re-raises as it
+    was."""
+    try:
+        yield
+    except SystemExit as exc:
+        if exc.code not in (0, None) and (
+                override
+                or not isinstance(getattr(exc, "bale_reason", None), str)):
+            exc.bale_reason = reason
+        raise
+
+
+def fail(msg: str, code: int = 1, *, reason: Optional[str] = None) -> None:
     """Print a [bale] error to stderr, log it if a session is open, exit.
 
     The SystemExit raised carries the message's first line as
@@ -725,6 +779,15 @@ def fail(msg: str, code: int = 1) -> None:
     refusal recorder — read it off the exception they catch, so the
     cause travels with the exit rather than through module state that
     a nested fail() could overwrite.
+
+    `reason` (v0.4.50) is the refusal's code, from the closed `reason`
+    vocabulary of the verb's `--json` refusal line (bin/bale_report.py:
+    OPEN_REFUSAL_REASONS, RELAY_REFUSAL_REASONS, REVERT_REFUSAL_REASONS).
+    It rides the same exit as `bale_reason` (None when the site passed
+    none), beside `bale_cause`, and a verb wrapper reads it back through
+    exit_reason(). The site that knows which check refused names the
+    code; nothing ever derives one from the message. It changes nothing
+    fail() prints, logs or exits with.
 
     Held [bale] lines (hold_log) are released first, so a refusal
     inside a hold still prints its context lines above its error line.
@@ -747,6 +810,7 @@ def fail(msg: str, code: int = 1) -> None:
     # Equivalent to sys.exit(code), plus the cause attribute (docstring).
     exit_exc = SystemExit(code)
     exit_exc.bale_cause = failure_cause(msg)
+    exit_exc.bale_reason = reason
     raise exit_exc
 
 
@@ -785,7 +849,7 @@ def repo_root(cwd: Path) -> Optional[Path]:
     except subprocess.CalledProcessError:
         return None
     except FileNotFoundError:
-        fail("git not found on PATH; bale requires git.")
+        fail("git not found on PATH; bale requires git.", reason="no-git")
     return Path(r.stdout.strip())
 
 
@@ -1133,17 +1197,19 @@ def resolve_open_session(repo: Path, requested: Optional[str], *,
             listing = (f" Open session(s): {', '.join(opens)}."
                        if opens else " No sessions are open.")
             fail(f"session {requested} is not open; nothing to "
-                 f"{command}.{listing}")
+                 f"{command}.{listing}", reason="not-open")
         return requested
     if not opens:
         hint = f" {none_open_hint}" if none_open_hint else ""
-        fail(f"no session is open; nothing to {command}.{hint}")
+        fail(f"no session is open; nothing to {command}.{hint}",
+             reason="none-open")
     if len(opens) == 1:
         return opens[0]
     fail(
         f"{len(opens)} sessions are open; `bale {command}` needs an "
         f"explicit session id when more than one is open. "
-        f"Open sessions (oldest first): {', '.join(opens)}."
+        f"Open sessions (oldest first): {', '.join(opens)}.",
+        reason="several-open",
     )
 
 
@@ -1679,7 +1745,8 @@ def refuse_system_dir(p: Path, *, force: bool = False) -> None:
         # No override here, by design (BALE.md §7.1 step 1).
         fail(
             f"refusing to operate at system directory {resolved}. "
-            f"cd into a project directory and retry."
+            f"cd into a project directory and retry.",
+            reason="system-dir",
         )
     home = Path.home().resolve()
     if resolved == home:
@@ -1693,7 +1760,8 @@ def refuse_system_dir(p: Path, *, force: bool = False) -> None:
         fail(
             f"refusing to operate at $HOME ({resolved}). "
             f"Re-run with --force if this is a dotfiles repo and you know "
-            f"what you're doing; otherwise cd into a subdirectory."
+            f"what you're doing; otherwise cd into a subdirectory.",
+            reason="system-dir",
         )
 
 
@@ -1839,7 +1907,7 @@ def fail_not_found(kind: str, path, verb: Optional[str] = None, *,
             lines.append("  near-name candidates (newest first):")
             for candidate in candidates:
                 lines.append(f"    bale {verb} {shlex.quote(str(candidate))}")
-    fail("\n".join(lines))
+    fail("\n".join(lines), reason="not-found")
 
 
 NEAR_NAME_SUFFIX = ".tar.gz"
@@ -2351,10 +2419,12 @@ def _discard_hold_state(repo: Path, sid: str, *,
         origin_branch_file = sessions_dir / "origin_branch"
         if not origin_branch_file.is_file():
             fail(f"{sid_branch} exists but session metadata at "
-                 f"{sessions_dir} is missing. Resolve manually.")
+                 f"{sessions_dir} is missing. Resolve manually.",
+                 reason="no-metadata")
         origin_branch = origin_branch_file.read_text().strip()
         if not origin_branch:
-            fail(f"origin_branch file at {origin_branch_file} is empty")
+            fail(f"origin_branch file at {origin_branch_file} is empty",
+                 reason="no-metadata")
 
         # Refuse if already merged into origin. Since ADR-0008 a HOLD is a
         # commit on the bale branch, and apply refuses stampless sessions,
@@ -2369,7 +2439,8 @@ def _discard_hold_state(repo: Path, sid: str, *,
         if ancestor.returncode == 0:
             fail(f"{sid_branch} is already an ancestor of {origin_branch} — "
                  f"this session was already merged. Use "
-                 f"`bale rollback {sid}` to undo a merged session.")
+                 f"`bale rollback {sid}` to undo a merged session.",
+                 reason="already-merged")
 
         # If on the bale branch, switch to origin before deleting it —
         # `branch -D` cannot delete the checked-out branch. Since ADR-0008
@@ -2392,7 +2463,8 @@ def _discard_hold_state(repo: Path, sid: str, *,
                      f"across, and bale will not discard them. Commit, "
                      f"stash, or reset your changes on {sid_branch}, then "
                      f"re-run."
-                     + (f"\n  git: {detail}" if detail else ""))
+                     + (f"\n  git: {detail}" if detail else ""),
+                     reason="checkout-refused")
         elif current != origin_branch:
             log(f"on {current}; deleting {sid_branch} without changing branch")
 
@@ -2440,23 +2512,55 @@ def _discard_hold_state(repo: Path, sid: str, *,
 
 
 def cmd_revert(args: argparse.Namespace) -> int:
+    """`bale revert [sid]` — discard a HOLD (BALE.md §9.1); the work is
+    _cmd_revert's.
+
+    `--json` (v0.3.19): stream discipline first, before any line can
+    print (matches cmd_unlock): stdout carries exactly the one JSON line
+    format_revert_json owns; `[bale] ` lines and the human summary block
+    go to stderr as the reference trail. Since v0.4.50 the swap happens
+    here, ahead of every refusal — the system-directory guard and the
+    not-a-repo check used to run before it — and every refusal that
+    exits 1 prints its "revert-refused" line from this wrapper: the
+    refusal site names its code through fail(reason=...), exit_reason
+    reads it back (REVERT_REFUSAL_REASONS' fallback when none rode the
+    exit), exit_cause reads the words, and the same SystemExit
+    re-raises untouched. Human mode never reaches the emission and
+    performs no swap, so its stdout and stderr are byte-identical; the
+    exit code is fail()'s in both modes. format_revert_json's docstring
+    owns the keys and the reason vocabulary.
+    """
+    if args.json:
+        enable_json_mode()
+    # The refused line's `sid`: the sid asked for, replaced by the
+    # resolved one once resolution ran.
+    report: dict = {"sid": args.sid}
+    try:
+        return _cmd_revert(args, report=report)
+    except SystemExit as exc:
+        if args.json and exc.code not in (0, None):
+            emit_json_line(format_revert_refusal_json(
+                reason=exit_reason(exc, REVERT_REFUSAL_REASONS,
+                                   REFUSAL_REASON_FALLBACK),
+                cause=exit_cause(exc),
+                sid=report["sid"],
+            ))
+        raise
+
+
+def _cmd_revert(args: argparse.Namespace, *, report: dict) -> int:
+    """cmd_revert's body (its docstring is the wrapper's contract), split
+    out in v0.4.50 so one wrapper prints `--json`'s refused line for
+    every refusal. `report` is the wrapper's: this sets `sid` once the
+    session resolves."""
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd)
 
     repo = repo_root(cwd)
     if repo is None:
-        fail("not in a git repo. `bale revert` requires the project repo.")
+        fail("not in a git repo. `bale revert` requires the project repo.",
+             reason="not-a-repo")
     refuse_system_dir(repo)
-
-    # `bale revert --json` (v0.3.19) — stream discipline first, before any
-    # line can print (matches cmd_unlock, v0.3.18): stdout carries exactly
-    # the one JSON line format_revert_json owns; `[bale] ` lines and the
-    # human summary block go to stderr as the reference trail. Human mode
-    # is byte-identical: when the swap never happens, no code path below
-    # differs. Refusal paths exit through fail() — stderr, non-zero,
-    # nothing on stdout — like every other json surface's error paths.
-    if args.json:
-        enable_json_mode()
 
     # ADR-0006 threading: the sid is optional. With exactly one open
     # session it resolves implicitly (the zero-argument single-session
@@ -2467,6 +2571,7 @@ def cmd_revert(args: argparse.Namespace) -> int:
     # open.
     sid = resolve_open_session(repo, args.sid, command="revert",
                                require_open=False)
+    report["sid"] = sid
     sid_branch = f"bale/{sid}"
     sessions_dir = repo / ".bale" / "sessions" / sid
 
@@ -2480,7 +2585,8 @@ def cmd_revert(args: argparse.Namespace) -> int:
     # 9.1 step 1: metadata must exist.
     if not (sessions_dir / "origin_branch").is_file():
         fail(f"no session metadata for {sid} at {sessions_dir}. Either the "
-             f"sid is wrong or the session was already cleaned up.")
+             f"sid is wrong or the session was already cleaned up.",
+             reason="no-metadata")
 
     # The bale branch must exist. If it doesn't, the session was already
     # applied (PASS path deletes the branch after merge) — direct the user
@@ -2489,7 +2595,8 @@ def cmd_revert(args: argparse.Namespace) -> int:
                        cwd=repo, check=False)
     if branch_check.returncode != 0:
         fail(f"no branch {sid_branch}. If the session was already applied, "
-             f"use `bale rollback {sid}` to undo a merged session (v0.2+).")
+             f"use `bale rollback {sid}` to undo a merged session (v0.2+).",
+             reason="no-branch")
 
     # Capture registry openness BEFORE the shared cleanup: the session
     # dir wipe inside _discard_hold_state removes the open marker along
@@ -7478,7 +7585,8 @@ def build_parser() -> argparse.ArgumentParser:
              "'re-emitted' with the block riding inside it, "
              "byte-identical to what human mode prints, or "
              "'relay-refused' on any refusal, beside its unchanged "
-             "[bale] error: line, carrying the refusal's cause and the "
+             "[bale] error: line, carrying the refusal's reason code "
+             "(v0.4.50, a closed vocabulary), its cause and the "
              "relay-refused record's path when one was written. stderr "
              "and the exit codes are unchanged; human mode is unchanged. "
              "The key contract is owned by format_relay_json's "
@@ -7528,10 +7636,13 @@ def build_parser() -> argparse.ArgumentParser:
              "discarding HOLDs. Stream discipline matches pack/apply/"
              "status/unlock --json: '[bale] ' lines and the human summary "
              "block go to stderr, stdout carries exactly the JSON line; "
-             "human mode is unchanged. Emitted on the discard path "
-             "(outcome 'reverted'); refusals exit through fail() with "
-             "nothing on stdout. The key contract is owned by "
-             "format_revert_json's docstring in bin/bale_report.py.",
+             "human mode is unchanged. Outcome 'reverted' on the "
+             "discard path, or 'revert-refused' on any refusal that "
+             "exits 1 (v0.4.50), beside its unchanged [bale] error: "
+             "line, carrying the refusal's reason code (a closed "
+             "vocabulary) and cause; exit codes are unchanged. The key "
+             "contract is owned by format_revert_json's docstring in "
+             "bin/bale_report.py.",
     )
     p_revert.set_defaults(func=cmd_revert)
 
@@ -7752,9 +7863,11 @@ def build_parser() -> argparse.ArgumentParser:
              "exactly the JSON line (outcome 'opened', 'second-desk' or "
              "'rehearsed') on every path that exits 0, the replayed "
              "pack's own report line folded into it rather than printed "
-             "twice. Refusals exit through fail() with nothing on "
-             "stdout; human mode is unchanged. The key contract is "
-             "owned by format_open_json's docstring in "
+             "twice, and 'open-refused' on any refusal that exits 1 "
+             "(v0.4.50), beside its unchanged [bale] error: line, "
+             "carrying the refusal's reason code (a closed vocabulary) "
+             "and cause; exit codes and human mode are unchanged. The "
+             "key contract is owned by format_open_json's docstring in "
              "bin/bale_report.py.",
     )
     p_open.set_defaults(func=cmd_open)

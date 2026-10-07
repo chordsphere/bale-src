@@ -62,7 +62,7 @@ from pathlib import Path
 from typing import Optional
 
 
-def _fail(msg: str) -> None:
+def _fail(msg: str, *, reason: str) -> None:
     """Refuse through bin/bale's fail() when hosted by it — the runtime
     path, where __main__ is bin/bale — and otherwise mirror its visible
     shape (the `[bale] error:` line on stderr, exit 1). The otherwise
@@ -71,20 +71,34 @@ def _fail(msg: str) -> None:
     `from __main__ import fail` here would break even happy-path calls
     under any host that isn't bale. Session-journal logging is the
     hosted path's extra; standalone refusals have no session to journal.
+
+    `reason` (v0.4.50) is the refusal's RELAY_REFUSAL_REASONS code
+    (bin/bale_report.py), passed through to fail()'s keyword; the
+    standalone path attaches it the same way, as `bale_reason` on the
+    exit, so both hosts' exits carry it.
     """
     import __main__
     host_fail = getattr(__main__, "fail", None)
     if host_fail is not None:
-        host_fail(msg)
+        host_fail(msg, reason=reason)
     print(f"[bale] error: {msg}", file=sys.stderr)
-    raise SystemExit(1)
+    exit_exc = SystemExit(1)
+    exit_exc.bale_reason = reason
+    raise exit_exc
 
 
 # The paste block's sentinels (TARBALL.md §5.9.2, BALE.md §8.11): the
 # BEGIN line carries the sid so a block pasted against the wrong session
-# refuses on the sentinel before the body is even parsed.
-EXCHANGE_BLOCK_BEGIN = "BALE EXCHANGE BEGIN"
-EXCHANGE_BLOCK_END = "BALE EXCHANGE END"
+# refuses on the sentinel before the body is even parsed. Their one home
+# is bin/bale_report.py since v0.4.50 (beside the shape-prefix tuple that
+# derives from the same prefix); this module reads them from there at
+# import — a plain sibling import, the way bin/bale imports its siblings,
+# since the names are used at module scope by every renderer below — and
+# keeps them module-level so the wire surface still reads from here.
+from bale_report import (  # noqa: E402 — after _fail by design
+    EXCHANGE_BLOCK_BEGIN,
+    EXCHANGE_BLOCK_END,
+)
 # The integrity trailer: the last line inside the sentinels, carrying the
 # sha256 of the body bytes (the JSON text between header and trailer,
 # LF line endings, one trailing newline). `# sha256 <hex>`; a colon after
@@ -267,19 +281,20 @@ def parse_exchange_input(data: bytes) -> tuple[dict, Optional[str]]:
         if not raw:
             _fail("relay input is empty — expected an exchange record, a "
                  "clarification manifest, or the paste block wrapping "
-                 "either (BALE.md \u00a78.11 step 1)")
+                 "either (BALE.md \u00a78.11 step 1)", reason="not-an-object")
         try:
             record = json.loads(raw)
         except json.JSONDecodeError as e:
             _fail(f"relay input is neither a BALE EXCHANGE paste block nor "
                  f"valid JSON: {e}. Expected an exchange record, a "
                  f"clarification manifest, or the paste block wrapping "
-                 f"either.")
+                 f"either.", reason="not-an-object")
         return record, None
 
     if block_sid is None:
         _fail(f"paste block's `{EXCHANGE_BLOCK_BEGIN}` sentinel carries no "
-             f"session id — expected `{EXCHANGE_BLOCK_BEGIN} <sid>`")
+             f"session id — expected `{EXCHANGE_BLOCK_BEGIN} <sid>`",
+             reason="malformed-block")
     end_idx = None
     for j in range(begin_idx + 1, len(lines)):
         if lines[j].strip() == EXCHANGE_BLOCK_END:
@@ -289,7 +304,7 @@ def parse_exchange_input(data: bytes) -> tuple[dict, Optional[str]]:
         _fail(f"paste block has no `{EXCHANGE_BLOCK_END}` sentinel after "
              f"`{EXCHANGE_BLOCK_BEGIN} {block_sid}` — the paste is "
              f"truncated; re-request the block from its emitter rather "
-             f"than reasoning from a partial one")
+             f"than reasoning from a partial one", reason="malformed-block")
     inner = lines[begin_idx + 1:end_idx]
     # Header: the leading comment lines. Stop at the first non-comment
     # line — the body starts there.
@@ -298,7 +313,8 @@ def parse_exchange_input(data: bytes) -> tuple[dict, Optional[str]]:
         k += 1
     if k >= len(inner):
         _fail("paste block carries a header but no body between its "
-             "sentinels — the paste is truncated; re-request the block")
+             "sentinels — the paste is truncated; re-request the block",
+             reason="malformed-block")
     # Trailer: the last non-blank inner line.
     t = len(inner) - 1
     while t > k and not inner[t].strip():
@@ -308,7 +324,8 @@ def parse_exchange_input(data: bytes) -> tuple[dict, Optional[str]]:
         _fail(f"paste block's last line inside the sentinels is not the "
              f"`{EXCHANGE_TRAILER_LABEL} <hex>` integrity trailer (got "
              f"{inner[t].strip()!r}) — the paste is truncated or edited; "
-             f"re-request the block from its emitter")
+             f"re-request the block from its emitter",
+             reason="malformed-block")
     expected = m.group(1).lower()
     body = "\n".join(inner[k:t]) + "\n"
     actual = hashlib.sha256(body.encode("utf-8")).hexdigest()
@@ -323,19 +340,20 @@ def parse_exchange_input(data: bytes) -> tuple[dict, Optional[str]]:
                  f"only its spelling changed; re-carry the block "
                  f"byte-for-byte (a file or an attachment rather than a "
                  f"rendered chat message), or re-request it from its "
-                 f"emitter")
+                 f"emitter", reason="trailer-mismatch")
         _fail(f"paste block integrity trailer disagrees with its body "
              f"(trailer sha256 {expected[:12]}…, body sha256 "
              f"{actual[:12]}…) — the paste is truncated or was edited in "
              f"transit; re-request the block from its emitter rather "
-             f"than reasoning from a partial one")
+             f"than reasoning from a partial one", reason="trailer-mismatch")
     try:
         record = json.loads(body)
     except json.JSONDecodeError as e:
         # Unreachable for a block bale emitted (the trailer matched a body
         # bale rendered), reachable for a hand-built block whose trailer
         # was computed over invalid JSON — still a data problem, named.
-        _fail(f"paste block body is not valid JSON: {e}")
+        _fail(f"paste block body is not valid JSON: {e}",
+              reason="not-an-object")
     return record, block_sid
 
 
@@ -483,7 +501,7 @@ def _cmd_reemit(repo: Path, sid: str, *, want_json: bool = False,
         fail(f"session {sid} has no recorded rounds — nothing to re-emit. "
              f"The no-file form re-emits the thread's latest recorded "
              f"round; record round one first (apply the clarification "
-             f"tarball, or `bale relay {sid} <file|->`).")
+             f"tarball, or `bale relay {sid} <file|->`).", reason="no-rounds")
     path = records[-1]
     try:
         rnd = int(path.stem)
@@ -494,11 +512,11 @@ def _cmd_reemit(repo: Path, sid: str, *, want_json: bool = False,
     except (OSError, json.JSONDecodeError) as e:
         fail(f"the thread's latest recorded round {path.name} is "
              f"unreadable ({e}) — nothing re-emitted. Fix or remove the "
-             f"record at {path} and re-run.")
+             f"record at {path} and re-run.", reason="unreadable-record")
     if not isinstance(preserved, dict):
         fail(f"the thread's latest recorded round {path.name} is not a "
              f"JSON object (got {type(preserved).__name__}) — nothing "
-             f"re-emitted.")
+             f"re-emitted.", reason="unreadable-record")
     preserved_at = preserved.pop("preserved_at", None)
     if preserved.get("response_kind") == "clarification":
         kind = "clarification manifest"
@@ -551,28 +569,35 @@ def _read_relay_input(arg: str, cwd: Path, repo: Path) -> tuple[bytes, str]:
     apply's tarball argument (cwd, then apply.search_paths; absolute
     bypasses — the one resolver every inbound surface shares). Returns
     (bytes, display name)."""
-    from __main__ import fail, locate_inbound_path  # lazy — see module docstring
+    from __main__ import (  # lazy — see module docstring
+        fail,
+        locate_inbound_path,
+        refusal_reason,
+    )
     import bale_config  # lazy — sibling module, loaded by bin/bale
     if arg == "-":
         try:
             data = sys.stdin.buffer.read()
         except OSError as e:
-            fail(f"could not read the exchange from stdin: {e}")
+            fail(f"could not read the exchange from stdin: {e}",
+                 reason="unreadable-input")
         return data, "<stdin>"
-    cfg = bale_config.merged_config(repo)
-    search = bale_config.get_apply_search_paths(cfg)
+    with refusal_reason("config-invalid"):
+        cfg = bale_config.merged_config(repo)
+        search = bale_config.get_apply_search_paths(cfg)
     src = locate_inbound_path(arg, cwd, search)
     if src is None:
         lines = [f"exchange file not found: {arg}", "  searched:",
                  f"    {cwd}  (cwd)"]
         lines += [f"    {sp}" for sp in search]
-        fail("\n".join(lines))
+        fail("\n".join(lines), reason="not-found")
     if not src.is_file():
-        fail(f"exchange file not found: {src}")
+        fail(f"exchange file not found: {src}", reason="not-found")
     try:
         return src.read_bytes(), str(src)
     except OSError as e:
-        fail(f"could not read exchange file {src}: {e}")
+        fail(f"could not read exchange file {src}: {e}",
+             reason="unreadable-input")
 
 
 def cmd_relay(args: argparse.Namespace) -> int:
@@ -634,9 +659,16 @@ def cmd_relay(args: argparse.Namespace) -> int:
     the keys. The refused line is printed here, by the wrapper around
     _cmd_relay, so every fail() below — the session gates, the input
     read, the ingest gates — reaches it without a per-site change.
+    Since v0.4.50 the line also carries `reason`: each refusal site names
+    its RELAY_REFUSAL_REASONS code through fail(reason=...) (_fail's
+    keyword in this module), and the wrapper reads it back off the exit
+    with exit_reason — the vocabulary's fallback when none rode it —
+    beside exit_cause's `cause`.
     """
-    from __main__ import exit_cause  # lazy — see module docstring
+    from __main__ import exit_cause, exit_reason  # lazy — module docstring
     from bale_report import (  # lazy — sibling
+        REFUSAL_REASON_FALLBACK,
+        RELAY_REFUSAL_REASONS,
         emit_json_line,
         enable_json_mode,
         format_relay_refusal_json,
@@ -656,7 +688,10 @@ def cmd_relay(args: argparse.Namespace) -> int:
     except SystemExit as e:
         if want_json and getattr(e, "code", None) not in (None, 0):
             emit_json_line(format_relay_refusal_json(
-                sid=args.sid, cause=exit_cause(e),
+                sid=args.sid,
+                reason=exit_reason(e, RELAY_REFUSAL_REASONS,
+                                   REFUSAL_REASON_FALLBACK),
+                cause=exit_cause(e),
                 log_path=report["log"], telemetry=report["telemetry"]))
         raise
 
@@ -683,11 +718,13 @@ def _cmd_relay(args: argparse.Namespace, *, want_json: bool,
     repo = repo_root(cwd)
     if repo is None:
         fail("not in a git repo. `bale relay` requires the project repo "
-             "that holds the suspended session's `.bale/` state.")
+             "that holds the suspended session's `.bale/` state.",
+             reason="not-a-repo")
     refuse_system_dir(repo)
     sid = args.sid.strip()
     if not sid:
-        fail("`bale relay` needs a session id: `bale relay <sid> <file|->`")
+        fail("`bale relay` needs a session id: `bale relay <sid> <file|->`",
+             reason="no-sid")
 
     # Step 1: session gates.
     if not session_is_open(repo, sid):
@@ -696,7 +733,8 @@ def _cmd_relay(args: argparse.Namespace, *, want_json: bool,
              f"records rounds in a suspended (open, unbranched) session "
              f"only. Open sessions: "
              f"{', '.join(open_now) if open_now else 'none'}. "
-             f"A closed session's thread is history; repack to ask again.")
+             f"A closed session's thread is history; repack to ask again.",
+             reason="not-open")
     session_log = repo / ".bale" / "logs" / f"{sid}.log"
     set_log_file(session_log)
     report["log"] = str(session_log)
@@ -705,7 +743,7 @@ def _cmd_relay(args: argparse.Namespace, *, want_json: bool,
              f"was applied and is held, so its clarification round is "
              f"history, not a live thread. Finish the held response "
              f"(`bale retry` / `bale revert {sid}`) before any further "
-             f"exchange.")
+             f"exchange.", reason="held-branch")
     log(f"relay: session {sid}")
 
     # The no-file form: re-emit the latest recorded round, read-only
@@ -758,12 +796,14 @@ def _ingest_and_gate(repo: Path, sid: str, data: bytes, source_name: str):
         if block_sid != sid:
             fail(f"paste block's sentinel names session {block_sid}, but "
                  f"`bale relay` was invoked for {sid} — the block belongs "
-                 f"to another session's thread; nothing preserved")
+                 f"to another session's thread; nothing preserved",
+                 reason="wrong-session")
     else:
         log(f"relay: bare JSON read from {source_name}")
     if not isinstance(record, dict):
         fail(f"relay input is not a JSON object (got "
-             f"{type(record).__name__}); nothing preserved")
+             f"{type(record).__name__}); nothing preserved",
+             reason="not-an-object")
 
     thread = read_exchange_thread(repo, sid)
     next_seq = next_clarification_seq(repo, sid)
@@ -772,7 +812,7 @@ def _ingest_and_gate(repo: Path, sid: str, data: bytes, source_name: str):
         # the directory changed under us mid-command.
         fail(f"thread under {clarifications_dir(repo, sid)} changed while "
              f"relay was reading it (counted {len(thread)} record(s), "
-             f"next seq {next_seq}); re-run")
+             f"next seq {next_seq}); re-run", reason="thread-changed")
 
     # Step 3: classify + validate.
     is_manifest = record.get("response_kind") == "clarification"
@@ -781,7 +821,8 @@ def _ingest_and_gate(repo: Path, sid: str, data: bytes, source_name: str):
         if record.get("session_id") != sid:
             fail(f"clarification manifest's session_id is "
                  f"{record.get('session_id')!r}, not {sid} — the manifest "
-                 f"belongs to another session; nothing preserved")
+                 f"belongs to another session; nothing preserved",
+                 reason="wrong-session")
         qs = record.get("questions")
         errors = validate_clarification_questions(qs)
         if not errors and not qs:
@@ -790,7 +831,8 @@ def _ingest_and_gate(repo: Path, sid: str, data: bytes, source_name: str):
         if errors:
             fail("clarification manifest fails the question-row gate "
                  "(response-manifest.schema.json questions items); "
-                 "nothing preserved:\n  " + "\n  ".join(errors))
+                 "nothing preserved:\n  " + "\n  ".join(errors),
+                 reason="schema")
         side = EXCHANGE_SIDE_WORKER
         rnd = next_seq  # a manifest carries no round; it takes the next
     else:
@@ -799,33 +841,36 @@ def _ingest_and_gate(repo: Path, sid: str, data: bytes, source_name: str):
         if errors:
             fail("exchange record fails exchange-record.schema.json "
                  "(BALE.md \u00a711 row 34); nothing preserved:\n  "
-                 + "\n  ".join(errors))
+                 + "\n  ".join(errors), reason="schema")
         side = record["from"]
         rnd = record["round"]
         # Step 4: sequencing.
         if record["session_id"] != sid:
             fail(f"exchange record's session_id is {record['session_id']!r}, "
                  f"not {sid} — the record belongs to another session's "
-                 f"thread; nothing preserved")
+                 f"thread; nothing preserved", reason="wrong-session")
         if rnd != next_seq:
             which = "stale" if rnd < next_seq else "skipped"
             fail(f"exchange record's round is {rnd} but the thread's next "
                  f"round is {next_seq} ({len(thread)} record(s) preserved "
                  f"under {clarifications_dir(repo, sid).relative_to(repo)}/) "
                  f"— a {which} round; nothing preserved. The round in the "
-                 f"record must be the next NNN.")
+                 f"record must be the next NNN.",
+                 reason=f"{which}-round")
         if side == EXCHANGE_SIDE_PLANNER and next_seq == 1:
             fail(f"round 1 of a thread is worker-only: the planner "
                  f"initiates through the request, a bundle, or a HOLD "
                  f"card, never through the thread (ADR-0017). Session "
                  f"{sid} has no preserved record yet, so a from: planner "
-                 f"record has nothing to answer; nothing preserved.")
+                 f"record has nothing to answer; nothing preserved.",
+                 reason="planner-round-one")
         # Step 5: answer resolvability.
         problems = unresolved_answers(record, thread)
         if problems:
             fail("exchange record's answers do not all resolve to preserved "
                  "questions (question_round, question_index); nothing "
-                 "preserved:\n  " + "\n  ".join(problems))
+                 "preserved:\n  " + "\n  ".join(problems),
+                 reason="unresolved-answer")
     if next_seq > 1 and thread[-1]["from"] is None:
         log(f"relay: the previous record's side could not be read; "
             f"recording round {next_seq} from {side} regardless")
@@ -862,7 +907,8 @@ def _preserve_and_emit(repo: Path, sid: str, record: dict, kind: str,
         preserved_at = json.loads(
             record_path.read_text(encoding="utf-8")).get("preserved_at")
     except (OSError, json.JSONDecodeError) as e:
-        fail(f"preserved {record_path} but could not read it back: {e}")
+        fail(f"preserved {record_path} but could not read it back: {e}",
+             reason="unreadable-record")
     rel_path = record_path.relative_to(repo)
     log(f"relay: {kind} preserved as round {next_seq} at {rel_path} "
         f"(from {side})")

@@ -1,0 +1,41 @@
+{
+  "record_version": 1,
+  "version": "0.4.50",
+  "session_id": "2026-10-07-refusal-codes-005",
+  "at": "2026-10-07T16:33:26+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.49 -> 0.4.50"
+    },
+    {
+      "path": "bin/bale",
+      "change": "fail() gains the keyword-only reason= (the refusal's code, riding the SystemExit as bale_reason beside bale_cause; None when none is passed; nothing printed, logged or exited changes); new exit_reason(exc, vocabulary, fallback), the sibling of exit_cause, and the refusal_reason(code, override=False) context manager; resolve_open_session, refuse_system_dir, repo_root, fail_not_found and _discard_hold_state name their codes; cmd_revert becomes a wrapper around _cmd_revert that engages --json's stream discipline before the first refusal and prints one revert-refused line for every refusal that exits 1; the open, relay and revert --json help strings name their refusal outcome and reason code beside the owner docstring; human-mode bytes and every exit code unchanged; unlock untouched"
+    },
+    {
+      "path": "bin/bale_open.py",
+      "change": "cmd_open becomes a wrapper around _cmd_open: under --json every refusal that exits 1 (a rehearsal's too, and the replayed pack's interactive abort) prints one open-refused line with reason, cause and the bundle/members facts known by then; every fail() site names its OPEN_REFUSAL_REASONS code, the config reads, the argv gates (gate-refused) and the pack replay (pack-refused) are wrapped in refusal_reason; read_bundle gains a keyword-only report dict (the gated member hashes); open_second_desk's facts carry tarball and the second-desk line reports it; exit 2 prints no line; human mode byte-identical"
+    },
+    {
+      "path": "bin/bale_relay.py",
+      "change": "the relay-refused line carries reason, read off the exit with exit_reason; every fail()/_fail() site names its RELAY_REFUSAL_REASONS code (_fail gains a required keyword-only reason, attached on its standalone path too); the config read in _read_relay_input is wrapped in refusal_reason('config-invalid'); EXCHANGE_BLOCK_BEGIN / EXCHANGE_BLOCK_END are imported from bale_report (same values, re-exported through bin/bale as before); cause, telemetry, stderr, exit codes and human-mode bytes unchanged"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "outcomes open-refused (OPEN_OUTCOMES) and revert-refused (new REVERT_OUTCOMES beside reverted); closed vocabularies OPEN_REFUSAL_REASONS, RELAY_REFUSAL_REASONS and REVERT_REFUSAL_REASONS with the shared fallback REFUSAL_REASON_FALLBACK ('unclassified'), one line per code in the owning docstring; format_open_json gains trailing keys reason and cause (null off open-refused), bundle/members null-able on open-refused, and tarball on second-desk; format_relay_json gains trailing key reason (null off relay-refused) and format_relay_refusal_json a required reason; format_revert_json gains trailing keys reason and cause plus an outcome parameter; new fronts format_open_refusal_json and format_revert_refusal_json; each renderer raises ValueError off-contract; the exchange sentinels EXCHANGE_BLOCK_BEGIN / EXCHANGE_BLOCK_END declared here once, the shape-prefix tuple derived from the same prefix (its values unchanged); UNLOCK_REFUSAL_REASONS unchanged"
+    },
+    {
+      "path": "tests/test_refusal_codes.py",
+      "change": "new suite: one case per reachable code of the three vocabularies (parsed line: outcome, reason, cause non-empty, nulls, exit 1; human-mode error lines and exit equal, no JSON on stdout), the seam in process (fail's bale_reason, exit_reason's fallback, refusal_reason's precedence), the structural pin that every fail() in the three verbs' refusal paths names a code, the vocabularies documented and closed, the help strings, the sentinels' one home, and a coverage pin naming the reason for each unreachable code"
+    },
+    {
+      "path": "tests/test_open_relay_json.py",
+      "change": "key lists grow by reason and cause (open) and reason (relay); test_second_desk_json's tarball expectation moves to the outbox path, with a sibling for the not-in-the-outbox null; the refusal pin now expects the open-refused line; OPEN_OUTCOMES gains open-refused"
+    },
+    {
+      "path": "tests/test_revert_json.py",
+      "change": "the refusal pin expects the revert-refused line (none-open) instead of empty stdout; the reverted line's reason and cause are pinned null"
+    }
+  ],
+  "notes": "Additive for consumers of the three lines: a refusal that printed nothing on stdout under --json (open, revert) now prints one line, and relay's refused line gains reason; dispatch on reason, never on cause. Human mode, stderr and exit codes unchanged; no new telemetry record."
+}

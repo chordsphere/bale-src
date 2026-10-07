@@ -14,7 +14,11 @@ Pins, per the session brief's outcome contract:
   Every line carries `bundle` (path, the file's sha256, stem),
   `members` (the published member hashes), `rehearsal`,
   `checkpoint_dry_run` and `desk`; the human-facing lines all ride
-  stderr. A refusal stays fail()-shaped: exit 1, nothing on stdout.
+  stderr. Since v0.4.50 a refusal prints one "open-refused" line beside
+  its `[bale] error:` line and still exits 1 (its codes are
+  tests/test_refusal_codes.py's), every line carries `reason` and
+  `cause` (null off a refusal), and "second-desk" carries the outbox
+  request tarball's path in `tarball` (null when the file is gone).
 - **relay --json prints exactly one stdout line on every path**:
   "relayed" and "re-emitted" carry the block byte-identical to what
   human mode prints (compared against the human no-file re-emit, which
@@ -22,7 +26,8 @@ Pins, per the session brief's outcome contract:
   "relay-refused" carries `cause` — the string the relay-refused
   telemetry attempt records — and `telemetry`, the record's path when
   one was written (an ingest refusal) or null (a session gate, a
-  missing file). Exit codes unchanged.
+  missing file) — and, since v0.4.50, `reason`, its closed-vocabulary
+  code (null on the two exit-0 outcomes). Exit codes unchanged.
 - **The renderers' contracts** (format_open_json, format_relay_json in
   bin/bale_report.py): key order, the folded pack keys equal to
   PACK_REPORT_KEYS, and the ValueError guards.
@@ -73,10 +78,10 @@ PACK_KEYS = [
 ]
 OPEN_KEYS = (["outcome"] + PACK_KEYS
              + ["bundle", "members", "rehearsal", "checkpoint_dry_run",
-                "desk"])
+                "desk", "reason", "cause"])
 RELAY_KEYS = ["outcome", "sid", "round", "from", "awaiting", "kind",
               "preserved", "block", "log", "clipboard", "cause",
-              "telemetry"]
+              "telemetry", "reason"]
 
 
 def one_json_line(testcase: unittest.TestCase, result) -> dict:
@@ -113,6 +118,9 @@ class OpenJsonTest(_RehearsalBase):
     def assert_bundle_keys(self, payload: dict, bundle: Path, *,
                            checkpoint: str | None = None) -> None:
         self.assertEqual(list(payload), OPEN_KEYS)
+        # v0.4.50: reason and cause ride every line, null off a refusal.
+        self.assertIsNone(payload["reason"])
+        self.assertIsNone(payload["cause"])
         self.assertEqual(payload["bundle"], {
             "path": str(bundle.resolve()),
             "sha256": hashlib.sha256(bundle.read_bytes()).hexdigest(),
@@ -251,17 +259,38 @@ class OpenJsonTest(_RehearsalBase):
         self.assertEqual(payload["opener"],
                          scissor_paste_text(self, result.stderr))
         self.assertIn(f"{sid}@desk-2", payload["opener"])
-        # Brief §2.2: every pack-report key but sid and opener is null on
-        # a second desk — log included (the HOLD of the first attempt).
+        # v0.4.50 (refusal-codes brief §2.4): `tarball` carries desk one's
+        # outbox request tarball — the path the human summary prints.
+        outbox = (self.repo.resolve() / ".bale" / "outbox"
+                  / f"request-{sid}.tar.gz")
+        self.assertTrue(outbox.is_file())
+        self.assertEqual(payload["tarball"], str(outbox))
+        self.assertIn(str(outbox), result.stderr)
+        # 0.4.48's pin, moved: every other pack-report key but sid and
+        # opener is null on a second desk — log included.
+        desk_keys = ("sid", "opener", "tarball")
         self.assertIsNone(payload["log"])
         self.assertEqual(
-            {k: payload[k] for k in PACK_KEYS if k not in ("sid", "opener")},
-            {k: None for k in PACK_KEYS if k not in ("sid", "opener")})
+            {k: payload[k] for k in PACK_KEYS if k not in desk_keys},
+            {k: None for k in PACK_KEYS if k not in desk_keys})
         self.assertIsNone(payload["rehearsal"])
         self.assertIsNone(payload["checkpoint_dry_run"])
         self.assertEqual(self.open_sids(), [sid], msg="no sid minted")
         self.assertIn("desk-2", result.stderr,
                       msg="the second-desk summary rides stderr")
+
+    def test_second_desk_json_tarball_null_when_not_in_outbox(self) -> None:
+        bundle = self.read_only_bundle()
+        self.assert_ok(self.open_bundle(bundle))
+        [sid] = self.open_sids()
+        outbox = (self.repo / ".bale" / "outbox" / f"request-{sid}.tar.gz")
+        outbox.unlink()
+        result = self.open_bundle(bundle, "--json")
+        self.assert_ok(result)
+        payload = one_json_line(self, result)
+        self.assertEqual(payload["outcome"], "second-desk")
+        self.assertIsNone(payload["tarball"])
+        self.assertIn("not in the outbox", result.stderr)
 
     def test_second_desk_rehearsal_json_records_no_desk(self) -> None:
         bundle = self.read_only_bundle()
@@ -277,14 +306,21 @@ class OpenJsonTest(_RehearsalBase):
         self.assertIsNone(payload["sid"])
         self.assertIn("would record desk-2", result.stderr)
 
-    def test_refusals_stay_fail_shaped(self) -> None:
+    def test_refusals_print_the_refused_line(self) -> None:
+        """0.4.48 pinned "nothing on stdout" here; v0.4.50 turns every
+        refusal into one "open-refused" line beside the unchanged
+        `[bale] error:` line, exit 1 kept (the per-code cases are
+        tests/test_refusal_codes.py's)."""
         stray = self.tmp / "notabundle.tar.gz"
         stray.write_bytes(b"whatever")
         result = run_bale(self.install, ["open", str(stray), "--json"],
                           cwd=self.repo, env=self.env)
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout, "")
-        self.assertIn("[bale] error:", result.stderr)
+        payload = one_json_line(self, result)
+        self.assertEqual(list(payload), OPEN_KEYS)
+        self.assertEqual(payload["outcome"], "open-refused")
+        self.assertEqual(payload["reason"], "not-a-bundle")
+        self.assertIn(f"[bale] error: {payload['cause']}", result.stderr)
         # A defective oracle refuses the whole open the same way.
         self.configure_checkpoint()
         self.commit_all("checkpoint config")
@@ -293,7 +329,9 @@ class OpenJsonTest(_RehearsalBase):
                                    checkpoint=CP_ERROR)
         result = self.open_bundle(bundle, "--json", "--no-sandbox")
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout, "")
+        payload = one_json_line(self, result)
+        self.assertEqual(payload["reason"], "defective-oracle")
+        self.assertIn("the checkpoint dry-run exited 2", payload["cause"])
         self.assertIn("the checkpoint dry-run exited 2", result.stderr)
         self.assert_no_session_state(result)
 
@@ -384,6 +422,7 @@ class RelayJsonTest(unittest.TestCase):
         self.assertIs(payload["clipboard"], False)
         self.assertIsNone(payload["cause"])
         self.assertIsNone(payload["telemetry"])
+        self.assertIsNone(payload["reason"])
         # stderr is unchanged in kind: the summary and the [bale] lines.
         self.assertIn("[RELAYED]", result.stderr)
         self.assertIn("[bale] relay:", result.stderr)
@@ -404,6 +443,7 @@ class RelayJsonTest(unittest.TestCase):
         payload = one_json_line(self, result)
         self.assertEqual(list(payload), RELAY_KEYS)
         self.assertEqual(payload["outcome"], "re-emitted")
+        self.assertIsNone(payload["reason"])
         self.assertEqual(payload["round"], 1)
         self.assertEqual(payload["from"], "worker")
         self.assertEqual(payload["awaiting"], "planner")
@@ -439,6 +479,7 @@ class RelayJsonTest(unittest.TestCase):
         payload = one_json_line(self, result)
         self.assertEqual(list(payload), RELAY_KEYS)
         self.assertEqual(payload["outcome"], "relay-refused")
+        self.assertEqual(payload["reason"], "schema")
         self.assertEqual(payload["sid"], self.sid)
         for key in ("round", "from", "awaiting", "kind", "preserved",
                     "block"):
@@ -595,7 +636,8 @@ class RendererContractTest(unittest.TestCase):
 
     def test_open_and_relay_vocabularies(self) -> None:
         self.assertEqual(self.m.OPEN_OUTCOMES,
-                         ("opened", "second-desk", "rehearsed"))
+                         ("opened", "second-desk", "rehearsed",
+                          "open-refused"))
         self.assertEqual(self.m.RELAY_OUTCOMES,
                          ("relayed", "re-emitted", "relay-refused"))
         doc = self.m.format_pack_json.__doc__
@@ -606,9 +648,11 @@ class RendererContractTest(unittest.TestCase):
 
     def test_relay_line_shapes(self) -> None:
         line = json.loads(self.m.format_relay_refusal_json(
-            sid="s", cause="why", log_path=None, telemetry=None))
+            sid="s", reason="schema", cause="why", log_path=None,
+            telemetry=None))
         self.assertEqual(list(line), RELAY_KEYS)
         self.assertEqual(line["outcome"], "relay-refused")
+        self.assertEqual(line["reason"], "schema")
         self.assertIs(line["clipboard"], False)
         with self.assertRaises(ValueError):
             self.m.format_relay_json(outcome="relay", sid="s")

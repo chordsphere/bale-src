@@ -92,6 +92,14 @@ is *for* — and stays stable as the per-section line numbers drift:
    terminal (`wrap_log_line` at `log_display_width`, hanging under the
    text after `[bale] `); piped output, the session journal, and every
    line printed with wrapping off get the line exactly as logged.
+   Since v0.4.50 `fail()` takes a `reason=` keyword: the refusal's
+   code from the verb's closed `--json` reason vocabulary
+   (`bale_report`'s `OPEN_`/`RELAY_`/`REVERT_REFUSAL_REASONS`), riding
+   the `SystemExit` as `bale_reason` beside `bale_cause`, read back by
+   `exit_reason()` (the sibling of `exit_cause()`; the vocabulary's
+   `unclassified` fallback when none rode it) — and
+   `refusal_reason(code)` attaches one on the way out of a call whose
+   `fail()` sites live in another module.
 3. **Shell / git helpers.** `run()`, `git()`, `repo_root()`,
    `current_branch()`, `working_tree_clean()`. Subprocess wrappers with
    capture-and-text defaults, plus the two read-only git-state helpers
@@ -252,7 +260,12 @@ is *for* — and stays stable as the per-section line numbers drift:
     (`bin/bale_relay.py`), already under the stream discipline
     unconditionally, takes `--json` to put its paste block inside
     `format_relay_json`'s line, a wrapper around the verb's body
-    printing the `relay-refused` line for every refusal.
+    printing the `relay-refused` line for every refusal. From v0.4.50
+    `bale open` and `bale revert` take the same wrapper shape —
+    `cmd_open` around `_cmd_open`, `cmd_revert` around `_cmd_revert` —
+    printing `open-refused` / `revert-refused` for every refusal that
+    exits 1, and all three refused lines carry a `reason` code each
+    refusal site attached through `fail(reason=...)`.
     From v0.2.2, the `help` and `completion` subparsers
     (`func=cmd_help`, `func=cmd_completion`) wire the discoverability
     surface that cluster 17 implements.
@@ -560,7 +573,13 @@ folds those keys into `bale open --json`'s one line beside `bundle`,
 `members`, `rehearsal`, `checkpoint_dry_run` and `desk`, and
 `format_relay_json` with its refusal front `format_relay_refusal_json`,
 `bale relay --json`'s line carrying the paste block, each docstring the
-key contract's one home), plus the json-mode stream-discipline state the three
+key contract's one home; v0.4.50 added the `open-refused` and
+`revert-refused` outcomes with their fronts `format_open_refusal_json`
+and `format_revert_refusal_json`, `reason` and `cause` on every open and
+revert line and `reason` on every relay line, and the three closed
+reason vocabularies `OPEN_REFUSAL_REASONS`, `RELAY_REFUSAL_REASONS` and
+`REVERT_REFUSAL_REASONS` beside `UNLOCK_REFUSAL_REASONS`, each code with
+its line in the owning docstring), plus the json-mode stream-discipline state the three
 share (`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8: every
 human-facing line goes to stderr under a --json run, so stdout carries
 exactly the report line). Its paste-block copy section (session

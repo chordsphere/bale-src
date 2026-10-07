@@ -162,7 +162,8 @@ def _flat_member_name_or_none(member: tarfile.TarInfo) -> Optional[str]:
     return name
 
 
-def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
+def read_bundle(bundle_path: Path, *, report: Optional[dict] = None
+                ) -> tuple[dict, dict[str, bytes]]:
     """Open, gate, and verify a planner bundle; return
     (manifest, {member_name: normalized_bytes}).
 
@@ -194,7 +195,16 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
 
     Refusals go through __main__.fail — this function is a CLI leg,
     not a library surface; validate_bundle_manifest remains the
-    library entry point for manifest-only checks.
+    library entry point for manifest-only checks. Each names its code
+    for `bale open --json`'s refused line (v0.4.50, OPEN_REFUSAL_REASONS
+    in bin/bale_report.py): every archive and manifest refusal is
+    "manifest-invalid", a hash disagreement "member-mismatch".
+
+    `report` (v0.4.50): when a dict is passed, the manifest's published
+    member hashes are written into it as `members` ({"brief",
+    "checkpoint"}: sha256 or null) the moment the manifest passes its
+    gate — before the member checks, so a member-mismatch refusal's line
+    carries them. Nothing printed changes.
     """
     from __main__ import fail  # lazy — see module docstring
     from bale_validate import validate_bundle_manifest  # lazy — sibling
@@ -204,7 +214,7 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
     except (tarfile.TarError, OSError) as e:
         fail(f"could not open {bundle_path} as a gzipped tar: {e} — a "
              f"planner bundle is a gzipped tar with members flat at the "
-             f"archive root (BALE.md \u00a76.7)")
+             f"archive root (BALE.md \u00a76.7)", reason="manifest-invalid")
     with tf:
         names: dict[str, tarfile.TarInfo] = {}
         for member in tf.getmembers():
@@ -214,15 +224,17 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
                      f"regular file at the archive root — a planner "
                      f"bundle carries only flat file members "
                      f"(BALE.md \u00a76.7); refusing the sealed-artifact "
-                     f"violation")
+                     f"violation", reason="manifest-invalid")
             if flat in names:
                 fail(f"bundle member {flat!r} appears twice in the "
-                     f"archive — refusing the ambiguity")
+                     f"archive — refusing the ambiguity",
+                     reason="manifest-invalid")
             names[flat] = member
 
         if BUNDLE_MANIFEST_NAME not in names:
             fail(f"bundle has no {BUNDLE_MANIFEST_NAME} at the archive "
-                 f"root — not a planner bundle (BALE.md \u00a76.7)")
+                 f"root — not a planner bundle (BALE.md \u00a76.7)",
+                 reason="manifest-invalid")
 
         raw = tf.extractfile(names[BUNDLE_MANIFEST_NAME])
         assert raw is not None  # isreg() checked above
@@ -230,7 +242,8 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
         try:
             manifest = json.loads(manifest_bytes.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as e:
-            fail(f"{BUNDLE_MANIFEST_NAME} is not valid UTF-8 JSON: {e}")
+            fail(f"{BUNDLE_MANIFEST_NAME} is not valid UTF-8 JSON: {e}",
+                 reason="manifest-invalid")
 
         errors = validate_bundle_manifest(manifest)
         if errors:
@@ -239,7 +252,7 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
                  f"({len(errors)} error(s)):\n{listed}\n"
                  f"The bundle is gated before anything else in it is "
                  f"trusted (BALE.md \u00a76.7); nothing was extracted "
-                 f"and no session state exists.")
+                 f"and no session state exists.", reason="manifest-invalid")
 
         # Declared member set — both slots are always present in a
         # valid manifest, each an object or an explicit null.
@@ -248,6 +261,11 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
             entry = manifest["members"][slot]
             if entry is not None:
                 declared[entry["path"]] = entry
+        if report is not None:
+            report["members"] = {
+                slot: (manifest["members"][slot]["sha256"]
+                       if manifest["members"][slot] is not None else None)
+                for slot in ("brief", "checkpoint")}
 
         expected = {BUNDLE_MANIFEST_NAME} | set(declared)
         undeclared = sorted(set(names) - expected)
@@ -255,11 +273,13 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
             fail(f"bundle carries member(s) the manifest does not "
                  f"declare: {', '.join(repr(n) for n in undeclared)} — "
                  f"a bundle is a sealed artifact, not a container "
-                 f"format (BALE.md \u00a76.7); unknown members refuse")
+                 f"format (BALE.md \u00a76.7); unknown members refuse",
+                 reason="manifest-invalid")
         missing = sorted(set(declared) - set(names))
         if missing:
             fail(f"bundle manifest declares member(s) the archive does "
-                 f"not carry: {', '.join(repr(n) for n in missing)}")
+                 f"not carry: {', '.join(repr(n) for n in missing)}",
+                 reason="manifest-invalid")
 
         members: dict[str, bytes] = {}
         for name, entry in declared.items():
@@ -274,7 +294,8 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
                      f"LF-normalized bytes hash to {digest} — the "
                      f"bundle's content does not match what the desk "
                      f"published (boards 36/40; BALE.md \u00a76.7). "
-                     f"Nothing proceeds on unverified bytes.")
+                     f"Nothing proceeds on unverified bytes.",
+                     reason="member-mismatch")
             members[name] = data
 
     return manifest, members
@@ -467,7 +488,7 @@ def dry_run_checkpoint(repo: Path, script_bytes: bytes, member_name: str,
             try:
                 bale_sandbox.ensure_verified(log_path)
             except bale_sandbox.SandboxUnavailableError as e:
-                fail(str(e))
+                fail(str(e), reason="sandbox-failed")
 
         if verbose:
             if sandbox:
@@ -534,7 +555,8 @@ def dry_run_checkpoint(repo: Path, script_bytes: bytes, member_name: str,
                       f"is a confinement failure, not a checkpoint "
                       f"verdict; --no-sandbox is the debugging escape "
                       f"(ADR-0016) and bale.toml [sandbox] enabled = "
-                      f"false the per-project one (v0.4.26)")
+                      f"false the per-project one (v0.4.26)",
+                      reason="sandbox-failed")
 
         if not verbose:
             _echo_hold_proof(merged + (("\n" + stderr_text)
@@ -626,12 +648,94 @@ def cmd_open(args: argparse.Namespace) -> int:
     opener's scissor block land on stderr; each path that exits 0 emits
     the one line last; the replayed pack hands its own report line to
     the `json_report_sink` channel instead of printing it, and the open
-    folds it in. Refusals stay fail()-shaped, nothing on stdout.
+    folds it in.
+
+    Since v0.4.50 every refusal that exits 1 — a rehearsal's too — also
+    prints one "open-refused" line on stdout under `--json`, beside its
+    unchanged `[bale] error:` line: this wrapper catches the SystemExit,
+    reads the code the refusal site attached through fail(reason=...)
+    (exit_reason; OPEN_REFUSAL_REASONS' fallback when none rode the
+    exit) and the cause (exit_cause), prints the line with the `bundle`
+    and `members` facts _cmd_open had gathered by then, and re-raises
+    the same exit. The replayed pack's interactive threshold abort, which
+    returns 1 without a fail(), gets the line too (reason "pack-refused",
+    cause "exit 1"). An exit 2 — argparse's usage error on the stored
+    argv — prints no line. Human mode never reaches the emission: its
+    stdout, stderr and exit codes are byte-identical.
     """
+    from __main__ import exit_cause, exit_reason  # lazy — module docstring
+    from bale_report import (  # lazy — sibling
+        OPEN_REFUSAL_REASONS,
+        REFUSAL_REASON_FALLBACK,
+        emit_json_line,
+        enable_json_mode,
+        format_open_refusal_json,
+    )
+
+    want_json = bool(getattr(args, "json", False))
+    if want_json:
+        # Stream discipline first, before any line can print (the module
+        # docstring of bale_report states the contract).
+        enable_json_mode()
+    # What a refused line reports, filled by _cmd_open as the pipeline
+    # learns it: `bundle` once the file is about to be read, `members`
+    # once the manifest passed its gate, and `returned_reason` when a
+    # non-zero code comes back without a fail() (the pack replay).
+    refusal_facts: dict = {"bundle": None, "members": None,
+                           "returned_reason": None}
+
+    def emit_refused(reason: str, cause: str) -> None:
+        emit_json_line(format_open_refusal_json(
+            reason=reason, cause=cause,
+            bundle=refusal_facts["bundle"],
+            members=refusal_facts["members"]))
+
+    try:
+        code = _cmd_open(args, want_json=want_json,
+                         refusal_facts=refusal_facts)
+    except SystemExit as exc:
+        if want_json and exc.code == 1:
+            emit_refused(exit_reason(exc, OPEN_REFUSAL_REASONS,
+                                     REFUSAL_REASON_FALLBACK),
+                         exit_cause(exc))
+        raise
+    if want_json and code == 1:
+        emit_refused(refusal_facts["returned_reason"]
+                     or REFUSAL_REASON_FALLBACK, f"exit {code}")
+    return code
+
+
+def _open_file_facts(bundle_path: Path) -> Optional[dict]:
+    """The refused line's `bundle` object once the open is about to read
+    the file (v0.4.50): {path, sha256 of the bytes, stem} — the keys and
+    values open_json_bundle_facts gives a line that exits 0 — or None
+    when the bytes cannot be read here (read_bundle then refuses the same
+    file, and the line says null rather than guess). Under --json only."""
+    from bale_pack import BUNDLE_SUFFIX  # lazy — sibling
+    try:
+        file_sha256 = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+    name = bundle_path.name
+    stem = name[:-len(BUNDLE_SUFFIX)] if name.endswith(BUNDLE_SUFFIX) \
+        else bundle_path.stem
+    return {"path": str(bundle_path.resolve()), "sha256": file_sha256,
+            "stem": stem or name}
+
+
+def _cmd_open(args: argparse.Namespace, *, want_json: bool,
+              refusal_facts: dict) -> int:
+    """cmd_open's body (its docstring is the contract), split out in
+    v0.4.50 so one wrapper prints `--json`'s refused line for every
+    refusal. Each fail() below names its OPEN_REFUSAL_REASONS code; the
+    calls whose refusals live in other modules — the config accessors,
+    the argv gates, the pack replay — are wrapped in refusal_reason().
+    `refusal_facts` is the wrapper's (see cmd_open)."""
     from __main__ import (  # lazy — see module docstring
         build_parser,
         fail,
         log,
+        refusal_reason,
         repo_root,
         resolve_inbound_path,
     )
@@ -649,15 +753,8 @@ def cmd_open(args: argparse.Namespace) -> int:
         OPEN_OUTCOME_REHEARSED,
         OPEN_OUTCOME_SECOND_DESK,
         emit_json_line,
-        enable_json_mode,
         format_open_json,
     )
-
-    want_json = bool(getattr(args, "json", False))
-    if want_json:
-        # Stream discipline first, before any line can print (the module
-        # docstring of bale_report states the contract).
-        enable_json_mode()
 
     rehearsal = ("check" if getattr(args, "check", False)
                  else "dry-run" if getattr(args, "dry_run", False)
@@ -670,19 +767,24 @@ def cmd_open(args: argparse.Namespace) -> int:
         fail("bale open runs inside the project repository: the "
              "checkpoint dry-run executes against the live base, and "
              "the replayed pack targets this repo. cd into the project "
-             "and re-run.")
+             "and re-run.", reason="not-a-repo")
 
-    cfg = bale_config.merged_config(repo)
-    search_paths = bale_config.get_apply_search_paths(cfg)
+    with refusal_reason("config-invalid"):
+        cfg = bale_config.merged_config(repo)
+        search_paths = bale_config.get_apply_search_paths(cfg)
+    # A search miss refuses inside the resolver (fail_not_found names
+    # its own code, "not-found").
     bundle_path = resolve_inbound_path(args.bundle, cwd, search_paths,
                                        kind="bundle")
     if not bundle_path.is_file():
-        fail(f"bundle not found: {bundle_path}")
+        fail(f"bundle not found: {bundle_path}", reason="not-found")
     if not is_bundle_file(bundle_path.name):
         fail(f"{bundle_path.name!r} does not carry the reserved "
              f"planner-bundle suffix {BUNDLE_SUFFIX!r} — the suffix is "
              f"the recognizer (BALE.md \u00a76.7), and bale open "
-             f"consumes only planner bundles.")
+             f"consumes only planner bundles.", reason="not-a-bundle")
+    if want_json:
+        refusal_facts["bundle"] = _open_file_facts(bundle_path)
 
     if rehearsal:
         log(f"{verb}: rehearsing planner bundle {bundle_path} against the "
@@ -692,7 +794,8 @@ def cmd_open(args: argparse.Namespace) -> int:
                 "have nothing to act on here (use --dry-run to run it)")
     else:
         log(f"opening planner bundle {bundle_path}")
-    manifest, members = read_bundle(bundle_path)
+    manifest, members = read_bundle(
+        bundle_path, report=refusal_facts if want_json else None)
 
     # Row 123 (v0.4.44): a second open of a bundle whose session is still
     # open records another desk on that session instead of minting a new
@@ -706,6 +809,8 @@ def cmd_open(args: argparse.Namespace) -> int:
     # reads nothing it did not read before.
     json_facts = (open_json_bundle_facts(bundle_path, identity)
                   if want_json else None)
+    if json_facts is not None:
+        refusal_facts.update(json_facts)
 
     def emit_open_line(outcome: str, **keys) -> None:
         if json_facts is not None:
@@ -727,7 +832,8 @@ def cmd_open(args: argparse.Namespace) -> int:
             emit_open_line(OPEN_OUTCOME_SECOND_DESK,
                            sid=match[0],
                            opener=desk_facts.get("opener"),
-                           desk=desk_facts.get("desk"))
+                           desk=desk_facts.get("desk"),
+                           tarball=desk_facts.get("tarball"))
         return code
 
     brief = manifest["members"]["brief"]
@@ -739,7 +845,13 @@ def cmd_open(args: argparse.Namespace) -> int:
             log(f"member {slot} verified: {entry['path']} "
                 f"(sha256 {entry['sha256'][:12]}\u2026, LF-normalized)")
 
-    if checkpoint is not None and bale_config.get_validation_base(cfg) is None:
+    # Read only when a checkpoint member ships, as before v0.4.50: a
+    # malformed [validation] base must not refuse an oracle-less bundle.
+    validation_base = None
+    if checkpoint is not None:
+        with refusal_reason("config-invalid"):
+            validation_base = bale_config.get_validation_base(cfg)
+    if checkpoint is not None and validation_base is None:
         fail(f"the bundle ships a checkpoint member "
              f"({checkpoint['path']}) but this project pins no "
              f"[validation] base in bale.toml — the replayed "
@@ -747,7 +859,7 @@ def cmd_open(args: argparse.Namespace) -> int:
              f"same reason. Configure [validation] base (see "
              f"`bale config init`), or use a bundle authored "
              f"for an oracle-less project."
-             + config_judgment_suffix(repo))
+             + config_judgment_suffix(repo), reason="no-validation-base")
 
     # Extract verified members to a tempdir that outlives the replayed
     # pack — cmd_pack reads the delivery-flag files during its own run.
@@ -775,8 +887,12 @@ def cmd_open(args: argparse.Namespace) -> int:
         # the raw manifest array rides the namespace attribute cmd_pack
         # parses at its reject-early site; no CLI flag can spell this.
         pack_args.pre_answered = manifest["pre_answered"]
-        facts = run_pack_argv_gates(repo, pack_args, cwd,
-                                    announce=bool(rehearsal))
+        # The gates are one refusal site from the open's side, whatever
+        # helper inside them refused (v0.4.50: "gate-refused", the
+        # gate's own text in `cause`).
+        with refusal_reason("gate-refused", override=True):
+            facts = run_pack_argv_gates(repo, pack_args, cwd,
+                                        announce=bool(rehearsal))
         supersession_row = (rehearse_supersession(facts) if rehearsal
                             else None)
         if rehearsal == "check":
@@ -797,7 +913,9 @@ def cmd_open(args: argparse.Namespace) -> int:
         # the dry-run below runs and is judged a verdict (exit 0 or 1).
         dry_run_report: Optional[dict] = None
         if checkpoint is not None:
-            network = bale_config.get_sandbox_network(cfg)
+            with refusal_reason("config-invalid"):
+                network = bale_config.get_sandbox_network(cfg)
+                sandbox_enabled = bale_config.get_sandbox_enabled(cfg)
             # Sandbox-off by config (v0.4.26, board 75) honors the same
             # project-layer key apply does: a namespace-less host runs
             # `bale open` too, and the dry-run is the one other confined
@@ -806,7 +924,6 @@ def cmd_open(args: argparse.Namespace) -> int:
             # the one forbidden outcome. log(force=True) supplies the
             # `FORCE: ` prefix itself (board 68 rider: the message
             # text carries none, or the line reads FORCE: FORCE:).
-            sandbox_enabled = bale_config.get_sandbox_enabled(cfg)
             sandbox = sandbox_enabled and not args.no_sandbox
             if args.no_sandbox:
                 log(f"--no-sandbox — the checkpoint dry-run "
@@ -863,7 +980,8 @@ def cmd_open(args: argparse.Namespace) -> int:
                      f"defective, and a defective oracle refuses the "
                      f"whole open before any session exists (row 49's "
                      f"dry-run leg). Fix the checkpoint at the desk and "
-                     f"re-emit the bundle; dry-run log: {log_path}")
+                     f"re-emit the bundle; dry-run log: {log_path}",
+                     reason="defective-oracle")
             dry_run_report = {"exit_code": exit_code, "log": str(log_path)}
         else:
             log("no checkpoint member: skipping the dry-run leg "
@@ -886,8 +1004,11 @@ def cmd_open(args: argparse.Namespace) -> int:
         # cmd_pack hands it to the open-time persist, which stamps it on
         # the opened attempt as `bundle`. No flag can spell it.
         pack_args.open_bundle = identity
+        # The replay is one refusal site from the open's side (v0.4.50:
+        # "pack-refused"), whichever of cmd_pack's own sites refused.
         if json_facts is None:
-            return pack_args.func(pack_args)
+            with refusal_reason("pack-refused", override=True):
+                return pack_args.func(pack_args)
         # --json (v0.4.48): the replayed pack renders its report line into
         # the in-process sink instead of onto stdout (cmd_pack's
         # json_report_sink channel — no flag spells it), so the open's
@@ -897,14 +1018,19 @@ def cmd_open(args: argparse.Namespace) -> int:
         # the refusal shape.
         sink: list = []
         pack_args.json_report_sink = sink
-        code = pack_args.func(pack_args)
+        with refusal_reason("pack-refused", override=True):
+            code = pack_args.func(pack_args)
         if code != 0:
+            # The interactive threshold abort returns 1 with no fail():
+            # cmd_open's wrapper prints its refused line under this code.
+            refusal_facts["returned_reason"] = "pack-refused"
             return code
         if len(sink) != 1:
             fail(f"bale open --json: the replayed pack exited 0 but handed "
                  f"back {len(sink)} report line(s), not one — an internal "
                  f"fault; the session it packed is as its own log records "
-                 f"(nothing further was written by the open)")
+                 f"(nothing further was written by the open)",
+                 reason="internal-fault")
         emit_open_line(OPEN_OUTCOME_OPENED, pack_report=json.loads(sink[0]),
                        checkpoint_dry_run=dry_run_report)
         return 0
@@ -925,7 +1051,7 @@ def _rehearse_second_desk(verb: str, repo: Path, sid: str,
 
     refusal = second_desk_refusal(sid, record)
     if refusal is not None:
-        fail(refusal)
+        fail(refusal, reason="desk-refused")
     desk = next_desk_name(record)
     log(f"second desk: this bundle opened session {sid}, which is still "
         f"open; `bale open` would record {desk} on it (no pre-flight, "
@@ -1075,9 +1201,12 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
 
     `facts` (v0.4.48, `bale open --json`): when a dict is passed, the
     desk's report facts are written into it — `desk` (the name
-    recorded) and `opener` (the desk opener's paste text,
-    opener_paste_text of the block printed) — for cmd_open to render;
-    nothing printed changes.
+    recorded), `opener` (the desk opener's paste text,
+    opener_paste_text of the block printed) and, since v0.4.50,
+    `tarball` (the outbox request tarball's absolute path when the file
+    exists, else None — the same test the summary's tarball row makes)
+    — for cmd_open to render; nothing printed changes. Both refusals
+    name the code "desk-refused" (v0.4.50).
     """
     from __main__ import (  # lazy — see module docstring
         fail,
@@ -1102,7 +1231,7 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
 
     refusal = second_desk_refusal(sid, record)
     if refusal is not None:
-        fail(refusal)
+        fail(refusal, reason="desk-refused")
     desk = next_desk_name(record)
 
     manifest_path = repo / ".bale" / "sessions" / sid / "manifest.json"
@@ -1111,7 +1240,8 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
     except (OSError, ValueError) as e:
         fail(f"second desk on {sid}: could not read the session's stamped "
              f"manifest at {manifest_path} ({e}); the opener cannot be "
-             f"rebuilt without its goal and pack instant.")
+             f"rebuilt without its goal and pack instant.",
+             reason="desk-refused")
 
     log_rel = f".bale/logs/{sid}.log"
     set_log_file(repo / log_rel)
@@ -1150,12 +1280,13 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
     packed_at = (provenance or {}).get("packed_at", "unknown") \
         if isinstance(provenance, dict) else "unknown"
     tarball = repo / ".bale" / "outbox" / f"request-{sid}.tar.gz"
+    tarball_present = tarball.is_file()
     rows = [
         ("session id", sid),
         ("desk", f"{desk} ({desk_qualified_name(sid, desk)})"),
         ("telemetry", rel if rel else
          f"write failed — see log (home: {telemetry_home_display(repo)})"),
-        ("tarball", str(tarball) if tarball.is_file()
+        ("tarball", str(tarball) if tarball_present
          else f"{tarball} (not in the outbox — use the copy desk one used)"),
     ]
     trailer = [
@@ -1173,5 +1304,7 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
     paste_text = opener_paste_text(opener)
     copy_paste_block(repo, PASTE_BLOCK_OPENER, paste_text)
     if facts is not None:
-        facts.update({"desk": desk, "opener": paste_text})
+        facts.update({"desk": desk, "opener": paste_text,
+                      "tarball": (str(tarball.resolve())
+                                  if tarball_present else None)})
     return 0
