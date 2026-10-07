@@ -245,6 +245,14 @@ is *for* — and stays stable as the per-section line numbers drift:
     each time, with all three sharing the v0.2.8 json-mode stream
     discipline: every human-facing line goes to stderr under a --json
     run, so stdout carries exactly the report line.
+    From v0.4.48 `bale open` (`bin/bale_open.py`) takes `--json` too,
+    receiving the replayed pack's report line through the in-process
+    `json_report_sink` namespace attribute instead of stdout and
+    emitting `format_open_json`'s one line; and `bale relay`
+    (`bin/bale_relay.py`), already under the stream discipline
+    unconditionally, takes `--json` to put its paste block inside
+    `format_relay_json`'s line, a wrapper around the verb's body
+    printing the `relay-refused` line for every refusal.
     From v0.2.2, the `help` and `completion` subparsers
     (`func=cmd_help`, `func=cmd_completion`) wire the discoverability
     surface that cluster 17 implements.
@@ -545,7 +553,14 @@ session_dir, context_files), apply's (`format_apply_json`, v0.2.8:
 outcome, sid, log, verdict, merge), and status's (`format_status_json`,
 v0.2.9: outcome, version, sid, repo, session, staging, outbox, applied,
 config) — each one compact line of JSON on stdout whose keys are a stable
-downstream contract, plus the json-mode stream-discipline state the three
+downstream contract (pack's line gained `opener`, the session opener's
+paste text, in v0.4.48, its key order declared once as
+`PACK_REPORT_KEYS`; the same version added `format_open_json`, which
+folds those keys into `bale open --json`'s one line beside `bundle`,
+`members`, `rehearsal`, `checkpoint_dry_run` and `desk`, and
+`format_relay_json` with its refusal front `format_relay_refusal_json`,
+`bale relay --json`'s line carrying the paste block, each docstring the
+key contract's one home), plus the json-mode stream-discipline state the three
 share (`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8: every
 human-facing line goes to stderr under a --json run, so stdout carries
 exactly the report line). Its paste-block copy section (session

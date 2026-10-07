@@ -79,6 +79,14 @@ board row 122): `--check` stops after step 3, `--dry-run` after step 4 (its
 dry-run log kept in a temp directory outside the repository), each printing
 the rehearsal report bale_pack renders. On a second-desk bundle a rehearsal
 predicts the desk, or its refusal, and records nothing.
+
+`--json` (v0.4.48) changes none of this; it reports it. Under the flag the
+whole run keeps json mode's stream discipline and each path that exits 0
+ends on one line of JSON — outcome "opened", "second-desk" or "rehearsed",
+rendered by bale_report.format_open_json, whose docstring owns the keys.
+The replayed pack's own report line reaches cmd_open through the
+`json_report_sink` namespace attribute (the third in-process channel, beside
+`pre_answered` and `open_bundle`) and is folded into that one line.
 """
 
 from __future__ import annotations
@@ -318,6 +326,43 @@ def bundle_identity(bundle_path: Path, manifest: dict) -> dict:
         "brief_sha256": published("brief"),
         "checkpoint_sha256": published("checkpoint"),
         "manifest_sha256": manifest_sha256,
+    }
+
+
+def open_json_bundle_facts(bundle_path: Path, identity: dict) -> dict:
+    """The `bundle` and `members` objects every `bale open --json` line
+    carries (v0.4.48; format_open_json's docstring owns their meaning):
+
+      bundle   {path: the absolute resolved path, sha256: of the file's
+               bytes as read now, stem: bundle_identity's stem}
+      members  {brief, checkpoint}: the manifest's published sha256 per
+               slot — the hashes read_bundle verified, as bundle_identity
+               carries them — or null
+
+    Called after read_bundle accepted the file, so the re-read cannot
+    fail short of the file changing underneath; if it does, the line
+    still prints (the open itself is not refused over a report field)
+    with sha256 "unreadable" and a FORCE-logged reason — never silent,
+    bundle_identity's own fallback posture.
+    """
+    from __main__ import log  # lazy — see module docstring
+    try:
+        file_sha256 = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    except OSError as e:
+        log(f"bale open --json: could not re-read {bundle_path} to hash it "
+            f"({e}); the line's bundle.sha256 reads 'unreadable'",
+            force=True)
+        file_sha256 = "unreadable"
+    return {
+        "bundle": {
+            "path": str(bundle_path.resolve()),
+            "sha256": file_sha256,
+            "stem": identity.get("stem"),
+        },
+        "members": {
+            "brief": identity.get("brief_sha256"),
+            "checkpoint": identity.get("checkpoint_sha256"),
+        },
     }
 
 
@@ -572,6 +617,16 @@ def cmd_open(args: argparse.Namespace) -> int:
        the namespace (the in-process channel; BALE.md §6.7), returning
        cmd_pack's own exit code. The replay re-runs every gate at its
        own site — the early gates are a cost ordering, not a substitute.
+
+    `--json` (v0.4.48) reports what the pipeline did as one line of JSON
+    on stdout — format_open_json (bin/bale_report.py) owns the keys —
+    without changing what it does: json mode's stream discipline engages
+    before the first line can print, so every `[bale] ` line, the echoed
+    verdicts, the rehearsal report, the second-desk summary and the
+    opener's scissor block land on stderr; each path that exits 0 emits
+    the one line last; the replayed pack hands its own report line to
+    the `json_report_sink` channel instead of printing it, and the open
+    folds it in. Refusals stay fail()-shaped, nothing on stdout.
     """
     from __main__ import (  # lazy — see module docstring
         build_parser,
@@ -589,6 +644,20 @@ def cmd_open(args: argparse.Namespace) -> int:
         rehearse_supersession,
         run_pack_argv_gates,
     )
+    from bale_report import (  # lazy — sibling
+        OPEN_OUTCOME_OPENED,
+        OPEN_OUTCOME_REHEARSED,
+        OPEN_OUTCOME_SECOND_DESK,
+        emit_json_line,
+        enable_json_mode,
+        format_open_json,
+    )
+
+    want_json = bool(getattr(args, "json", False))
+    if want_json:
+        # Stream discipline first, before any line can print (the module
+        # docstring of bale_report states the contract).
+        enable_json_mode()
 
     rehearsal = ("check" if getattr(args, "check", False)
                  else "dry-run" if getattr(args, "dry_run", False)
@@ -632,12 +701,34 @@ def cmd_open(args: argparse.Namespace) -> int:
     # against its own session) and long before the replay's read-only
     # sweep (which would close desk one's session under a piped stdin).
     identity = bundle_identity(bundle_path, manifest)
+    # The bundle facts every --json line carries (format_open_json's
+    # `bundle` and `members`); computed only under --json, so human mode
+    # reads nothing it did not read before.
+    json_facts = (open_json_bundle_facts(bundle_path, identity)
+                  if want_json else None)
+
+    def emit_open_line(outcome: str, **keys) -> None:
+        if json_facts is not None:
+            emit_json_line(format_open_json(
+                outcome=outcome, bundle=json_facts["bundle"],
+                members=json_facts["members"], **keys))
+
     match = find_open_session_for_bundle(repo, identity)
     if match is not None:
         if rehearsal:
-            return _rehearse_second_desk(verb, repo, match[0], match[1])
-        return open_second_desk(repo, match[0], match[1], identity,
-                                bundle_path)
+            code = _rehearse_second_desk(verb, repo, match[0], match[1])
+            if code == 0:
+                emit_open_line(OPEN_OUTCOME_REHEARSED, rehearsal=rehearsal)
+            return code
+        desk_facts: dict = {}
+        code = open_second_desk(repo, match[0], match[1], identity,
+                                bundle_path, facts=desk_facts)
+        if code == 0:
+            emit_open_line(OPEN_OUTCOME_SECOND_DESK,
+                           sid=match[0],
+                           opener=desk_facts.get("opener"),
+                           desk=desk_facts.get("desk"))
+        return code
 
     brief = manifest["members"]["brief"]
     checkpoint = manifest["members"]["checkpoint"]
@@ -698,9 +789,13 @@ def cmd_open(args: argparse.Namespace) -> int:
                              else "no checkpoint member")],
                 trailer=[f"Rehearsal only: `bale open --dry-run` adds the "
                          f"checkpoint dry-run; `bale open` opens."]))
+            emit_open_line(OPEN_OUTCOME_REHEARSED, rehearsal=rehearsal)
             return 0
 
         checkpoint_row = "no checkpoint member (nothing to dry-run)"
+        # format_open_json's `checkpoint_dry_run` (v0.4.48): null unless
+        # the dry-run below runs and is judged a verdict (exit 0 or 1).
+        dry_run_report: Optional[dict] = None
         if checkpoint is not None:
             network = bale_config.get_sandbox_network(cfg)
             # Sandbox-off by config (v0.4.26, board 75) honors the same
@@ -769,6 +864,7 @@ def cmd_open(args: argparse.Namespace) -> int:
                      f"whole open before any session exists (row 49's "
                      f"dry-run leg). Fix the checkpoint at the desk and "
                      f"re-emit the bundle; dry-run log: {log_path}")
+            dry_run_report = {"exit_code": exit_code, "log": str(log_path)}
         else:
             log("no checkpoint member: skipping the dry-run leg "
                 "(nothing to prove)")
@@ -780,6 +876,8 @@ def cmd_open(args: argparse.Namespace) -> int:
                 extra_rows=[("checkpoint dry-run", checkpoint_row)],
                 trailer=["Rehearsal only: `bale open` with the same "
                          "bundle opens the session."]))
+            emit_open_line(OPEN_OUTCOME_REHEARSED, rehearsal=rehearsal,
+                           checkpoint_dry_run=dry_run_report)
             return 0
 
         log(f"replaying pack invocation: "
@@ -788,7 +886,28 @@ def cmd_open(args: argparse.Namespace) -> int:
         # cmd_pack hands it to the open-time persist, which stamps it on
         # the opened attempt as `bundle`. No flag can spell it.
         pack_args.open_bundle = identity
-        return pack_args.func(pack_args)
+        if json_facts is None:
+            return pack_args.func(pack_args)
+        # --json (v0.4.48): the replayed pack renders its report line into
+        # the in-process sink instead of onto stdout (cmd_pack's
+        # json_report_sink channel — no flag spells it), so the open's
+        # line is the only stdout line and carries the pack's keys
+        # verbatim. A pack that does not return 0 (fail() raises; the
+        # interactive threshold abort returns 1) prints no line here,
+        # the refusal shape.
+        sink: list = []
+        pack_args.json_report_sink = sink
+        code = pack_args.func(pack_args)
+        if code != 0:
+            return code
+        if len(sink) != 1:
+            fail(f"bale open --json: the replayed pack exited 0 but handed "
+                 f"back {len(sink)} report line(s), not one — an internal "
+                 f"fault; the session it packed is as its own log records "
+                 f"(nothing further was written by the open)")
+        emit_open_line(OPEN_OUTCOME_OPENED, pack_report=json.loads(sink[0]),
+                       checkpoint_dry_run=dry_run_report)
+        return 0
     finally:
         shutil.rmtree(extract_dir, ignore_errors=True)
 
@@ -932,7 +1051,8 @@ def next_desk_name(record: dict) -> str:
 
 
 def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
-                     bundle_path: Path) -> int:
+                     bundle_path: Path, *,
+                     facts: Optional[dict] = None) -> int:
     """Record a further desk on open session `sid` and re-emit its opener.
 
     Writes one `opened` attempt (command 'open', the bundle identity,
@@ -952,6 +1072,12 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
     has landed yet, so a desk appended after one would contradict the
     record; and when the session's stamped manifest is unreadable, since
     the opener cannot be rebuilt without it.
+
+    `facts` (v0.4.48, `bale open --json`): when a dict is passed, the
+    desk's report facts are written into it — `desk` (the name
+    recorded) and `opener` (the desk opener's paste text,
+    opener_paste_text of the block printed) — for cmd_open to render;
+    nothing printed changes.
     """
     from __main__ import (  # lazy — see module docstring
         fail,
@@ -1044,5 +1170,8 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
     # Session clipboard-paste-blocks: this desk's opener (its own copy,
     # with the desk paragraph) goes to the clipboard like pack's does —
     # one stderr notice, exit unchanged (copy_paste_block's contract).
-    copy_paste_block(repo, PASTE_BLOCK_OPENER, opener_paste_text(opener))
+    paste_text = opener_paste_text(opener)
+    copy_paste_block(repo, PASTE_BLOCK_OPENER, paste_text)
+    if facts is not None:
+        facts.update({"desk": desk, "opener": paste_text})
     return 0

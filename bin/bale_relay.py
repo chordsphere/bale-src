@@ -11,12 +11,15 @@ suspended, and emits the counterpart-facing paste block on stdout under
 the machine-report stream discipline (every `[bale] ` line and the human
 trailer on stderr), so `bale relay <sid> <file> > block.txt` captures
 the block clean. Direction is read from the record's `from`, never from
-a flag; the option surface is exactly `<sid> [<file|->]` — since
+a flag; the positional surface is exactly `<sid> [<file|->]` — since
 v0.4.22 (board row 60, ADR-0017 Notes) the file argument is optional,
 and the no-file form re-emits the paste block for the thread's latest
 recorded round, byte-identical to the original emission, recording
 nothing: a planner-side block otherwise exists only on the stdout that
-made it.
+made it. Since v0.4.48 the surface also takes `--json`: one line of JSON on
+stdout on every path (`relayed`, `re-emitted`, `relay-refused`), the block
+riding inside it; bale_report.format_relay_json owns the keys, and without
+the flag every byte is what it was.
 
 Public surface consumed by `bin/bale`: the single `cmd_relay(args)`
 entry point — `bin/bale` does `from bale_relay import cmd_relay` and
@@ -29,7 +32,7 @@ the block's one wire shape has one home.
 
 Shared `bin/bale` helpers (`log`, `fail`, `set_log_file`,
 `refuse_system_dir`, `repo_root`, `session_is_open`, `open_sessions`,
-`_branch_exists`, `locate_inbound_path`) are imported lazily from
+`_branch_exists`, `locate_inbound_path`, `exit_cause`) are imported lazily from
 `__main__` (i.e. `bin/bale`) inside the functions that use them, the
 same idiom every other sibling uses. Sibling-owned entry points are
 imported lazily from their owning modules instead — `bin/bale` has
@@ -181,7 +184,8 @@ def reescaped_body_matches(body: str, expected_hex: str) -> bool:
     return hashlib.sha256(rendered).hexdigest() == expected_hex.lower()
 
 
-def record_relay_refusal(repo: Path, sid: str, exc: BaseException) -> None:
+def record_relay_refusal(repo: Path, sid: str,
+                         exc: BaseException) -> Optional[str]:
     """Write a `relay-refused` attempt onto `sid`'s telemetry record
     (v0.4.41; telemetry-record.schema.json outcome 'relay-refused',
     command 'relay') carrying `cause` — the refusal's first line, read
@@ -195,6 +199,11 @@ def record_relay_refusal(repo: Path, sid: str, exc: BaseException) -> None:
     branch) run outside the wrapper and record nothing: a sid that is
     not open should grow no record, and a held session's envelope must
     stay 'held'. A relay that records its round writes no attempt.
+
+    Returns the record's repo-relative path when an attempt was written
+    (v0.4.48: the `telemetry` key of `bale relay --json`'s refused line),
+    else None — a clean exit, or a write failure write_telemetry_record
+    already logged.
     """
     from __main__ import exit_cause, log, read_session_scope  # lazy
     from bale_report import (  # lazy — sibling, loaded by bin/bale
@@ -202,7 +211,7 @@ def record_relay_refusal(repo: Path, sid: str, exc: BaseException) -> None:
         write_telemetry_record,
     )
     if getattr(exc, "code", None) in (None, 0):
-        return
+        return None
     cause = exit_cause(exc)
     rel = write_telemetry_record(
         repo, sid, build_telemetry_attempt(
@@ -213,6 +222,7 @@ def record_relay_refusal(repo: Path, sid: str, exc: BaseException) -> None:
         ))
     if rel:
         log(f"relay: refusal recorded as a relay-refused attempt at {rel}")
+    return rel or None
 
 
 def parse_exchange_input(data: bytes) -> tuple[dict, Optional[str]]:
@@ -430,7 +440,9 @@ def _next_step_trailer(sid: str, awaiting: str, latest_round: int) -> list[str]:
     ]
 
 
-def _cmd_reemit(repo: Path, sid: str) -> int:
+def _cmd_reemit(repo: Path, sid: str, *, want_json: bool = False,
+                report_sid: Optional[str] = None,
+                log_path: Optional[str] = None) -> int:
     """The no-file form of `bale relay` (v0.4.22, board row 60; ADR-0017
     Notes): re-emit the paste block for the thread's latest recorded
     round, byte-identical to the original emission, and record nothing.
@@ -447,14 +459,22 @@ def _cmd_reemit(repo: Path, sid: str) -> int:
     time, so the bytes match. A sid with no recorded rounds refuses
     loudly, naming the sid; an unreadable latest record refuses rather
     than re-emitting bytes it cannot stand behind.
+
+    `want_json` (v0.4.48, `bale relay --json`): the block is not written
+    to stdout; the "re-emitted" line carrying it is, last, after the
+    clipboard notice and the summary (both stderr, unchanged).
     """
     from __main__ import fail, log  # lazy — see module docstring
     from bale_apply import clarifications_dir  # lazy — sibling, loaded by bin/bale
     from bale_report import (  # lazy — sibling, loaded by bin/bale
+        CLIPBOARD_COPIED,
         PASTE_BLOCK_EXCHANGE,
+        RELAY_OUTCOME_REEMITTED,
         awaiting_side,
         copy_paste_block,
+        emit_json_line,
         emit_stdout_block,
+        format_relay_json,
         format_summary_block,
     )
     clar_dir = clarifications_dir(repo, sid)
@@ -492,11 +512,12 @@ def _cmd_reemit(repo: Path, sid: str) -> int:
     log(f"relay: no file argument — re-emitting the thread's latest "
         f"recorded round (v0.4.22)")
     block = format_exchange_block(sid, body_record)
-    emit_stdout_block(block)
+    if not want_json:
+        emit_stdout_block(block)
     # Session clipboard-paste-blocks: the block, BEGIN through END, to
     # the clipboard when one is configured. stdout stays exactly the
     # block; the one notice rides stderr (copy_paste_block's contract).
-    copy_paste_block(repo, PASTE_BLOCK_EXCHANGE, block)
+    copied = copy_paste_block(repo, PASTE_BLOCK_EXCHANGE, block)
     awaiting = awaiting_side(side)
     log(f"relay: {kind} at {rel_path} (round {rnd}, from {side}) "
         f"re-emitted; nothing recorded — the thread, the session, and "
@@ -513,6 +534,15 @@ def _cmd_reemit(repo: Path, sid: str) -> int:
         sid=sid,
         trailer=_next_step_trailer(sid, awaiting, rnd),
     ))
+    if want_json:
+        # `kind` and `preserved` stay null: nothing was ingested or
+        # written (format_relay_json's docstring).
+        emit_json_line(format_relay_json(
+            outcome=RELAY_OUTCOME_REEMITTED,
+            sid=report_sid if report_sid is not None else sid,
+            round_no=rnd, side=side, awaiting=awaiting,
+            block=block, log_path=log_path,
+            clipboard=copied == CLIPBOARD_COPIED))
     return 0
 
 
@@ -593,7 +623,50 @@ def cmd_relay(args: argparse.Namespace) -> int:
        the exit untouched — the no-file re-emit copies too), and end
        with the next-step hint — answer it as the planner, or carry it
        to the worker.
+
+    `--json` (v0.4.48): stdout carries exactly one line of JSON on every
+    path instead of the bare block — "relayed" and "re-emitted" with the
+    block riding inside it, byte-identical to what human mode prints, and
+    "relay-refused" on any refusal that exits 1, printed beside the
+    unchanged `[bale] error:` line with the refusal's `cause` and the
+    relay-refused record's path when one was written. stderr and the
+    exit codes are unchanged. format_relay_json (bin/bale_report.py) owns
+    the keys. The refused line is printed here, by the wrapper around
+    _cmd_relay, so every fail() below — the session gates, the input
+    read, the ingest gates — reaches it without a per-site change.
     """
+    from __main__ import exit_cause  # lazy — see module docstring
+    from bale_report import (  # lazy — sibling
+        emit_json_line,
+        enable_json_mode,
+        format_relay_refusal_json,
+    )
+
+    # Stream discipline first, before any [bale] line: stdout is the
+    # block and only the block — or, under --json, the one line. The
+    # discipline is the verb's in both modes, not the flag's.
+    enable_json_mode()
+    want_json = bool(getattr(args, "json", False))
+    # What the refused line reports, filled as the run wires it: the
+    # session log once set_log_file ran, and the relay-refused record
+    # once record_relay_refusal wrote one.
+    report: dict = {"log": None, "telemetry": None}
+    try:
+        return _cmd_relay(args, want_json=want_json, report=report)
+    except SystemExit as e:
+        if want_json and getattr(e, "code", None) not in (None, 0):
+            emit_json_line(format_relay_refusal_json(
+                sid=args.sid, cause=exit_cause(e),
+                log_path=report["log"], telemetry=report["telemetry"]))
+        raise
+
+
+def _cmd_relay(args: argparse.Namespace, *, want_json: bool,
+               report: dict) -> int:
+    """cmd_relay's body (its docstring is the contract), split out in
+    v0.4.48 so one wrapper can print `--json`'s refused line for every
+    refusal. `report` is the wrapper's: this fills `log` when the session
+    log is wired and `telemetry` when a refusal is recorded."""
     from __main__ import (  # lazy — see module docstring
         _branch_exists,
         fail,
@@ -604,12 +677,7 @@ def cmd_relay(args: argparse.Namespace) -> int:
         session_is_open,
         set_log_file,
     )
-    from bale_report import enable_json_mode  # lazy — sibling
 
-    # Stream discipline first, before any [bale] line: stdout is the
-    # block and only the block. There is no --json on this verb; the
-    # discipline is the verb's, not a flag's.
-    enable_json_mode()
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd)
     repo = repo_root(cwd)
@@ -629,7 +697,9 @@ def cmd_relay(args: argparse.Namespace) -> int:
              f"only. Open sessions: "
              f"{', '.join(open_now) if open_now else 'none'}. "
              f"A closed session's thread is history; repack to ask again.")
-    set_log_file(repo / ".bale" / "logs" / f"{sid}.log")
+    session_log = repo / ".bale" / "logs" / f"{sid}.log"
+    set_log_file(session_log)
+    report["log"] = str(session_log)
     if _branch_exists(repo, f"bale/{sid}"):
         fail(f"session {sid} has a bale/{sid} branch — a normal response "
              f"was applied and is held, so its clarification round is "
@@ -641,7 +711,8 @@ def cmd_relay(args: argparse.Namespace) -> int:
     # The no-file form: re-emit the latest recorded round, read-only
     # (v0.4.22). The session gates above have run; nothing below does.
     if args.file is None:
-        return _cmd_reemit(repo, sid)
+        return _cmd_reemit(repo, sid, want_json=want_json,
+                           report_sid=args.sid, log_path=report["log"])
 
     # Step 2: ingest. The input is located first, outside the refusal
     # recorder: a file that is not found never reached relay, so it is
@@ -655,14 +726,16 @@ def cmd_relay(args: argparse.Namespace) -> int:
         record, block_sid, source_kind, side, rnd, next_seq, thread = \
             _ingest_and_gate(repo, sid, data, source_name)
     except SystemExit as e:
-        record_relay_refusal(repo, sid, e)
+        report["telemetry"] = record_relay_refusal(repo, sid, e)
         raise
     kind = source_kind
     is_manifest = kind == "clarification manifest"
 
     # Step 6: preserve, lock retained.
     return _preserve_and_emit(repo, sid, record, kind, is_manifest, side,
-                              next_seq, thread, source_name)
+                              next_seq, thread, source_name,
+                              want_json=want_json, report_sid=args.sid,
+                              log_path=report["log"])
 
 
 def _ingest_and_gate(repo: Path, sid: str, data: bytes, source_name: str):
@@ -761,17 +834,26 @@ def _ingest_and_gate(repo: Path, sid: str, data: bytes, source_name: str):
 
 def _preserve_and_emit(repo: Path, sid: str, record: dict, kind: str,
                        is_manifest: bool, side: str, next_seq: int,
-                       thread: list, source_name: str) -> int:
+                       thread: list, source_name: str, *,
+                       want_json: bool = False,
+                       report_sid: Optional[str] = None,
+                       log_path: Optional[str] = None) -> int:
     """cmd_relay's steps 6–7 (see its docstring): preserve the gated
     record as the next NNN and emit the counterpart's block. Split out
-    with _ingest_and_gate (v0.4.41); behavior unchanged."""
+    with _ingest_and_gate (v0.4.41); behavior unchanged. Under
+    `want_json` (v0.4.48) the block rides the "relayed" line instead of
+    stdout, emitted last (format_relay_json)."""
     from __main__ import fail, log  # lazy — see module docstring
     from bale_apply import preserve_clarification_record  # lazy — sibling
     from bale_report import (  # lazy — sibling, loaded by bin/bale
+        CLIPBOARD_COPIED,
         PASTE_BLOCK_EXCHANGE,
+        RELAY_OUTCOME_RELAYED,
         awaiting_side,
         copy_paste_block,
+        emit_json_line,
         emit_stdout_block,
+        format_relay_json,
         format_summary_block,
     )
     record_path = preserve_clarification_record(repo, sid, record)
@@ -792,10 +874,11 @@ def _preserve_and_emit(repo: Path, sid: str, record: dict, kind: str,
                                                  preserved_at)
                    if is_manifest else record)
     block = format_exchange_block(sid, body_record)
-    emit_stdout_block(block)
+    if not want_json:
+        emit_stdout_block(block)
     # Session clipboard-paste-blocks: as in _cmd_reemit — the block to
     # the clipboard, the notice on stderr, stdout untouched.
-    copy_paste_block(repo, PASTE_BLOCK_EXCHANGE, block)
+    copied = copy_paste_block(repo, PASTE_BLOCK_EXCHANGE, block)
 
     awaiting = awaiting_side(side)
     trailer = _next_step_trailer(sid, awaiting, next_seq)
@@ -811,4 +894,11 @@ def _preserve_and_emit(repo: Path, sid: str, record: dict, kind: str,
         sid=sid,
         trailer=trailer,
     ))
+    if want_json:
+        emit_json_line(format_relay_json(
+            outcome=RELAY_OUTCOME_RELAYED,
+            sid=report_sid if report_sid is not None else sid,
+            round_no=next_seq, side=side, awaiting=awaiting, kind=kind,
+            preserved=str(rel_path), block=block, log_path=log_path,
+            clipboard=copied == CLIPBOARD_COPIED))
     return 0

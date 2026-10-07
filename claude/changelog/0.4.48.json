@@ -1,0 +1,45 @@
+{
+  "record_version": 1,
+  "version": "0.4.48",
+  "session_id": "2026-10-07-open-relay-json-003",
+  "at": "2026-10-07T03:59:50+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.47 -> 0.4.48"
+    },
+    {
+      "path": "bin/bale",
+      "change": "two flags: `bale open --json` (combinable with --check, --dry-run, --verbose, --no-sandbox) and `bale relay --json`, each a bare boolean whose help string names its owner docstring (format_open_json, format_relay_json); every other flag, default and help string unchanged"
+    },
+    {
+      "path": "bin/bale_open.py",
+      "change": "cmd_open under --json: json-mode stream discipline from the first line; one format_open_json line on stdout on every path that exits 0 (opened, second-desk, rehearsed), the replayed pack's report line taken through the new in-process json_report_sink namespace attribute and folded in, never printed; refusals unchanged (fail(), nothing on stdout); new open_json_bundle_facts; open_second_desk gains a keyword-only facts dict; human mode byte-identical"
+    },
+    {
+      "path": "bin/bale_relay.py",
+      "change": "cmd_relay under --json: one format_relay_json line on stdout on every path (relayed, re-emitted, relay-refused) instead of the bare block, the block riding inside it byte-identical; a relay-refused line beside every refusal's unchanged [bale] error: line, through a wrapper around the body (now _cmd_relay); record_relay_refusal returns the record path it wrote; stderr, exit codes and human-mode bytes unchanged"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "cmd_pack's --json line carries the additive opener key (opener_paste_text of the block it prints); the report line goes to args.json_report_sink instead of stdout when bale open sets that in-process channel; every existing key, value and position unchanged; --context untouched"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "format_pack_json gains the additive trailing key opener (null by default) and PACK_REPORT_KEYS declares its key order; new format_open_json (outcomes opened, second-desk, rehearsed in OPEN_OUTCOMES; rehearsal values in OPEN_REHEARSALS) and format_relay_json plus its refusal front format_relay_refusal_json (outcomes relayed, re-emitted, relay-refused in RELAY_OUTCOMES), each docstring the one home of its key contract and raising ValueError on an off-contract line; the six outcome words named in format_pack_json's vocabulary paragraph"
+    },
+    {
+      "path": "tests/test_open_relay_json.py",
+      "change": "new suite: open --json per outcome (opened with and without a checkpoint dry-run, --check, --dry-run, second desk, a second-desk rehearsal, refusals), relay --json per outcome (relayed worker and planner rounds with the block compared to human-mode bytes, re-emitted, ingest, session-gate, missing-file and empty-thread refusals, clipboard, argparse exit 2), and the renderers in process"
+    },
+    {
+      "path": "tests/test_pack_opener.py",
+      "change": "pins the --json line's opener key equal to the stderr scissor paste text, worker and read-only shapes"
+    },
+    {
+      "path": "tests/test_pack_telemetry_104b.py",
+      "change": "the existing-keys order pin reads [13:15] for sweep and include_group and pins [15:] as exactly the additive opener"
+    }
+  ],
+  "notes": "Additive for consumers of bale pack --json (one trailing key). bale open --json and bale relay --json are new surfaces; a consumer of relay that passed stdout through as the block must, under --json, read the block from the line's block key. Refusals of bale open stay fail()-shaped; a reason-coded refusal line for open, and refusal codes for relay beyond cause, are proposed, not landed."
+}

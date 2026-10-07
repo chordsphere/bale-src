@@ -7471,6 +7471,19 @@ def build_parser() -> argparse.ArgumentParser:
              "byte-identical to the original emission, and records "
              "nothing (v0.4.22).",
     )
+    p_relay.add_argument(
+        "--json", action="store_true",
+        help="Print one line of JSON on stdout on every path instead of "
+             "the bare paste block (v0.4.48): outcome 'relayed' or "
+             "'re-emitted' with the block riding inside it, "
+             "byte-identical to what human mode prints, or "
+             "'relay-refused' on any refusal, beside its unchanged "
+             "[bale] error: line, carrying the refusal's cause and the "
+             "relay-refused record's path when one was written. stderr "
+             "and the exit codes are unchanged; human mode is unchanged. "
+             "The key contract is owned by format_relay_json's "
+             "docstring in bin/bale_report.py.",
+    )
     p_relay.set_defaults(func=cmd_relay)
 
     # revert
@@ -7727,6 +7740,22 @@ def build_parser() -> argparse.ArgumentParser:
              "directory outside the repo. Exit 0 when the gates pass and "
              "the oracle exits 0 or 1 (an expected HOLD); nonzero when a "
              "gate refuses or the oracle exits 2. Writes nothing.",
+    )
+    p_open.add_argument(
+        "--json", action="store_true",
+        help="Emit the end-of-run open report as one line of JSON on "
+             "stdout (v0.4.48), combinable with --check, --dry-run, "
+             "--verbose and --no-sandbox. Stream discipline matches "
+             "pack --json from the first line: '[bale] ' lines, the "
+             "rehearsal report, the second-desk summary and the "
+             "opener's scissor block go to stderr; stdout carries "
+             "exactly the JSON line (outcome 'opened', 'second-desk' or "
+             "'rehearsed') on every path that exits 0, the replayed "
+             "pack's own report line folded into it rather than printed "
+             "twice. Refusals exit through fail() with nothing on "
+             "stdout; human mode is unchanged. The key contract is "
+             "owned by format_open_json's docstring in "
+             "bin/bale_report.py.",
     )
     p_open.set_defaults(func=cmd_open)
 
