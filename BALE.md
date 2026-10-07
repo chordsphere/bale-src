@@ -494,9 +494,9 @@ forward-looking entry.
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
-| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags supplied from member presence and `pre_answered` intents on the in-process channel. bale open parses and gates the stored argv — every argv-only pack gate since v0.4.45 (the flag pairs, the brief and checkpoint reads, the pre-exchange pass with its include-naming checkpoint gate, the supersession guards, forecast existence and disjointness) — before the checkpoint dry-run, so an argv defect refuses without spending the oracle. Two rehearsals stop part-way and write nothing (v0.4.45, §6.7): `--check` stops after the gates, `--dry-run` after the checkpoint dry-run (exit 0 on an oracle exit 0 or 1, nonzero on 2). A second open of a bundle whose session is still open records a further desk on that session instead of opening a new one (v0.4.44, §6.7). `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
+| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags supplied from member presence and `pre_answered` intents on the in-process channel. bale open parses and gates the stored argv — every argv-only pack gate since v0.4.45 (the flag pairs, the brief and checkpoint reads, the pre-exchange pass with its include-naming checkpoint gate, the supersession guards, forecast existence and disjointness) — before the checkpoint dry-run, so an argv defect refuses without spending the oracle. Two rehearsals stop part-way and write nothing (v0.4.45, §6.7): `--check` stops after the gates, `--dry-run` after the checkpoint dry-run (exit 0 on an oracle exit 0 or 1, nonzero on 2). A second open of a bundle whose session is still open records a further desk on that session instead of opening a new one (v0.4.44, §6.7). `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). `--json` (v0.4.48) per §6.7. The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal verbatim and — since v0.4.28 (board 73, ADR-0015) — its recorded write forecast exactly, including a recorded `[]` (a read-only parent resumes read-only). The bailout's reading plan is the read set only: its files ship in `context/` and gate nothing. `--write` / `--read-only` override the inheritance with pack's grammar and refusals (the case where the bailing worker's `handoff.md` argues the ask changed); a missing or unreadable parent record falls back to the reading-plan file set — the whole tree when the plan cites nothing — as an *undeclared* forecast that takes the bare-pack rule (v0.4.9), and the summary's `inherited:` row names which branch fired beside the goal. Runs pack's gates, one implementation each, pre-sid so a refusal consumes nothing: the ADR-0015 forecast-disjointness gate (§7.1 step 5 — admitted beside open sessions whose forecasts are disjoint, which is what makes the command reachable under an always-open read-only master; refused on intersection with handoff's own remedies, never `--supersedes`), the checkpoint blindness gate (§7.1 step 4b, §11 row 30; `--allow-checkpoint-in-scope` admits, FORCE-logged and stamped), and for a `{sid}` base the resolved-existence gate, whose first-named remedy `--checkpoint-file` the command now accepts with pack's one-run install; an empty forecast waives it (§8.5). Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24). Until 0.4.27 handoff refused while any session was open, forecast its reading plan's file set, and lacked the flag family — ADR-0007's shape, which the ADR-0015 flip had not reached on this path. | v0.0.6 |
-| `bale relay <sid> [<file\|->]` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> [<file\|->]` — the file argument is optional since v0.4.22 (board row 60; ADR-0017 Notes), and the no-file form re-emits the latest recorded round's block read-only. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
+| `bale relay <sid> [<file\|->]` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the positional surface is exactly `<sid> [<file\|->]` — the file argument is optional since v0.4.22 (board row 60; ADR-0017 Notes), and the no-file form re-emits the latest recorded round's block read-only. `--json` (v0.4.48) per §5.8. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 | `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
 | `bale stats` | Read-only aggregation of the tracked `claude/telemetry/` corpus into the trust ledger's rates: per-work-class claim/verdict agreement, HOLD, checkpoint-HOLD, drift-refusal, bailout, and clarification rates, the required-check refusal/override counts, closure mix, epoch and coverage rows, and the dual-stream cross-checks. `--work-class`, `--since`, `--json`. See §5.6. | v0.3.24 |
@@ -662,10 +662,12 @@ The following flags apply across multiple commands:
   carries exactly the JSON line, and refusal paths stay
   fail()-shaped — stderr, non-zero exit, nothing on stdout — except
   where a report names a refused outcome of its own (apply's
-  `*-refused` outcomes; unlock's `unlock-refused`, v0.4.47, §9.3),
+  `*-refused` outcomes; unlock's `unlock-refused`, v0.4.47, §9.3;
+  relay's `relay-refused`, v0.4.48, §5.8),
   which prints its line beside the stderr error. Landed
   per command: pack (v0.2.7), apply (v0.2.8), status (v0.2.9), retry
-  (v0.3.14), unlock (v0.3.18), revert (v0.3.19); `bale unlock
+  (v0.3.14), unlock (v0.3.18), revert (v0.3.19), open and relay
+  (v0.4.48); `bale unlock
   --integration --json` is refused, that report being
   session-shaped (§9.3). Each report's key contract is owned by its
   `format_*_json` docstring in `bin/bale_report.py` — stable keys,
@@ -1021,7 +1023,7 @@ exchange in, one record preserved, one paste block out. The contract
 like, and what relay refuses — is §8.11; this section is the usage.
 
 ```
-bale relay <sid> [<file|->]
+bale relay <sid> [<file|->] [--json]
 ```
 
 `<sid>` is the suspended session (open in the registry, no
@@ -1029,9 +1031,9 @@ bale relay <sid> [<file|->]
 a saved clarification manifest, or the `BALE EXCHANGE` paste block
 wrapping either — resolved like apply's tarball argument (cwd, then
 `apply.search_paths`; an absolute path bypasses), or `-` for stdin.
-There are no other options; direction comes from the record's
-`from`, and the file argument is optional since v0.4.22 (board row
-60; ADR-0017 Notes).
+The one option is `--json` (v0.4.48, below); direction comes from
+the record's `from`, never from a flag, and the file argument is
+optional since v0.4.22 (board row 60; ADR-0017 Notes).
 
 With no file argument, bale relay re-emits the paste block for the thread's latest recorded round, byte-identical to the original emission, and records nothing.
 The re-emit form exists because a counterpart-facing block otherwise
@@ -1052,6 +1054,18 @@ The summary ends with the next-step line: after a worker record,
 *answer as an exchange record (round N+1, `answers[]` keyed
 `question_round` N) and relay it*; after a planner record, *carry the
 block to the worker, then `bale apply` the follow-up response*.
+
+**`--json` (v0.4.48).** For a courier that dispatches on what relay
+did: stdout carries exactly one line of JSON on every path instead of
+the bare block — outcome `relayed` (a round recorded) or `re-emitted`
+(the no-file form) with the block riding inside it, byte-identical to
+what human mode prints, or `relay-refused` on any refusal that exits
+1, printed beside the unchanged `[bale] error:` line and carrying the
+refusal's `cause` and, when one was written, the `relay-refused`
+telemetry record's path. stderr and the exit codes are unchanged, and
+without the flag every byte is what it was. The key contract is owned
+by `format_relay_json`'s docstring in `bin/bale_report.py`, never by a
+copy here.
 
 **The two typical invocations.**
 
@@ -1394,6 +1408,24 @@ a rehearsal reports the desk the real open would record, or its
 refusal, and records nothing. A real `bale open` runs the same gate
 step before its oracle, so what `--check` passes, the open's gates
 pass.
+
+**`bale open --json` (v0.4.48).** The machine twin of every path
+above, combinable with `--check`, `--dry-run`, `--verbose` and
+`--no-sandbox`, and changing nothing `bale open` does. The shared
+stream discipline holds from the first line — `[bale] ` lines, the
+dry-run's echoed verdicts, the rehearsal report, the second-desk
+summary and the opener's scissor block go to stderr — and stdout
+carries exactly one line of JSON on each path that exits 0: outcome
+`opened` (the replayed pack's report keys carried verbatim, its own
+line folded in rather than printed twice), `second-desk`, or
+`rehearsed`, each with the bundle's path, file hash and stem, the
+published member hashes, the rehearsal, the checkpoint dry-run's
+verdict and log, and the desk. Refusals are unchanged: exit 1 through
+`fail()`, nothing on stdout. The key contract is owned by
+`format_open_json`'s docstring in `bin/bale_report.py`. Unlike `bale
+pack --dry-run`, which refuses `--json` because a pack rehearsal has
+no session to report, an open rehearsal reports the bundle facts it
+verified.
 
 **Bundles never ship to workers (the deny-list half).** The bundle
 is oracle-bearing — it carries the blind checkpoint — so it is
@@ -2299,9 +2331,11 @@ Under `--json` the
 stdout contract is untouched — stdout stays exactly the one JSON
 line — and the opener block prints after the report line on stderr,
 per json-mode stream discipline, carrying the same block the human
-report would (both call sites share the two keys); a structured `opener` key in the
-JSON report is deliberately not part of this contract yet (it would
-live in `format_pack_json`, whose docstring owns the key set).
+report would (both call sites share the two keys). Since v0.4.48 the
+JSON report also carries the opener as data: the `opener` key holds
+the block's paste text — the lines between the scissor lines,
+LF-joined with one trailing LF, the bytes the clipboard copy carries
+— an additive key whose contract `format_pack_json`'s docstring owns.
 
 **The tree-position echo** (v0.3.31, board-6 upward report — operator
 state legibility at the pack surface). Pack names where the tree is

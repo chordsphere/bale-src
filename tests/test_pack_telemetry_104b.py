@@ -388,7 +388,10 @@ class RendererTest(unittest.TestCase):
             "context_files", "readme_path", "readme_heading",
             "readme_sha256", "checkpoint_file_path",
             "checkpoint_file_sha256", "branch", "applied_latest"])
-        self.assertEqual(list(payload)[13:], ["sweep", "include_group"])
+        self.assertEqual(list(payload)[13:15], ["sweep", "include_group"])
+        # v0.4.48: the additive `opener` key rides after them, and only
+        # it (test_pack_opener pins its value).
+        self.assertEqual(list(payload)[15:], ["opener"])
 
     def test_include_group_shape_and_state_guard(self) -> None:
         obj = self.m.format_include_group_json(

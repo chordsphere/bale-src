@@ -74,9 +74,11 @@ in a fixed order (§5.6.3 / §5.9.3) that no caller should have to
 re-derive.
 
 The json renderers (`format_pack_json`, `format_apply_json`,
-`format_status_json`, and since v0.4.31 `format_config_hooks_json` — the
+`format_status_json`, since v0.4.31 `format_config_hooks_json` — the
 `bale config hooks --json` line, moved beside its siblings from
-bale_config.py) sit outside
+bale_config.py — and since v0.4.48 `format_open_json` and
+`format_relay_json`, the `bale open --json` and `bale relay --json`
+lines, each docstring the one home of its key contract) sit outside
 that rule because for a machine consumer the verdict is the whole report:
 each renders its command's outcome as ONE line of JSON whose keys are a
 stable contract for downstream tooling (see their docstrings). Since v0.2.8
@@ -2448,6 +2450,7 @@ def format_pack_json(
     applied_latest: Optional[str] = None,
     sweep: Optional[list] = None,
     include_group: Optional[dict] = None,
+    opener: Optional[str] = None,
 ) -> str:
     """Render the `bale pack --json` end-of-run report as ONE line of JSON.
 
@@ -2469,7 +2472,10 @@ def format_pack_json(
                      again in format_revert_json (v0.3.19), the revert
                      command's own single reporting point; "context-packed"
                      in format_context_pack_json (v0.4.39, homed here
-                     v0.4.40) —
+                     v0.4.40); "opened", "second-desk", "rehearsed" in
+                     format_open_json (v0.4.48, OPEN_OUTCOMES); "relayed",
+                     "re-emitted", "relay-refused" in format_relay_json
+                     (v0.4.48, RELAY_OUTCOMES) —
                      so new outcomes extend an enum in one place rather
                      than scattering literals across callers.
       sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
@@ -2553,6 +2559,24 @@ def format_pack_json(
                      `pulled` (the paths the group added to context; []
                      when already covered or on opt-out), and `row`, the
                      human row's string verbatim.
+      opener         the session opener's paste text (v0.4.48, the key
+                     board 52 proposed; additive, per the stable-contract
+                     rule above): exactly what
+                     bale_pack.opener_paste_text returns for the block
+                     this pack printed — the lines strictly between the
+                     two scissor lines, LF-joined, one trailing LF — the
+                     same bytes the clipboard copy carries. Set on every
+                     pack shape that prints an opener (every session
+                     pack does: fully-specified, wizard, read-only, and
+                     the pack `bale open` replays); null only as the
+                     additive-parameter default. The scissor block itself
+                     still prints on stderr after this line, unchanged.
+                     `bale pack --context` writes no opener and renders
+                     format_context_pack_json instead, so it never
+                     carries this key.
+
+    The key order is PACK_REPORT_KEYS (below), which `bale open --json`
+    (format_open_json) reuses to fold this line into its own.
 
     Emitted as a single compact line (no indent) so the consumer contract
     stays line-oriented. Since v0.2.8 json mode carries stream discipline
@@ -2583,8 +2607,288 @@ def format_pack_json(
         "sweep": [dict(entry) for entry in (sweep or [])],
         "include_group": (dict(include_group)
                           if include_group is not None else None),
+        # v0.4.48, additive: the opener's paste text (docstring above).
+        "opener": opener,
     }
     return json.dumps(payload)
+
+
+# The pack report line's keys, in emission order (format_pack_json's
+# docstring owns what each means). Declared once so `bale open --json`
+# can carry every pack key without a second copy of the list drifting:
+# format_open_json folds the replayed pack's line in key by key and
+# refuses (ValueError) a line whose keys are not exactly these.
+PACK_REPORT_KEYS = (
+    "outcome", "sid", "tarball", "log", "session_dir", "context_files",
+    "readme_path", "readme_heading", "readme_sha256",
+    "checkpoint_file_path", "checkpoint_file_sha256", "branch",
+    "applied_latest", "sweep", "include_group", "opener",
+)
+
+
+# --- bale open --json (v0.4.48) ---------------------------------------------
+
+# The outcome words of `bale open --json`, part of the one-place outcome
+# vocabulary this module owns (format_pack_json's docstring).
+OPEN_OUTCOME_OPENED = "opened"
+OPEN_OUTCOME_SECOND_DESK = "second-desk"
+OPEN_OUTCOME_REHEARSED = "rehearsed"
+OPEN_OUTCOMES = (OPEN_OUTCOME_OPENED, OPEN_OUTCOME_SECOND_DESK,
+                 OPEN_OUTCOME_REHEARSED)
+
+# The `rehearsal` key's values (null on a real open or a second desk).
+OPEN_REHEARSALS = ("check", "dry-run")
+
+
+def format_open_json(
+    *,
+    outcome: str,
+    bundle: dict,
+    members: dict,
+    pack_report: Optional[dict] = None,
+    sid: Optional[str] = None,
+    opener: Optional[str] = None,
+    rehearsal: Optional[str] = None,
+    checkpoint_dry_run: Optional[dict] = None,
+    desk: Optional[str] = None,
+) -> str:
+    """Render the `bale open --json` end-of-run report as ONE line of JSON.
+
+    The open sibling of format_pack_json (v0.4.48, twine's `[[wanted]]`
+    for `bale open`): same stability rules (existing keys are never
+    renamed or removed; new keys may be added), same one-compact-line
+    shape, same emission path (the caller emits it via emit_json_line so
+    it reaches the real stdout under json mode's stream discipline —
+    module docstring). THIS DOCSTRING OWNS THE KEY CONTRACT; BALE.md §6.7
+    and the CLI help name the owner, never a second copy of the list.
+
+    Stream discipline holds from the first line of the run: every
+    `[bale] ` line, the dry-run's echoed verdict lines, the rehearsal
+    report, the second-desk summary and the opener's scissor block go to
+    stderr; stdout carries exactly this line on every path that exits 0.
+    The replayed pack's own report line is folded in here, never printed
+    as a second stdout line. Refusals are unchanged: a refused open exits
+    1 through fail() with the `[bale] error:` line on stderr and nothing
+    on stdout. Exit codes are those of the human verb.
+
+    Every line carries the same keys in the same order:
+
+      outcome  which path produced the line — one of OPEN_OUTCOMES:
+               "opened"       a real open: the bundle verified, its gates
+                              passed, any checkpoint dry-run judged, and
+                              the replayed pack minted a session (exit 0)
+               "second-desk"  the bundle's session is still open and this
+                              open recorded a further desk on it instead
+                              of minting a sid (BALE.md §6.7, row 123)
+               "rehearsed"    `--check` or `--dry-run`: the rehearsal
+                              passed and wrote nothing (see `rehearsal`)
+      sid, tarball, log, session_dir, context_files, readme_path,
+      readme_heading, readme_sha256, checkpoint_file_path,
+      checkpoint_file_sha256, branch, applied_latest, sweep,
+      include_group, opener
+               every key of the pack report line (PACK_REPORT_KEYS but
+               `outcome`; meanings in format_pack_json's docstring), at
+               top level, in that order. On "opened", the replayed pack's
+               own values, verbatim. On "second-desk", `sid` is the
+               joined session, `opener` that desk's paste text (the lines
+               between the scissor lines of the desk-qualified opener the
+               summary printed, LF-joined, one trailing LF — the bytes the
+               clipboard copy carries); every other pack key is null —
+               `log` included, though the desk journals to the session
+               log: no pack ran, and these keys report a pack's facts.
+               On "rehearsed", all of them are null — a rehearsal mints
+               no sid and writes no log.
+      bundle   {"path": the bundle file's absolute resolved path,
+               "sha256": sha256 hex of the file's bytes as read,
+               "stem": the file name without the reserved suffix
+               (.bale-bundle)} — every outcome.
+      members  {"brief": sha256 or null, "checkpoint": sha256 or null} —
+               the member hashes the bundle manifest publishes (the
+               LF-normalized bytes' hashes the open verified), null for a
+               slot the bundle declares absent — every outcome.
+      rehearsal
+               null on "opened" and "second-desk"; "check" or "dry-run"
+               (OPEN_REHEARSALS) on "rehearsed".
+      checkpoint_dry_run
+               null when no checkpoint member shipped, when `--check`
+               skipped it, or on a second desk (which runs none); else
+               {"exit_code": the dry-run's exit code (int — 1, the
+               expected HOLD, or 0, the warned vacuous pass; any other
+               code refuses the open), "log": the absolute path of the
+               log the dry-run's output was kept in (.bale/logs/ on a real
+               open, a temp directory outside the repository on a
+               rehearsal)}.
+      desk     the desk name recorded on a "second-desk" open ("desk-N",
+               as the human summary names it); null otherwise — a
+               rehearsal of a second-desk bundle records no desk.
+
+    Raises ValueError on an outcome outside OPEN_OUTCOMES, a rehearsal
+    value outside OPEN_REHEARSALS or present off "rehearsed", a desk off
+    "second-desk", or an "opened" line whose `pack_report` keys are not
+    exactly PACK_REPORT_KEYS — each would put an off-contract line on
+    stdout.
+
+    Pure: builds a string, prints nothing; the caller emits it.
+    """
+    if outcome not in OPEN_OUTCOMES:
+        raise ValueError(f"unknown open outcome {outcome!r}; expected one "
+                         f"of {', '.join(OPEN_OUTCOMES)}")
+    if (rehearsal is not None) != (outcome == OPEN_OUTCOME_REHEARSED) \
+            or (rehearsal is not None and rehearsal not in OPEN_REHEARSALS):
+        raise ValueError(f"rehearsal {rehearsal!r} does not fit outcome "
+                         f"{outcome!r}; expected one of "
+                         f"{', '.join(OPEN_REHEARSALS)} on "
+                         f"{OPEN_OUTCOME_REHEARSED!r} only")
+    if desk is not None and outcome != OPEN_OUTCOME_SECOND_DESK:
+        raise ValueError(f"desk belongs to the {OPEN_OUTCOME_SECOND_DESK!r} "
+                         f"outcome only; got outcome {outcome!r}")
+    pack_keys = PACK_REPORT_KEYS[1:]
+    folded = {k: None for k in pack_keys}
+    if outcome == OPEN_OUTCOME_OPENED:
+        if pack_report is None or tuple(pack_report) != PACK_REPORT_KEYS:
+            raise ValueError(
+                f"an {OPEN_OUTCOME_OPENED!r} line folds the replayed pack's "
+                f"report line, whose keys must be exactly PACK_REPORT_KEYS; "
+                f"got {list(pack_report) if pack_report else pack_report!r}")
+        for k in pack_keys:
+            folded[k] = pack_report[k]
+    elif outcome == OPEN_OUTCOME_SECOND_DESK:
+        folded["sid"] = sid
+        folded["opener"] = opener
+    payload = {"outcome": outcome, **folded}
+    payload.update({
+        "bundle": {"path": bundle.get("path"),
+                   "sha256": bundle.get("sha256"),
+                   "stem": bundle.get("stem")},
+        "members": {"brief": members.get("brief"),
+                    "checkpoint": members.get("checkpoint")},
+        "rehearsal": rehearsal,
+        "checkpoint_dry_run": (
+            {"exit_code": checkpoint_dry_run.get("exit_code"),
+             "log": checkpoint_dry_run.get("log")}
+            if checkpoint_dry_run is not None else None),
+        "desk": desk,
+    })
+    return json.dumps(payload)
+
+
+# --- bale relay --json (v0.4.48) --------------------------------------------
+
+RELAY_OUTCOME_RELAYED = "relayed"
+RELAY_OUTCOME_REEMITTED = "re-emitted"
+RELAY_OUTCOME_REFUSED = "relay-refused"
+RELAY_OUTCOMES = (RELAY_OUTCOME_RELAYED, RELAY_OUTCOME_REEMITTED,
+                  RELAY_OUTCOME_REFUSED)
+
+
+def format_relay_json(
+    *,
+    outcome: str,
+    sid: str,
+    round_no: Optional[int] = None,
+    side: Optional[str] = None,
+    awaiting: Optional[str] = None,
+    kind: Optional[str] = None,
+    preserved: Optional[str] = None,
+    block: Optional[str] = None,
+    log_path: Optional[str] = None,
+    clipboard: bool = False,
+    cause: Optional[str] = None,
+    telemetry: Optional[str] = None,
+) -> str:
+    """Render the `bale relay --json` report as ONE line of JSON.
+
+    The relay sibling of the other json renderers (v0.4.48, twine's
+    `[[wanted]]` for `bale relay`): same stability rules (existing keys
+    are never renamed or removed; new keys may be added), same
+    one-compact-line shape, emitted via emit_json_line. THIS DOCSTRING
+    OWNS THE KEY CONTRACT; BALE.md §5.8 and the CLI help name the owner.
+
+    Without --json nothing changes: stdout is the paste block, stderr the
+    `[bale] ` lines and the summary. With it, stdout carries exactly this
+    line on EVERY path — refusals included — the block riding inside it;
+    stderr is unchanged (the `[bale] error:` line of a refusal still goes
+    there). Exit codes are unchanged: 0 relayed or re-emitted, 1 refused.
+    An argparse usage error (exit 2) never reaches the verb and prints no
+    line.
+
+    Every line carries the same twelve keys in the same order:
+
+      outcome    one of RELAY_OUTCOMES:
+                 "relayed"        a round was recorded and its block
+                                  emitted (exit 0)
+                 "re-emitted"     the no-file form: the latest recorded
+                                  round's block, recording nothing (exit 0)
+                 "relay-refused"  any refusal that exits 1 — the session
+                                  gates and the ingest, validation and
+                                  sequencing refusals alike
+      sid        the sid argument as given.
+      round      the round recorded or re-emitted (int); null on a refusal.
+      from       "worker" or "planner" — the record's side; null on a
+                 refusal.
+      awaiting   the counterpart the block is for (the other side); null
+                 on a refusal.
+      kind       what was ingested, as the human summary's `ingested` row
+                 names it: "clarification manifest" or "exchange record";
+                 null on "re-emitted" (nothing was ingested) and on a
+                 refusal.
+      preserved  the record's repo-relative path
+                 (.bale/clarifications/<sid>/NNN.json); null on
+                 "re-emitted" (nothing written) and on a refusal.
+      block      the counterpart-facing paste block, byte-identical to
+                 what human mode prints on stdout — one string, LF line
+                 endings, its trailing newline included; null on a
+                 refusal.
+      log        the session log's absolute path (.bale/logs/<sid>.log);
+                 null when no session log was wired — a refusal before the
+                 session gates wire it (not a repository, a sid that is
+                 not open).
+      clipboard  true when the block was copied through the configured
+                 clipboard command (copy_paste_block returned "copied");
+                 false otherwise, and always false on a refusal.
+      cause      on "relay-refused", the refusal's first line — the string
+                 failure_cause (bin/bale) gives the relay-refused telemetry
+                 attempt, without the `[bale] error: ` prefix; null
+                 otherwise. For reading, not dispatch: its wording is the
+                 stderr text and may change.
+      telemetry  on "relay-refused", the repo-relative path of the
+                 relay-refused attempt's record when one was written
+                 (ingest, validation and sequencing refusals write one;
+                 the session gates and a missing input file record
+                 nothing); null otherwise.
+
+    Raises ValueError on an outcome outside RELAY_OUTCOMES. Pure: builds
+    a string, prints nothing; the caller emits it.
+    """
+    if outcome not in RELAY_OUTCOMES:
+        raise ValueError(f"unknown relay outcome {outcome!r}; expected one "
+                         f"of {', '.join(RELAY_OUTCOMES)}")
+    return json.dumps({
+        "outcome": outcome,
+        "sid": sid,
+        "round": round_no,
+        "from": side,
+        "awaiting": awaiting,
+        "kind": kind,
+        "preserved": preserved,
+        "block": block,
+        "log": log_path,
+        "clipboard": bool(clipboard),
+        "cause": cause,
+        "telemetry": telemetry,
+    })
+
+
+def format_relay_refusal_json(*, sid: str, cause: str,
+                              log_path: Optional[str],
+                              telemetry: Optional[str]) -> str:
+    """A refused `bale relay --json` run's one line (v0.4.48): a thin
+    front over format_relay_json — whose docstring owns the key contract
+    — so the refused line can never grow a key set of its own: every key
+    but these four is null, `clipboard` false. Pure."""
+    return format_relay_json(outcome=RELAY_OUTCOME_REFUSED, sid=sid,
+                             cause=cause, log_path=log_path,
+                             telemetry=telemetry)
 
 
 # The `event` vocabulary of pack's --json `sweep` entries (v0.4.40,

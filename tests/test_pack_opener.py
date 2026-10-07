@@ -20,7 +20,8 @@ Pinned behaviors:
   session read-only and still lands after the close-out trailer.
 - **--json interplay**: stdout keeps its one-JSON-line contract; the
   opener rides stderr (json-mode stream discipline) and still ends
-  the run there.
+  the run there; since v0.4.48 the line's additive `opener` key is
+  exactly the scissor block's paste text (the clipboard bytes).
 - **Clock carriage** (board 94, 0.4.30; reworded with the opener): the
   block carries the pack instant on its own line — the same string the
   request manifest's provenance.packed_at stamps — and the VERBATIM
@@ -386,6 +387,28 @@ class PackOpenerBase(PackOpenerFixture):
         self.assertIn(payload["sid"], segment)
         self.assertIn(GOAL, segment)
         self.assert_ends_with_opener(result.stderr, label="stderr")
+
+    def test_json_opener_key_is_the_scissor_paste_text(self) -> None:
+        """v0.4.48: the report line's `opener` key is exactly the text
+        between the scissor lines the same run printed on stderr — the
+        lines strictly between them, LF-joined, one trailing LF (the
+        clipboard copy's bytes) — for the worker and read-only shapes
+        alike."""
+        for extra, slug in (((), "opener-key"),
+                            (("--read-only",), "opener-key-ro")):
+            with self.subTest(shape=slug):
+                result = self.pack("--json", *extra, slug=slug)
+                self.assertEqual(result.returncode, 0, msg=result.stderr)
+                payload = json.loads(result.stdout)
+                lines = result.stderr.split("\n")
+                begin = lines.index(OPENER_BEGIN)
+                end = lines.index(OPENER_END, begin + 1)
+                self.assertEqual(payload["opener"],
+                                 "\n".join(lines[begin + 1:end]) + "\n")
+                self.assertIn(payload["sid"], payload["opener"])
+                self.assertEqual(list(payload)[-1], "opener",
+                                 msg="additive: appended after every "
+                                     "existing key")
 
 
 def expected_collapsed_block(sid: str, packed_at: str, *,

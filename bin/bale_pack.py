@@ -6307,7 +6307,17 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # banners this command produces go to stderr, and stdout is reserved
     # for the one-line report emitted at the summary site below. The mode
     # state and the rendering live in bale_report.
-    if args.json:
+    #
+    # `json_report_sink` (v0.4.48) is `bale open --json`'s in-process
+    # channel, like `open_bundle` and `pre_answered`: no CLI flag can
+    # spell it. When set (a list), this pack renders its report line
+    # exactly as --json would and hands it to the sink instead of
+    # printing it, so the open folds it into its own one line and stdout
+    # never carries two. json mode is already on in that case
+    # (cmd_open enabled it first); the call below is idempotent.
+    report_sink = getattr(args, "json_report_sink", None)
+    json_report = bool(args.json) or report_sink is not None
+    if json_report:
         enable_json_mode()
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd, force=args.force)
@@ -7272,8 +7282,16 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # Otherwise the shared formatter, so pack ends on the same shape as
     # apply/handoff; the actionable next step is the trailer, so it is the
     # last thing printed.
-    if args.json:
-        emit_json_line(format_pack_json(
+    if json_report:
+        # The opener is built first (v0.4.48) so the report line can
+        # carry its paste text as the `opener` key — the same block, and
+        # so the same bytes, the scissor print and the clipboard copy
+        # below use.
+        opener = session_opener_block(
+            sid, goal, read_only=args.read_only,
+            packed_at=provenance["packed_at"],
+            has_readme=opener_has_readme)
+        report_line = format_pack_json(
             sid=sid,
             tarball=tarball_path,
             log_path=log_path,
@@ -7288,20 +7306,21 @@ def cmd_pack(args: argparse.Namespace) -> int:
             applied_latest=applied_latest,
             sweep=sweep_entries,
             include_group=group_json,
-        ))
+            opener=opener_paste_text(opener),
+        )
+        if report_sink is not None:
+            report_sink.append(report_line)
+        else:
+            emit_json_line(report_line)
         # Board 52 --json interplay: stdout keeps its one-JSON-line
         # contract untouched; the opener block prints here, after the
         # report line, and rides stderr — enable_json_mode() rebound
         # sys.stdout to stderr, the same route as every other
         # human-facing line under json mode. It still ends the report:
         # only the clipboard notice (stderr, and only when a clipboard
-        # command is configured) follows it. (A structured `opener` key in the
-        # JSON report would need a format_pack_json change in
-        # bale_report.py; proposed by board 52, not made.)
-        opener = session_opener_block(
-            sid, goal, read_only=args.read_only,
-            packed_at=provenance["packed_at"],
-            has_readme=opener_has_readme)
+        # command is configured) follows it. The structured twin board
+        # 52 proposed is the line's `opener` key (v0.4.48; its contract
+        # is format_pack_json's docstring).
         print("\n".join(opener))
     else:
         rows = [
