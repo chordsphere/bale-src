@@ -1,0 +1,483 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-07-pack-apply-ux-006",
+  "created_at": "2026-10-07T17:34:53+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-07T17:34:53+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "claude/context/bale-internals.md",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-07-pack-apply-ux-006.log",
+      "bundle": {
+        "stem": "2026-10-07-pack-apply-ux",
+        "brief_sha256": "06e479793619429798964eeade735593cfc257e8a5887440f0f081d05797af8f",
+        "checkpoint_sha256": "63f27a4817551d0c1e9095e472551d9e4415aee7858b899ac0c1aea1f7e181f5",
+        "manifest_sha256": "ec28a909222c47d667f8e776dde17c783c8f6480f99453f2de2dd77c16191207"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-07T17:34:52+00:00"
+      }
+    },
+    {
+      "at": "2026-10-07T18:20:07+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-07-pack-apply-ux-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session: bin/VERSION is 0.4.51 (cmp)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_hold_retry_e2e": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_amend_checkpoint": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_apply_preflight": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_hook_acceptance": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_context_pack": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_changelog_record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_cli_help": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_cli_reference": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_release_packaging": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: composer names the next numbered sibling": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: retry resolves the newest sibling (staged bin/bale)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: post_pack prompts carry BALE_TARBALL; the hook never runs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: context pack with no hook prints today's output": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: whole suite (discover)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "session: bin/VERSION is 0.4.51 (cmp)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_hold_retry_e2e": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_amend_checkpoint": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_apply_preflight": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_hook_acceptance": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_context_pack": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_changelog_record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_cli_help": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_cli_reference": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_release_packaging": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: composer names the next numbered sibling": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: retry resolves the newest sibling (staged bin/bale)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: post_pack prompts carry BALE_TARBALL; the hook never runs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: context pack with no hook prints today's output": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: whole suite (discover)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python ast, json)",
+          "session: bin/VERSION is 0.4.51 (cmp)",
+          "tests: test_hold_retry_e2e",
+          "tests: test_amend_checkpoint",
+          "tests: test_apply_preflight",
+          "tests: test_hook_acceptance",
+          "tests: test_context_pack",
+          "tests: test_changelog_record",
+          "tests: test_cli_help",
+          "tests: test_cli_reference",
+          "tests: test_release_packaging",
+          "session: composer names the next numbered sibling",
+          "session: retry resolves the newest sibling (staged bin/bale)",
+          "session: post_pack prompts carry BALE_TARBALL; the hook never runs",
+          "session: context pack with no hook prints today's output",
+          "tests: whole suite (discover)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "claude/context/bale-internals.md",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "claude/changelog/0.4.51.json",
+        "claude/context/bale-internals.md",
+        "tests/harness.py",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_context_pack.py",
+        "tests/test_hold_retry_e2e.py",
+        "tests/test_hook_acceptance.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.50",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "c32a8dc8bbc01634a9a5bfcff2bc6240b835f3ff6c71144f2e5d651600a04112",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "22c4f52e73fde726b3ffab8256e2a957a18378093757f8882331315bbb2af82c"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-07-pack-apply-ux-006.sh",
+              "sha256": "63f27a4817551d0c1e9095e472551d9e4415aee7858b899ac0c1aea1f7e181f5"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-07T17:34:52+00:00",
+            "base_files": {
+              "BALE.md": "43967d1d017c12f80828a3a42dc22af5b7e22faa23bc93d886cf42bd25df4929",
+              "bin/VERSION": "c8497efc4e941014caa383228c9bde9dc5c5553fa18e996c45be31e85877a418",
+              "bin/bale": "cf3226b0f25744412716b1c29b86fc4d08c001c2704cff0455d103916e5eb871",
+              "bin/bale_apply.py": "ec0b5dcd463598330c352b830a660b7b7914fa865df5739e0d3d1d17d6ab5133",
+              "bin/bale_pack.py": "c83a7a3ea5d9fc04f906b1c13570b81b42e5209a1745a9d5d380e677b50e4ed3",
+              "bin/bale_report.py": "380403350d2dbab5dd9a2dcf734e356f25fe779aedf863db59dba902469082d1",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "claude/changelog/0.4.42.json": "c0d26fe4b30cefa33612a497d8390c6e3eeec67df79434ac61ddbe46df660e46",
+              "claude/changelog/0.4.43.json": "90b4854fd11251bf9a6d02cc2516142d88c1dfa7d33f8d20c62bba5467576f36",
+              "claude/changelog/0.4.44.json": "62e71e58abf649a076c606c0c06097819980862e728824d48eeaaa14f553c570",
+              "claude/changelog/0.4.45.json": "2088ed72407753211e2ca185e5e5b9f91e206ef7a4db35a1934e7a98fa3aad20",
+              "claude/changelog/0.4.46.json": "9dc57d747790184a77e153050c50e07f7526c5c8c808cfc49d86cc2a39b234af",
+              "claude/changelog/0.4.47.json": "a786e73afb7ef135cb1574d7e8273c3e3b43e3cd45d65b70577a1e71fda43230",
+              "claude/changelog/0.4.48.json": "8b184d558c06bc11d61452c2522b7d10581a928839f5feaf2f8d0a2b14918e08",
+              "claude/changelog/0.4.49.json": "9e375d9c420815e2d241ed78f69e0cd82c6d7d0a17572a569c55dd2b027e4661",
+              "claude/changelog/0.4.50.json": "f7798e7d0b89c38fa804b262ccec8c84abb3415cff1d657f75f875fa94ac267f",
+              "claude/context/bale-internals.md": "9e5f164fd2d54f6abb9d2f3f1e4f6748601403db5f6f401a35bcc6aa7957839e",
+              "tests/__init__.py": "0c44c07eb437099ccf549130ff801e000c31117eefaabca2ae20373f88606802",
+              "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json": "4317724352498ade052ad09c5ccf0b8b24e6f38a4e60b41ad1216ae0afee34a9",
+              "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json": "21bdafc2b26e0321ce28517c1100db942c528ea000d338f2704032192d06cc60",
+              "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json": "b91344cadfaf3b2d0e9846a7d2900096a0beb595b3e5feea01b6e2aaeacf9044",
+              "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json": "e63c78ba4988d0495c3e1312acd73fe2ef30cd78f4ca5ca17f5308c1219f4248",
+              "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json": "01e652a0c65d6d2682d56c045d9be8e1b58ab855ed33e6f50fb89af69d8e689d",
+              "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json": "885794e43cfeaad9b1167d428a3df206997ca8aba26bb59618f3d6001335e0b9",
+              "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json": "7015bbbd2cccb5de0115234d886c0365b440a270aeeb20c8295ce95734d8cc3b",
+              "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json": "eff576f01a3a04389b075f01f87785b85ef9cae0feabc0bd329a5a6eca42e5b3",
+              "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json": "0f6d8c0114e0ab61f067f72cdb2c3de45e31f41d05a71b698b5647a449f1e8e4",
+              "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json": "89b6b8b654d08f94634bbdc25dab5b7e39274875ec4ba2bdaed5664086a8acdc",
+              "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json": "11c4e47974cb6d72a6386303381f80b23f890e0fb7114c3426e8be52664fee45",
+              "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json": "cfc2d3243735b03fb0ef270d6ca662d5071cded88a864a9b7ab4349e734b3005",
+              "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json": "6bc97496e34d24aa944c9529d5ed7a2baf616f8f87cef5772a7aabea5600eb78",
+              "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json": "42664288d9a387c5d28667d17388b734211133cab36587d82e824272ef57239d",
+              "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json": "acff85466fea6b23e3ef4ecfdd2ea5cd824afeb7b8bf5fb644f0df4ebbcbad92",
+              "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json": "3181d4dc92910184725e2457845e3b0288bdab76df4ddfec6973c9800d5a1771",
+              "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json": "618224af3eef6f2ae4d0ea43097da46de3e318d2bda8ce1c718a0f739baf836c",
+              "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json": "cb46c8944b345533b8fea2a507623a710ef9e63ee73e3580e2f722bddc9a7691",
+              "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json": "06b770b2ada1f3a16fbc7db26000aea24ceafe5376d46a29003e138bcbd2a36a",
+              "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json": "3196136fdd9b06525a2209891cb2f9cdca0fd351cfcac975124f844f62aa4001",
+              "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json": "bf8004cc11324a7acbbb1edf209f31bdd3274c19c1f176dbebe9c3c6d55e42fe",
+              "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json": "68d42658ce69d884e705392d0f44ede04ee4dbbd9a368698692fcf30817c5c48",
+              "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json": "e1789ddf0921a01eedff7cbfce3385e728ff93495f4afebb7db6dac55c30af30",
+              "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json": "4f5ae47ea3d6941f982f8041fd3c839b214dd8509f63c25c87f256be47b5c6d4",
+              "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json": "35de4cfff3a04288b66743d66c31cbcae6128bf6404d86d78683b592808c3f5c",
+              "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json": "ad4f4a5e7d39ba584d6b0fcfea165358b1eb023f6074b7a5bed2237bea26a1a1",
+              "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json": "248676259e7ac3d2d9840c9dd6247371ff3b9147652c4f0c63884520125bfcab",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-docs-read-002.json": "0f2e4a0165fa4123aee88f0a88a6cbd68d4ce9ac376e28d96b3f85c1ae62ea19",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-handoff-origin-001.json": "7d1779afb4224f1aa1bc32410f85a370949b77521f69d7bc7a0a2711e23c2e32",
+              "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json": "1ad193e48c41da122f2f252fbe151d6dd19b65641c29ce9b3690d58ff2a6e458",
+              "tests/fixtures/stats_corpus/corrupt-record.json": "8e7d39b0534ad73130ea8a52903c20cf2851b5cbd76c49c124b81fc3d15027da",
+              "tests/harness.py": "9a53cf1d9d64f3f88d417f60d87a69a5c59e895e10eb38221edf3c838a65c7f0",
+              "tests/test_admission_prompts.py": "683606ce60d21e555d7ddbe937b3b1bc3611318d7872579523e03153faea67f9",
+              "tests/test_admission_prompts_e2e.py": "d6b999b59bb4fa736a779b27a6b61ba85fc74130c48099411cc3b9e0e4dfaa2d",
+              "tests/test_amend_checkpoint.py": "48ba518bea6d5ac3161c9af4022fdd592b309e5d5eb9ef6081d22da6c6a6bfe2",
+              "tests/test_apply_operations.py": "1fe89ee34ee9d9ada86041e1a8cee828c072d1ccb920eddf7761712022dab410",
+              "tests/test_apply_preflight.py": "ceb90c358c3ccc933f6b44f4cc2c2469fe8a79331c81f60165fbb9d499895c8e",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_base_drift.py": "1c2619900161d56dada5725ac8e760c25b68924c94ff0da5f154506cc17926b1",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_bundle_denylist.py": "ac8b3cf17be4794cadd7e5c2b84c84b6c2f331660ea815a2c5151fda8c6cd440",
+              "tests/test_bundle_manifest.py": "4d43e4edb9b513fb95eaf3496823cf8ea985dc948607e6efff1892e5162bd0a2",
+              "tests/test_changelog_record.py": "4c341a8b6d39d0a9b069096bb12e607a7cb8b005d72ba35b569a396bbf0d6ef5",
+              "tests/test_checkpoint_file_flag.py": "ba3af9027573055fc6a098ce9c499d8fc8025d4d763a80759c286273d630e2e6",
+              "tests/test_checkpoint_provenance.py": "3a5ec190d58ae465037d575539b65a3811f91ae89796099edba4358c43cfeda2",
+              "tests/test_clarification_status.py": "d63031badeba9e55c043381c0efe3c0cbc6807a0d1c9e0aff942faa3242c4464",
+              "tests/test_cli_help.py": "28bbd7fd91f85d9e4d46070baf579f9b5fe13066b2b08d1092e52e910b9d9128",
+              "tests/test_cli_reference.py": "c99983171c671e83ac16eed985213f6e172ff60afc2f27fccb3d83a92cbb4ea6",
+              "tests/test_clipboard_key_rename.py": "3908bc98f62038ac1cf597754776af5be44fb2c4e4fde6a22484f372e972b177",
+              "tests/test_clipboard_paste_blocks.py": "cd34dd31107346dc7c8287c956a9f62051ec37645983f83f706ba17ebbc07331",
+              "tests/test_clock_discipline.py": "9d8ee645be9307f364596eb1f92f1b16acddd916c327a2c92df26d6492583165",
+              "tests/test_closure_telemetry.py": "40538646717a5ab860103a4abbb312db1c834056c9fb17f02953b7a994ef4411",
+              "tests/test_context_pack.py": "b7b87fd4874efc5bb26e116a2eaa4ebdc9f3b0ab860029b8171d9d63904c55c0",
+              "tests/test_craft_response.py": "22e4847fd7f25bb8f3904381f267589ddb40188ff89b5937a488ea6c8424881e",
+              "tests/test_crlf_tolerance.py": "2ed4dbecbd928ca4de2cfacce55ebf6d35cd32dc6bf88f79adfa837a38cde94e",
+              "tests/test_doc_crossrefs.py": "500fbb3b648fe12bb2d5c27e690b64f711c946d0575fe32237ec401b28d8385f",
+              "tests/test_dotted_run_form.py": "ce5b7c303857d3ff61aba0b6d362961318f9b9068cba0dd9dd3952336f1a3a6c",
+              "tests/test_escalation_schemas.py": "513669f7bdcadef54415003f90b3f10ad1aadcf14817b9e930d5046b13555d04",
+              "tests/test_exchange_record.py": "a7a108ee4827067e1bfd5dfb2aaab342e2acd8efcf8d00adddfe2b2ac132e4ac",
+              "tests/test_forecast_ledger.py": "084b61d2a6643dc6710c02eb906ef2f050d7d771d4bb9c2a3804102ab0646e5a",
+              "tests/test_global_doc_noun.py": "199484749cfc804de5d8fff5347caea574ba46395a5755cbf2c38c9dfc063f26",
+              "tests/test_global_doc_selfcontainment.py": "ae978d27f7031ffbbea02bd6da13eccff54237d2d3be6b9aaa8f013309c7836c",
+              "tests/test_handoff_checkpoint_gates.py": "59e4e48abb28cc4dd79eb85441ea3c3d011dd41470658faa8b37cae55de6ceeb",
+              "tests/test_handoff_fixture.py": "ba6184dc8a5a654cd27b93eae9e7450f7318b5e0fae6176a44e4f18043979252",
+              "tests/test_handoff_forecast.py": "f7a4c926e103bccb30734480c67ecf128338c0a48bef982127180c7f0eb953cc",
+              "tests/test_handoff_happy.py": "c05e1a99fe840c373d69ece9286e943afb362f82fef9f7a5b1215ed661cfb652",
+              "tests/test_handoff_registry_gate.py": "b2fe8f31072bb89bb9c1ff3b69217fbd80ba086e0a4a28aa38e1f2898280de23",
+              "tests/test_harness_cli_loader.py": "649fadbc43c1690d87d62d862bc4cc1caacade1969a84c89e6792d473fef0110",
+              "tests/test_hold_retry_e2e.py": "5842725a36cea7dc6aba385ed7b75beb66ff6d4a34aa8133d10bc668ffcdc47a",
+              "tests/test_hook_acceptance.py": "a0c63f4a575d94fc92e9882f26b6bdf96462a466e1dd4ce38232a7bc63bf8299",
+              "tests/test_include_group.py": "e6ef53519d2c3c28616d62bd00427e56af2d7aeceb6717e8071ada0eea665bec",
+              "tests/test_install_precheck.py": "f1efa65094b0081d04f97c4c51472aead85bfab9202cb35fe27a759a11712335",
+              "tests/test_layout_and_formats.py": "2e4811e1cd3d2055ff26e8d88ffb19fae6790d1286ff097af9064e0c34a65387",
+              "tests/test_lint_clock_and_prefix.py": "79d3a7484281d1c8ac9f541651aa9563524d6bc32cfb078714a3778f8448c8b4",
+              "tests/test_open_relay_json.py": "92170d3e4ec968918d83d64f4cda772b76da99eb5ae24e36c97ee4eb28ea2ada",
+              "tests/test_open_verb.py": "5ef26ea4ad88d341d1400a0a48893064b12218fed1722f424172ede556184b64",
+              "tests/test_pack_guards.py": "1ecc5570a040ffa0bd0ff78dead4c4c580166063627012752d95a4d434f1096a",
+              "tests/test_pack_opener.py": "2862c2b34cfc0bae7813ca9fb57355b15576284aacf5e9515299c9194c0432d5",
+              "tests/test_pack_telemetry_104b.py": "fd406074a46bcc83bc9f87d09fd3b183fedbbbd4766cfd514f22235d9b9e759b",
+              "tests/test_pack_wizard_ui.py": "bb4ce24e2ba6dcc7fab511c04e192f1ccc6383feddec60bfca662d7fccc6d8e2",
+              "tests/test_per_sid_checkpoint.py": "bcbc077906e7e8b524bfdb450d799ba04ee5407ad34c685c99e4d03d1bff5c72",
+              "tests/test_planner_admission.py": "fa0b3e9c247cb9567ea6def0c36589d3786876d31f0baf0ba1656e148a6d9731",
+              "tests/test_pre_answered_intents.py": "922018b9f7396388a405d21b6feea94832cf95ff568069fc269ae5599006a199",
+              "tests/test_probe_clipboard_config.py": "4a847ee68f391e714d87d32fb20e1ee3aba23839437f5ad372b3133f379b3142",
+              "tests/test_provenance_at_open.py": "26698c79a2477ce9f879c2feb12869f5df9b7f37d18952e394b878a4bf3ab3d5",
+              "tests/test_readme_identity.py": "d950c764d4976bf60d895903be18a9d57c9455c23f0600b9d15f6b56d7687aa6",
+              "tests/test_readonly_pack.py": "05aae135b6c6a328c86bfcd63473039b0b592773d20cac9386b7b8049817cd65",
+              "tests/test_refusal_codes.py": "55347d31f753b9f4fb33fb928b55f9ff9472257f08e3a680c3fbb715feeaf3a6",
+              "tests/test_rehearsal_verbs.py": "41088634c897f85c47c40c9a1ee28af65cc657ca7e7acdc3871cbb706c710e08",
+              "tests/test_relay_verb.py": "f9174987e4811a1d6bbff88aa35c340b42a93fd80da724ae195f5ffa223321b3",
+              "tests/test_release_packaging.py": "d08bbb8e64a823410e7f08e9330faaf98169790040ee10b9f2bd38776664fcd4",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_response_lint.py": "f87f7b98657ce93dce887eb3839b577a952cfc7ddf6f8d721dd9b89c01d9a166",
+              "tests/test_revert_json.py": "358b531a9576a89eea39971aaca4b7f8b6c5d3eb61c362f5feedc72c4f61f262",
+              "tests/test_rollback_telemetry.py": "b1d51a5924c2604f48c7de138577649c6b48e1b876cbef037b4b525893a28f5e",
+              "tests/test_sanctioned_pairs.py": "4619483d955babf2a91246fbe8591898ede6dacf790a74e8491b71d4b143d32e",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6",
+              "tests/test_schema_embeds.py": "f9b7afbd84345ade5bd771e17bbe5092eeb0d542f72289a1acb24123b618a39e",
+              "tests/test_slow_gate.py": "0c90b8673ddc07ec58df2827bd409ce219569e32a3f0d8b06f205db6fda3374b",
+              "tests/test_stats_aggregation.py": "46fe0c4af5880647c7402b35efbeb42d5aa2dfb32c7f8e90e065d99eeddc5001",
+              "tests/test_stats_compaction.py": "87a984e77f34025e7af8d1f9d860d6e35ab0e5ba13b54b6b37e0f6658dbea2c8",
+              "tests/test_stats_drilldown.py": "936ed0d8c4ab4141d392ecb589df76c0ff6c6e7feabd7ac32db9b290d8e4ea18",
+              "tests/test_stats_linkage.py": "8c65d70681646e43e45bc088896c7b859f7d37bba950cb4970429d8d2648ce8f",
+              "tests/test_supersession_pack.py": "902e838d420567055ae06b120607cc05cb58ade02c6d77420a1b6c1078642a66",
+              "tests/test_telemetry_extensions.py": "9dfae1d263912875a6e7ad4df8f45ae1f03c1033a1fabe95e152fccbf66d54f9",
+              "tests/test_telemetry_fields_wave1.py": "2a7fae230920f3a1a5bab3af5ce026b9f05d42f43880aee82282722c3cae6a62",
+              "tests/test_telemetry_promotion.py": "3aac77cbbe031b716ef8f44a0f9f3297cdac4730b82671dfa2460a7ebba9b5c0",
+              "tests/test_thread_status.py": "cc77b708af9111327e72b3fca17ad1c23262de8cb6fdc276e1a5ab5fddf7e107",
+              "tests/test_tree_position_echo.py": "e85a4168f099ef2e6dd85245475ab7828ee9fc6f6da37bc3f349e0da6c5e5246",
+              "tests/test_unlock_json.py": "3585c262f1289efca3d701cc132aa722cb225dab87fed82d7fde918ea72041a2",
+              "tests/test_upgrade_required_members.py": "2d1c3f9f3f7aeb6fe60aa29a24b176ef77f8443c9ded40e8cce9d49bcffb2223",
+              "tests/test_verbose_thread.py": "d3172d9a392532a3249ec70747856aa15b02c3d808e835c586f0c967f0acb0a7",
+              "tests/test_wizard_ui.py": "93c7138a9fa249fdce27cd7d2424fc727501d993ad54933e510e0c99f216f238",
+              "tests/test_write_forecast.py": "ceced962e27ba328a64e82f87d1e8ee1cc5818a7a9cb8e29e674302976088c52"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The fixture and base forks name the (N+1) sibling too (the constraint says 'the worker block, the HOLD card and amend-checkpoint alike'); they land through retry's resolution to the newest sibling, which is the held tarball when nothing newer arrived.",
+            "The context pack's hook resolves config, cwd and BALE_REPO_ROOT from the same root its walk already reads: the git work-tree root inside one, the packed directory outside."
+          ],
+          "judgment_calls": [
+            "Sibling grammar: '<base> (N)<suffix>' with one space and a positive integer without a leading zero; suffix is .tar.gz when the name ends with it, else the last extension; the stamp's own counter counts toward N.",
+            "Retry's resolution candidates are exactly response-<sid>.tar.gz and 'response-<sid> (N).tar.gz' for the same sid, not the brief's wider response-<sid>*.tar.gz glob, so a '-old' variant or another session's 'response-<sid>0' name can never be picked by mtime.",
+            "The resolution log line is printed after json mode engages, so retry --json keeps stdout to its one report line.",
+            "Two ExplicitNameMissTest retry subcases changed meaning: a missing response-X.tar.gz with its (1) twin beside it now resolves instead of listing the twin; apply and handoff keep the listing."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through \u00a711.2",
+            "README.md (the brief)",
+            "TARBALL.md \u00a7\u00a71, 2, 5.1\u20135.4, 7, 8, 10",
+            "tools/craft_response.py header",
+            "tools/response_lint.py header",
+            "BALE.md \u00a7\u00a75 (retry/amend rows), 5.4, 5.7, 7.1 near-name, 7.8, 8.8",
+            "claude/context/bale-internals.md \u00a73"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-10-07-pack-apply-ux-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-07-pack-apply-ux-006.sh",
+          "sha256": "63f27a4817551d0c1e9095e472551d9e4415aee7858b899ac0c1aea1f7e181f5"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-07T18:20:07+00:00",
+  "outcome": "applied"
+}
