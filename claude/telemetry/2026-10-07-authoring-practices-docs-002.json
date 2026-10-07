@@ -1,0 +1,284 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-07-authoring-practices-docs-002",
+  "created_at": "2026-10-07T01:35:27+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-07T01:35:27+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-07-authoring-practices-docs-002.log",
+      "bundle": {
+        "stem": "2026-10-06-authoring-practices-docs",
+        "brief_sha256": "ba26bf29125f105d6962986a4c9e729c9da0e2d3c930bda7f7d35a84399a0caa",
+        "checkpoint_sha256": "0f2f35d50058a3e18870a111d2997f0e8c0c796ad8f76b41291f66077857a5f7",
+        "manifest_sha256": "bcb15f79126849634be7ee3419ce237c3b4748c95f375aa968c75286977b184e"
+      },
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-07T01:35:26+00:00"
+      }
+    },
+    {
+      "at": "2026-10-07T03:33:30+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-07-authoring-practices-docs-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests.test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_global_doc_noun": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: seventeen leads in their named sections": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: cadence sentences byte-exact in PLANNER.md 6": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: rehearsal riders in PLANNER.md 4 and TARBALL.md 3.4": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: TARBALL.md 3.4 --dry-run flag row": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: AGENT.md, DOCS.md, CODE.md byte-identical": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: heading lists of both docs unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests.test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_global_doc_noun": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: seventeen leads in their named sections": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: cadence sentences byte-exact in PLANNER.md 6": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: rehearsal riders in PLANNER.md 4 and TARBALL.md 3.4": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: TARBALL.md 3.4 --dry-run flag row": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: AGENT.md, DOCS.md, CODE.md byte-identical": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session: heading lists of both docs unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "tests.test_doc_crossrefs",
+          "tests.test_global_doc_selfcontainment",
+          "tests.test_sanctioned_pairs",
+          "tests.test_global_doc_noun",
+          "tests.test_schema_embeds",
+          "session: seventeen leads in their named sections",
+          "session: cadence sentences byte-exact in PLANNER.md 6",
+          "session: rehearsal riders in PLANNER.md 4 and TARBALL.md 3.4",
+          "session: TARBALL.md 3.4 --dry-run flag row",
+          "session: AGENT.md, DOCS.md, CODE.md byte-identical",
+          "session: heading lists of both docs unchanged"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.46",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "32680c8efcfb1c56c486846d0187063d38b7c5333e48c553db1a9ae0b2d118b1",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-07-authoring-practices-docs-002.sh",
+              "sha256": "0f2f35d50058a3e18870a111d2997f0e8c0c796ad8f76b41291f66077857a5f7"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-07T01:35:26+00:00",
+            "base_files": {
+              "docs/PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5",
+              "docs/TARBALL.md": "32680c8efcfb1c56c486846d0187063d38b7c5333e48c553db1a9ae0b2d118b1"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The cadence sentences are appended to the End-at-milestones bullet as two continuation lines, each sentence whole on its own physical line (two-space list indent), rather than as a new bullet: the brief allowed either, and appending keeps them byte-exact without inventing a bold lead.",
+            "The brief's heading counts (29, 57) count every heading line, title and #### included, fenced code excluded; validation compares those full lists."
+          ],
+          "judgment_calls": [
+            "Bullet 17's body follows the code, not the brief's rationale: bale apply --dry-run does not stage; it extracts the tarball to a temporary directory and appends to .bale/logs/<sid>.log (set_log_file runs before the dry-run branch).",
+            "Bullet 16 landed as a bold-lead paragraph at the end of TARBALL.md 7.1 (beside the announced-writes paragraph), not inside 7.2, whose numbered list is pinned at items 1-6.",
+            "The section 4 rehearsal rider is an unbolded bullet (the section's last bullet is the precedent) so no lead competes with the seventeen verbatim ones.",
+            "The section 3.4 open-rehearsal sentence is its own paragraph after the final pinned bundle-delivery sentence, leaving the pinned paragraph byte-identical.",
+            "The --dry-run row's refusals add --context to the brief's --json and outside-a-git-repository, per BALE_HELP.md and bale_pack.py."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through 11.7 (whole file)",
+            "README.md (the brief)",
+            "TARBALL.md (whole file)",
+            "DOCS.md (whole file)",
+            "PLANNER.md (whole file)",
+            "BALE_HELP.md bale help pack --dry-run, bale help apply, bale help open",
+            "tests/test_doc_crossrefs.py, tests/test_sanctioned_pairs.py, tests/test_global_doc_noun.py, tests/test_global_doc_selfcontainment.py (deny tables and pins)",
+            "bin/bale_pack.py cmd_pack_dry_run; bin/bale_apply.py dry-run path; bin/bale set_log_file",
+            "tools/craft_response.py and tools/response_lint.py (headers, CLI, write paths)"
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-07-authoring-practices-docs-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-07-authoring-practices-docs-002.sh",
+          "sha256": "0f2f35d50058a3e18870a111d2997f0e8c0c796ad8f76b41291f66077857a5f7"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-07T03:33:30+00:00",
+  "outcome": "applied"
+}
