@@ -894,6 +894,21 @@ CHECKPOINT_BAND_PREFIX = "=== blind checkpoint ("
 
 _RELAY_SENTINEL_PREFIX = "=== RELAY "
 
+# Every shape's sentinel prefix, declared once: the relay's above, the
+# probe's (`=== PROBE BEGIN <slug> ===`), the light block's (`=== LIGHT
+# BEGIN <sid> ===`) and the exchange block's (`BALE EXCHANGE BEGIN
+# <sid>` / `BALE EXCHANGE END` — the END line starts with the prefix
+# too). Each carries its trailing space. _inline_lines indents a line
+# that starts with any of them, so text inlined into a relay block — a
+# worker's validation output or notes quoting a block it emitted — can
+# never read as another shape to a reader that is not span-aware.
+_SHAPE_SENTINEL_PREFIXES = (
+    _RELAY_SENTINEL_PREFIX,
+    "=== PROBE ",
+    "=== LIGHT ",
+    "BALE EXCHANGE ",
+)
+
 
 def relay_sentinels(sid: str, addressee: str) -> tuple:
     """The BEGIN/END sentinel lines for one addressed block. Pure."""
@@ -918,15 +933,17 @@ def relay_send_first(judge_case: str) -> str:
 
 def _inline_lines(text: Optional[str]) -> list:
     """`text` as lines for inlining inside a relay block, verbatim except
-    that a line which would read as a relay sentinel gets a two-space
-    indent — sentinels are whole lines, so an inlined output line can
-    never close or open a block early. Trailing blank lines dropped."""
+    that a line which would read as any shape's sentinel (the prefixes
+    in _SHAPE_SENTINEL_PREFIXES) gets a two-space indent — sentinels
+    are whole lines, so an inlined output line can never close or open
+    a block early, nor read as a probe, light or exchange block of its
+    own. Trailing blank lines dropped."""
     lines = (text or "").splitlines()
     while lines and not lines[-1].strip():
         lines.pop()
     while lines and not lines[0].strip():
         lines.pop(0)
-    return [f"  {ln}" if ln.startswith(_RELAY_SENTINEL_PREFIX) else ln
+    return [f"  {ln}" if ln.startswith(_SHAPE_SENTINEL_PREFIXES) else ln
             for ln in lines]
 
 

@@ -113,8 +113,8 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   no lint runs on it — the architect audits the pasted block by eye,
   so the unfilled placeholders are the unfilled-cannot-pass analog:
   visibly not ready to paste. The scaffold's tail is the opt-in
-  clipboard copy (registry fold-in, ratified 2026-08-18,
-  configurable-never-core; through bale since session
+  clipboard copy (configurable, never core: a machine without a
+  clipboard key loses nothing but the copy; through bale since session
   clipboard-paste-blocks): the script pipes its sentinel-bracketed
   block into the installed bale (`bale clipboard`), which copies it
   with that machine's `[clipboard] command` — project value, else the
@@ -371,8 +371,8 @@ CHECKPOINT_MEMBER = "checkpoint.sh"
 # the fix is immediate, instead of at the operator's `bale open`.
 BRIEF_PLACEHOLDER = "TODO(brief)"
 
-# --- The clipboard key (registry fold-in, ratified 2026-08-18,
-#     configurable-never-core) ---
+# --- The clipboard key (configurable, never core: a machine without
+#     one loses nothing but the copy) ---
 #
 # The opt-in config key naming the environment's clipboard command.
 # NAMED LOUDLY on purpose: bin/bale_config.py reads the same spellings
@@ -562,7 +562,11 @@ PROBE_CLIPBOARD_FALLBACK_EPILOGUE = """\
 # prediction (untested/unknown). Diagnostic, never gatekeeping: the
 # epilogue neither sets nor reads exit_code (§7.3, §7.5). WHICH checks
 # run is the worker's judgment (§7.2) — nothing here names or suggests
-# a check; the shape alone is mechanized.
+# a check; the shape alone is mechanized. The heredoc Python runs as
+# `python3 -B -`: a heredoc script writes no bytecode of its own, but
+# §7.1 asks every validation.sh to announce or suppress interpreter
+# caches, and the pasted fragment should say so itself rather than
+# leave the worker to hand-edit the emission.
 RECONCILE_EPILOGUE = """\
 # --- claims reconciliation (crafted; TARBALL.md 7.3) ---
 # Paste this block BEFORE your checks (it only defines functions).
@@ -591,7 +595,7 @@ reconcile_claims() {
       pairs+=("$label=${BALE_VERDICTS[$label]}")
     done
   fi
-  python3 - "$manifest" ${pairs[@]+"${pairs[@]}"} <<'BALE_RECONCILE'
+  python3 -B - "$manifest" ${pairs[@]+"${pairs[@]}"} <<'BALE_RECONCILE'
 import json, sys
 
 manifest_path, *pairs = sys.argv[1:]
@@ -2684,10 +2688,13 @@ raise SystemExit(1 if fails else 0)
 
 def _doc_assert_block(banner: str, py_body: str, delim: str,
                       argv: list[str]) -> str:
-    """One pasted block: banner comment, guarded python3 heredoc."""
+    """One pasted block: banner comment, guarded python3 heredoc. The
+    heredoc runs as `python3 -B -` for the reason beside
+    RECONCILE_EPILOGUE: the fragment announces its cache discipline
+    (TARBALL.md 7.1) itself."""
     args = "".join(" " + shell_quote(a) for a in argv)
     return (f"{banner}"
-            f"if ! python3 -{args} <<'{delim}'\n"
+            f"if ! python3 -B -{args} <<'{delim}'\n"
             f"{py_body}"
             f"{delim}\n"
             "then\n"

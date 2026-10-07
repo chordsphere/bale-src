@@ -2099,6 +2099,83 @@ class HoldRelayUnitTest(unittest.TestCase):
         self.assertEqual(sum(ln.startswith("=== RELAY ") for ln in lines), 2)
         self.assertIn(f"  === RELAY END {self.SID} to worker ===", lines)
 
+    # -- _inline_lines indents every shape's sentinel prefix ------------------
+    # (session inline-sentinels-and-crafter-b: a worker's output inlined
+    # into a relay block can quote a probe, light or exchange block of
+    # its own, and a reader that is not span-aware must never see a
+    # shape inside a shape.)
+
+    SHAPE_SENTINEL_LINES = (
+        "=== RELAY BEGIN 2026-09-18-relay-unit-001 to worker ===",
+        "=== RELAY END 2026-09-18-relay-unit-001 to worker ===",
+        "=== PROBE BEGIN tree-state ===",
+        "=== PROBE END tree-state ===",
+        "=== LIGHT BEGIN 2026-09-18-relay-unit-001 ===",
+        "=== LIGHT END 2026-09-18-relay-unit-001 ===",
+        "BALE EXCHANGE BEGIN 2026-09-18-relay-unit-001",
+        "BALE EXCHANGE END",
+    )
+
+    def test_shape_sentinel_prefixes_declared_once(self) -> None:
+        """The four prefixes are one tuple beside the relay prefix, each
+        with its trailing space, and the relay's is the same declaration
+        relay_sentinels builds from — not a second spelling of it."""
+        prefixes = self.br._SHAPE_SENTINEL_PREFIXES
+        self.assertIsInstance(prefixes, tuple)
+        self.assertEqual(prefixes, ("=== RELAY ", "=== PROBE ",
+                                    "=== LIGHT ", "BALE EXCHANGE "))
+        self.assertIs(prefixes[0], self.br._RELAY_SENTINEL_PREFIX)
+        begin, end = self.br.relay_sentinels(self.SID, "worker")
+        self.assertTrue(begin.startswith(prefixes[0]))
+        self.assertTrue(end.startswith(prefixes[0]))
+
+    def test_inline_lines_indents_every_shape_sentinel_prefix(self) -> None:
+        for sentinel in self.SHAPE_SENTINEL_LINES:
+            with self.subTest(sentinel=sentinel):
+                self.assertEqual(self.br._inline_lines(f"{sentinel}\n"),
+                                 [f"  {sentinel}"])
+
+    def test_inline_lines_leaves_every_other_line_verbatim(self) -> None:
+        cases = (
+            "[PASS] mine",                       # a plain line
+            "",                                  # an interior blank line
+            "output: === PROBE END tree-state ===",   # contains, not starts
+            "see BALE EXCHANGE END above",       # contains, not starts
+            "=== RELAY",                         # the prefix minus its space
+            "===PROBE BEGIN x ===",              # no space after the bars
+            "=== probe BEGIN x ===",             # case differs
+            "  === LIGHT END s ===",             # already indented
+            "  BALE EXCHANGE BEGIN s",           # already indented
+            "    === RELAY END s to worker ===",  # deeper indent
+        )
+        text = "lead\n" + "\n".join(cases) + "\ntail\n"
+        self.assertEqual(self.br._inline_lines(text),
+                         ["lead", *cases, "tail"])
+
+    def test_inline_lines_blank_edge_handling_unchanged(self) -> None:
+        self.assertEqual(self.br._inline_lines("\n\n  \n=== PROBE END x ===\n"
+                                               "mid\n\n\n"),
+                         ["  === PROBE END x ===", "mid"])
+        self.assertEqual(self.br._inline_lines(None), [])
+        self.assertEqual(self.br._inline_lines("\n \n"), [])
+
+    def test_inlined_probe_light_and_exchange_lines_stay_inside_the_block(
+            self) -> None:
+        """End to end through the worker block builder: the quoted
+        shapes arrive indented, and the block's own two relay sentinels
+        are still the only column-zero sentinel lines."""
+        quoted = "\n".join(self.SHAPE_SENTINEL_LINES[2:]) + "\n"
+        _, worker = self.blocks(self.cp(1, ["probe-alpha"]), 1,
+                                worker_output=quoted)
+        lines = worker.splitlines()
+        for sentinel in self.SHAPE_SENTINEL_LINES[2:]:
+            self.assertIn(f"  {sentinel}", lines)
+            self.assertNotIn(sentinel, lines)
+        at_column_zero = [ln for ln in lines
+                         if ln.startswith(self.br._SHAPE_SENTINEL_PREFIXES)]
+        self.assertEqual(at_column_zero,
+                         list(self.br.relay_sentinels(self.SID, "worker")))
+
     # -- send-first rule -----------------------------------------------------
 
     def test_send_first_rule_and_block_order(self) -> None:
