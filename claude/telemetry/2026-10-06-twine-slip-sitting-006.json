@@ -1,0 +1,78 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-06-twine-slip-sitting-006",
+  "created_at": "2026-10-06T23:41:42+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-06T23:41:42+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-06-twine-slip-sitting-006.log",
+      "bundle": {
+        "stem": "2026-10-06-bale-src-twine-slip-sitting",
+        "brief_sha256": "6decb163a5b32aae5475f967e8309d7d8b0191f6fcbfdfcbb17520144f029c69",
+        "checkpoint_sha256": null,
+        "manifest_sha256": "e74ed11e423a11a3478ad68ab3bb9d85727478bbf1e9b9dcb957c1f436142beb"
+      },
+      "provenance": {
+        "work_class": "meta",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-06T23:41:42+00:00"
+      }
+    },
+    {
+      "at": "2026-10-07T13:14:38+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "closed-read-only",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-06-twine-slip-sitting-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-07T13:14:38+00:00",
+  "outcome": "unlocked"
+}
