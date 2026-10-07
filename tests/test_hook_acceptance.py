@@ -280,6 +280,81 @@ class ProjectHookDefaultTest(_HookFixture):
                          msg="EOF declines even at an accept default")
 
 
+class PostPackTarballTest(_HookFixture):
+    """v0.4.51 (session pack-apply-ux): every post_pack prompt carries
+    BALE_TARBALL — the tarball the run just wrote, absolute — in its
+    `env:` lines beside BALE_SESSION_ID, and exports it to the script.
+    The piped runs decline on closed stdin, so the script never runs
+    there (its marker is asserted absent); the one pty run accepts to
+    prove the export. post_apply_pass writes no tarball and its prompt
+    is unchanged. The context pack's offer is tests/test_context_pack.py
+    (ContextPackHookTest)."""
+
+    def write_post_pack_hook(self) -> Path:
+        script = self.repo / "scripts" / "post-pack.sh"
+        script.parent.mkdir(exist_ok=True)
+        script.write_text(
+            "#!/bin/sh\n"
+            "printf 'tarball=%s\\nsid=%s\\n' \"$BALE_TARBALL\" "
+            f"\"$BALE_SESSION_ID\" > \"$HOME/{MARK}\"\n",
+            encoding="utf-8")
+        script.chmod(script.stat().st_mode | stat.S_IXUSR)
+        (self.repo / "bale.toml").write_text(
+            '[sandbox]\nenabled = false\n'
+            '[hooks]\npost_pack = "scripts/post-pack.sh"\n',
+            encoding="utf-8")
+        run_checked(["git", "add", "bale.toml", "scripts/post-pack.sh"],
+                    cwd=self.repo, env=self.genv)
+        run_checked(["git", "commit", "-m", "post_pack hook"],
+                    cwd=self.repo, env=self.genv)
+        return script
+
+    def newest_sid(self) -> str:
+        return sorted(d.name for d in
+                      (self.repo / ".bale" / "sessions").iterdir()
+                      if (d / "open").is_file())[-1]
+
+    def test_session_pack_prompt_shows_bale_tarball(self) -> None:
+        self.write_post_pack_hook()
+        r = run_bale(self.install, [
+            "pack", "post_pack tarball goal", "--slug", "pptar",
+            "--include", "hello.txt", "--no-readme"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        sid = self.newest_sid()
+        tarball = self.repo / ".bale" / "outbox" / f"request-{sid}.tar.gz"
+        self.assertTrue(tarball.is_file())
+        self.assertIn("  env:    BALE_HOOK=post_pack\n"
+                      f"          BALE_SESSION_ID={sid}\n"
+                      f"          BALE_TARBALL={tarball}\n"
+                      f"          BALE_REPO_ROOT={self.repo}\n", r.stdout)
+        self.assertIn("[hook post_pack] declined (stdin closed or "
+                      "interrupted); not invoking.", r.stdout)
+        self.assertFalse(self.marker.exists(), "the hook must not run")
+
+    def test_accepted_post_pack_receives_bale_tarball(self) -> None:
+        self.write_post_pack_hook()
+        code, out = run_bale_pty(self.install, [
+            "pack", "post_pack export goal", "--slug", "ppexp",
+            "--include", "hello.txt", "--no-readme"],
+            cwd=self.repo, env=self.env, answers="y\n")
+        self.assertEqual(code, 0, msg=out)
+        sid = self.newest_sid()
+        tarball = self.repo / ".bale" / "outbox" / f"request-{sid}.tar.gz"
+        self.assertEqual(self.marker.read_text(),
+                         f"tarball={tarball}\nsid={sid}\n")
+
+    def test_post_apply_pass_prompt_has_no_tarball_line(self) -> None:
+        self.write_project_hook()
+        tarball = self.pack_and_response(1)
+        r = run_bale(self.install, ["apply", str(tarball)],
+                     cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 0, msg=r.stdout + r.stderr)
+        self.assertIn("hook:   post_apply_pass (project)", r.stdout)
+        self.assertNotIn("BALE_TARBALL", r.stdout + r.stderr)
+
+
 class GlobalHookDefaultTest(_HookFixture):
 
     def test_global_layer_defaults_accept_and_is_not_recorded(self) -> None:
