@@ -660,7 +660,10 @@ The following flags apply across multiple commands:
   JSON on stdout, under a shared stream discipline: `[bale] `
   informational lines and the human block go to stderr, stdout
   carries exactly the JSON line, and refusal paths stay
-  fail()-shaped — stderr, non-zero exit, nothing on stdout. Landed
+  fail()-shaped — stderr, non-zero exit, nothing on stdout — except
+  where a report names a refused outcome of its own (apply's
+  `*-refused` outcomes; unlock's `unlock-refused`, v0.4.47, §9.3),
+  which prints its line beside the stderr error. Landed
   per command: pack (v0.2.7), apply (v0.2.8), status (v0.2.9), retry
   (v0.3.14), unlock (v0.3.18), revert (v0.3.19); `bale unlock
   --integration --json` is refused, that report being
@@ -4357,6 +4360,11 @@ shared stream discipline (`[bale] ` lines and the human block to
 stderr; human mode unchanged); the key contract is owned by
 `format_unlock_json`'s docstring in `bin/bale_report.py`, and
 `--integration --json` is refused, the report being session-shaped.
+Since v0.4.47 a session-shaped refusal also prints the one line,
+outcome `unlock-refused`, with a `reason` code from the closed
+vocabulary that docstring owns, beside its unchanged `[bale] error:`
+line on stderr — exit 1 unchanged, no telemetry record, human mode
+byte-identical.
 
 **`bale unlock --integration`** is the second unlock surface: it
 clears the repo-level integration lock (§8.6) left stale by an

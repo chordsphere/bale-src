@@ -1,0 +1,25 @@
+{
+  "record_version": 1,
+  "version": "0.4.47",
+  "session_id": "2026-10-07-unlock-json-refusals-001",
+  "at": "2026-10-07T01:42:07+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.46 -> 0.4.47"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "format_unlock_json: outcome vocabulary gains 'unlock-refused' (exit 1); three additive keys reason, message, open_sessions appended after sweep on every unlock line, null on 'unlocked' and 'no-op' (every earlier key, value and position unchanged); new closed tuple UNLOCK_REFUSAL_REASONS = hold-branch, not-open, several-open, not-a-repo, integration-json, listed one line each in the docstring; format_unlock_json raises ValueError on a reason outside it or on refusal keys off the refused outcome; new format_unlock_refusal_json renders the refused line; UNLOCK_REFUSED_OUTCOME names the outcome word"
+    },
+    {
+      "path": "bin/bale",
+      "change": "bale unlock --json: a session-shaped refusal prints one unlock-refused line on stdout beside its unchanged [bale] error: line on stderr (exit 1 unchanged; argparse errors still 2 with empty stdout; no telemetry record); json mode now engages first in cmd_unlock, before the repo and --integration checks; the system-directory guard and git-not-on-PATH stay bare refusals with no line; human mode byte-identical; the --json help string names the 'unlock-refused' outcome and its reason codes' owner"
+    },
+    {
+      "path": "tests/test_unlock_json.py",
+      "change": "the two 0.4.45 empty-stdout refusal pins rewritten as refusal-line assertions (test_several_open_refusal_line, test_integration_json_refusal_line); one case per reason code, human-mode refusals, argparse exit 2, the three new keys null on unlocked and no-op, the help text, and an in-process vocabulary class"
+    }
+  ],
+  "notes": "Additive for consumers of the unlocked and no-op lines (three trailing null keys). A consumer that read an empty stdout as 'refused' under --json must now read outcome unlock-refused instead; dispatch on reason, not on message, whose wording is the stderr text and may change."
+}
