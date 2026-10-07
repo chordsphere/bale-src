@@ -2464,7 +2464,8 @@ def format_pack_json(
                      module — "packed" here; "applied", "held", "reverted",
                      "bailout", "dry-run" in format_apply_json (v0.2.8);
                      "status" in format_status_json (v0.2.9); "unlocked",
-                     "no-op" in format_unlock_json (v0.3.18); "reverted"
+                     "no-op" in format_unlock_json (v0.3.18), and
+                     "unlock-refused" there too (v0.4.47); "reverted"
                      again in format_revert_json (v0.3.19), the revert
                      command's own single reporting point; "context-packed"
                      in format_context_pack_json (v0.4.39, homed here
@@ -3387,6 +3388,27 @@ def format_config_hooks_json(*, outcome: str, version: str, store: Path,
     return json.dumps(payload)
 
 
+# The `reason` vocabulary of `bale unlock --json`'s "unlock-refused" line
+# (v0.4.47; owned here beside format_unlock_json, whose docstring states
+# the key contract and one line per code). Closed: a consumer dispatches
+# on the code, never on the stderr wording, so a new refusal that needs
+# a line extends this tuple and the docstring together, and
+# format_unlock_json raises ValueError on anything else.
+UNLOCK_REFUSAL_REASONS = (
+    "hold-branch",       # bale/<sid> exists (reached HOLD), no --force
+    "not-open",          # an explicit sid the registry does not show open
+    "several-open",      # no sid given and several sessions open
+    "not-a-repo",        # the working directory is not in a git repository
+    "integration-json",  # --integration beside --json (any contradiction)
+)
+
+# The outcome word of a refused unlock's line — the one literal, kept
+# here with the rest of the module's outcome vocabulary (format_pack_json)
+# rather than spelled at the call site; format_unlock_refusal_json is the
+# renderer that uses it.
+UNLOCK_REFUSED_OUTCOME = "unlock-refused"
+
+
 def format_unlock_json(
     *,
     outcome: str,
@@ -3398,6 +3420,9 @@ def format_unlock_json(
     telemetry: Optional[str] = None,
     debris: Optional[dict] = None,
     sweep: Optional[dict] = None,
+    reason: Optional[str] = None,
+    message: Optional[str] = None,
+    open_sessions: Optional[list] = None,
 ) -> str:
     """Render the `bale unlock --json` end-of-run report as ONE line of JSON.
 
@@ -3418,12 +3443,21 @@ def format_unlock_json(
                            asked for (exit 0); the benign-no-op contract,
                            including the crash-debris pointer sweep (see
                            `debris`)
+               "unlock-refused"
+                           (v0.4.47) a session-shaped refusal: the command
+                           refused, closed nothing and wrote no record
+                           (exit 1). The `[bale] error:` line still goes
+                           to stderr, unchanged; this line is printed
+                           beside it, and `reason` names the refusal.
+                           Refusals outside the `reason` vocabulary (the
+                           system-directory typo guard, git missing from
+                           PATH) stay fail()-shaped — stderr, exit 1,
+                           nothing on stdout.
                Part of the one-place outcome vocabulary this module owns
-               (see format_pack_json); the session refusal paths (several
-               open, sid not open, bale/<sid> branch exists) exit through
-               fail() — stderr, non-zero, nothing on stdout — like every
-               other json surface's error paths.
-      sid      the closed session id, or null on the no-op.
+               (see format_pack_json).
+      sid      the closed session id, or null on the no-op. On
+               "unlock-refused", the sid the refusal is about — the one
+               asked for, or the one resolved (hold-branch) — else null.
       log      absolute path to the session log (.bale/logs/<sid>.log), or
                null on the no-op (no session, no session log).
       closure_reason
@@ -3462,10 +3496,60 @@ def format_unlock_json(
                no-op outcome, whose only sweep is the debris record's,
                above), else the object format_apply_json's docstring owns
                (the sub-object's one home).
+      reason   (v0.4.47, additive) null on "unlocked" and "no-op"; on
+               "unlock-refused", one code of UNLOCK_REFUSAL_REASONS (this
+               module, the vocabulary's one declaration):
+                 hold-branch       bale/<sid> exists — the session reached
+                                   HOLD; the remedy is `bale revert <sid>`
+                                   (or --force, which never refuses here)
+                 not-open          an explicit sid the registry does not
+                                   show open
+                 several-open      no sid given while several sessions
+                                   are open
+                 not-a-repo        the working directory is not inside a
+                                   git repository
+                 integration-json  --integration beside --json; covers
+                                   all three --integration contradictions
+                                   under --json (with a sid, with
+                                   --reason, with --json), since the
+                                   integration form has no json line
+      message  (v0.4.47, additive) null on "unlocked" and "no-op"; on
+               "unlock-refused", the refusal's first line — the string
+               failure_cause (bin/bale) gives telemetry, without the
+               `[bale] error: ` prefix. For reading, not for dispatch:
+               `reason` is the contract, the wording may change.
+      open_sessions
+               (v0.4.47, additive) null on "unlocked" and "no-op"; on
+               "unlock-refused", the registry's open sids at the refusal,
+               in registry order (oldest first), [] when none are open,
+               null when the registry could not be read (not-a-repo has
+               no registry; an unreadable one is logged).
+
+    Every line carries the same twelve keys in the same order: the nine
+    above `reason`, then the three v0.4.47 keys — additive, so the
+    "unlocked" and "no-op" lines keep every earlier key and value and
+    gain three nulls (format_apply_json's one-key-set posture). On
+    "unlock-refused" the nine earlier keys are null, except
+    branch_preserved, which is false.
+
+    Raises ValueError when `outcome` and `reason` disagree — a refused
+    outcome without a vocabulary code, or a code on any other outcome —
+    since either would put an off-contract line on stdout.
 
     Pure: builds a string, prints nothing; the caller emits it, which
     supplies the trailing newline.
     """
+    if outcome == UNLOCK_REFUSED_OUTCOME:
+        if reason not in UNLOCK_REFUSAL_REASONS:
+            raise ValueError(
+                f"unknown unlock refusal reason {reason!r}; expected one "
+                f"of {', '.join(UNLOCK_REFUSAL_REASONS)}")
+    elif reason is not None or message is not None \
+            or open_sessions is not None:
+        raise ValueError(
+            f"reason/message/open_sessions belong to the "
+            f"{UNLOCK_REFUSED_OUTCOME!r} outcome only; got outcome "
+            f"{outcome!r} with reason {reason!r}")
     debris_payload: Optional[dict] = None
     if debris is not None:
         # Normalize the debris record's own sweep through the shared
@@ -3489,8 +3573,41 @@ def format_unlock_json(
         # null when no sweep ran (semantics in the docstring above; the
         # sub-object's one home is format_apply_json's docstring).
         "sweep": format_sweep_json(sweep),
+        # v0.4.47, additive: the refusal keys — null except on
+        # "unlock-refused" (semantics in the docstring above).
+        "reason": reason,
+        "message": message,
+        "open_sessions": (list(open_sessions)
+                          if open_sessions is not None else None),
     }
     return json.dumps(payload)
+
+
+def format_unlock_refusal_json(
+    *,
+    reason: str,
+    message: str,
+    sid: Optional[str],
+    open_sessions: Optional[list],
+) -> str:
+    """Render a refused `bale unlock --json` run's one line (v0.4.47).
+
+    A thin front over format_unlock_json — whose docstring owns the key
+    contract and the `reason` vocabulary — so the "unlock-refused" word
+    is spelled once, in this module, and the refusal line can never grow
+    a key set of its own: every key but the four given here takes the
+    renderer's refused-line value (null, branch_preserved false).
+
+    Raises ValueError for a `reason` outside UNLOCK_REFUSAL_REASONS.
+    Pure; the caller emits it via emit_json_line.
+    """
+    return format_unlock_json(
+        outcome=UNLOCK_REFUSED_OUTCOME,
+        sid=sid,
+        reason=reason,
+        message=message,
+        open_sessions=open_sessions,
+    )
 
 
 def format_revert_json(

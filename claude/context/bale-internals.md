@@ -200,7 +200,12 @@ is *for* — and stays stable as the per-section line numbers drift:
     git state. Refuses on HOLD-with-branch (a `bale/<sid>` branch
     exists) because that's `bale revert`'s territory; `--force`
     overrides the refusal but leaves the orphan branch in place and
-    logs the override with the FORCE: prefix.
+    logs the override with the FORCE: prefix. Under `--json` (since
+    v0.4.47) each session-shaped refusal runs inside
+    `_unlock_refusal`, which lets `fail()` print and raise as usual
+    and then emits `format_unlock_refusal_json`'s `unlock-refused`
+    line, its `reason` code chosen by the caller from which check
+    refused, before re-raising the same exit.
 14. **`cmd_handoff`.** Repackages a bailout response (TARBALL.md
     §5.6) into a fresh request that inherits the bailed-on session's
     goal verbatim, pre-packs source files extracted from
