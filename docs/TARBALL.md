@@ -951,6 +951,15 @@ reconciliation of step 4 has already run by the time the script
 does, so nothing mechanical catches a write the script did not
 announce; the printed list is the whole of the check.
 
+**A tree walk excludes the validation base path.** Reads have a
+boundary too: a `validation.sh` that walks the staged tree — a sweep
+for stray files, a hash over every doc — never reads or hashes
+under the subtree the project's `[validation] base` pattern lives
+under, where the blind checkpoint sits. The oracle is the planner's,
+and blindness runs both ways: the worker neither authors nor
+declares the checkpoint (§7), and the worker's script never reads
+it.
+
 ### 7.2 Check sequence
 
 Each check prints `[PASS]`, `[FAIL]`, or `[SKIP] <reason>` on its own
@@ -1427,6 +1436,7 @@ or a packing behavior:
 | `--no-edit` | In the wizard, skips the README y/N prompt and `$EDITOR` entirely — for automation that still wants the wizard's structured-field walk. Compatible with `--readme-file` (the file's prose still ships; no editor opens); conflicts with `--edit`; a no-op on the fully specified path. |
 | `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; without it, an unacknowledged README omission warns and proceeds on a TTY and refuses when stdin is piped — automation never gets the silent omission. |
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
+| `--dry-run` | Rehearses the line (v0.4.45): runs every argv-only gate against the live tree — the full list is `BALE_HELP.md`'s `bale help pack` section, under `--dry-run` — and stops, exiting 0 when every gate passes and with the refusing gate's own text otherwise. Writes nothing and maps to no manifest field: no session, lock, telemetry, tarball, or closure, and the supersession exchange and the read-only sweep do not run; the same line without the flag packs. Refuses beside `--json` and `--context`, and outside a git repository. |
 | `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones. |
 | `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by. On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
 | `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. A read-only pack is a planner session: it lands nothing and returns no response tarball, not even an empty one — what it owes is its answer in chat and, for each session it is asked to author, a crafter bundle beside its `bale open` line (§2). The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe, and race-safe as well: an open `[]`-forecast sibling can be disregarded in re-landing and race reasoning, because it structurally lands nothing). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean. |
@@ -1598,6 +1608,11 @@ That line is the offer's content, not the form it travels in: in
 every project it is delivered as the stored pack argv of a crafter
 bundle emitted beside its `bale open` line (`PLANNER.md` §2).
 
+The `bale open` line can be rehearsed before it is delivered:
+`bale open --check <bundle>` stops after the bundle's verification
+and the argv-only pack gates, `bale open --dry-run <bundle>` stops
+after the checkpoint dry-run as well, and both write nothing.
+
 ---
 
 ## 4. Probe
@@ -1687,6 +1702,13 @@ These apply to both the paste-back shape and the §4.4 fallback:
   writes only under `./probe-output/`. Neither shape installs
   anything or makes network calls unless explicitly justified in the
   purpose header and gated behind a flag.
+- **A read-only probe cannot run a verb that writes, bale apply
+  --dry-run included.** A dry run is not a read: `bale apply
+  --dry-run` extracts the tarball into a temporary directory and
+  appends to the session's log under `.bale/`. A probe that declares
+  itself read-only runs no bale verb that writes anywhere; a question
+  only a dry run can answer is asked of the planner, never folded
+  into the probe.
 - **Self-contained.** Uses only tools that exist everywhere: `ls`,
   `cat`, `find`, `git`, `node --version`, `tree` (with `find`
   fallback). If a tool is missing, degrade gracefully and report the

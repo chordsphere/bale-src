@@ -216,6 +216,25 @@ not an afterthought to the flags. The practices:
   section number and says why. The worker's ratified default on a
   cite/phrase conflict: unambiguous-phrase-match wins over section
   number, flagged in `notes.md`, never silently.
+- **A pointer stays unique after the session's own insertions.** An
+  anchor phrase a brief locates by — a stable phrase, or the line a
+  pinned sentence lands beside — must still match exactly one place
+  once the session's own text has landed, and that text may repeat
+  the phrase. Check the anchor against the tree as it will read
+  after the landing, not only as it reads at authoring time.
+- **A paste through a Windows terminal mangles em dashes, section
+  signs and ellipses.** An em dash arrives as `ΓÇö`, a section sign
+  as `┬º`, an ellipsis as `ΓÇª`. A brief carrying relayed text says
+  which characters it reconstructed, so the worker knows which bytes
+  are the desk's repair rather than the source's.
+- **Grade reconstructed text against its archived source in the
+  tree, never against the brief's copy.** De-mangled, reflowed text
+  goes into the brief marked as a reconstruction; the brief has the
+  worker check it word by word against the archived source the tree
+  holds and stop on any disagreement, and the checkpoint compares
+  the landed words with that source, never with the brief. A
+  reconstruction graded against itself certifies the desk's repair,
+  errors included.
 - **A master's brief keeps the ratified order inside its sitting
   record.** A brief that opens a master session carries the
   operator's ratified order of upcoming work inside its sitting
@@ -232,6 +251,24 @@ not an afterthought to the flags. The practices:
   assumes the worker shares its conversation — the request is the
   whole interface. What resolved in chat and matters to the work
   goes in the brief; the rest of the chat stays behind.
+- **A record format a checkpoint writes by hand is pinned in the
+  brief to the byte, every key named.** When an oracle writes a
+  record for the work to read — a fixture line, a stub manifest —
+  the brief pins that format whole, so the worker and the oracle
+  build against the same bytes. This is the brief's half of §4's
+  floor rule: nobody writes a record against a floor.
+- **A brief that pins "X ships no Y" says what "ships" covers.**
+  "Ships" can mean lands in the tree, is contained in an artifact, or
+  is included in a request's context; each is graded differently, so
+  the brief names the one it means.
+- **An out-of-scope line must not fence off where a delegated
+  decision lands.** A decision the brief delegates to the worker
+  needs a path the worker may write; an out-of-scope entry covering
+  that path makes the delegation unlandable. Check each delegation's
+  landing path against the out-of-scope list before the brief ships.
+- **Counts name their unit.** A bare number could be tests, rows,
+  lines or bytes; a pinned count carries its unit, so the worker and
+  the oracle count the same thing.
 - **Unfilled scaffold slots are loud.** A worker-authored brief
   marks anything left for the planner with the sentinel form
   `TARBALL.md` §3.4 names, and fills or removes every such line
@@ -276,12 +313,42 @@ of it, the authoring craft:
   stub; a stub is the desk's paraphrase, and an oracle dry-run
   against a paraphrase is the oracle grading itself. Earned at a
   live rehearsal-stub correction.
+- **Dry-run a code checkpoint against a throwaway stub landing
+  written from the brief, discarded after.** This is the bullet
+  above, carried to the landing the brief cannot supply: where the
+  brief's own blocks are the landing — a doc insertion — the
+  rehearsal landing is derived from them mechanically, and no stub
+  is written; where they cannot be — code the worker will write — a
+  stub written from the brief, run once, and discarded is the only
+  rehearsal there is. Two oracle defects surfaced only there, never
+  on the shipped tree, where every probe fails anyway: a stub's JSON
+  line double-encoded by shell quoting (write the line to a file and
+  `cat` it), and a wrapped markdown sentence a raw substring search
+  never found (fold whitespace and strip emphasis markers before
+  searching).
+- A desk with the operator's tree a probe away asks for
+  `bale open --dry-run <bundle>` (or `--check` when the oracle is
+  slow) before delivery, and a desk with `bin/` in context can still
+  dress-rehearse in a scratch repo.
+- **A blind checkpoint's dry-run runs before any session exists: no
+  sid, no manifest, no own filename.** `bale open` dry-runs the
+  oracle before it mints the session, so an oracle that reads its
+  own path, its session id, or the request manifest fails there —
+  exit 2 under the exception rule below, and the whole open refuses
+  as a defective oracle. Everything the oracle needs comes from the
+  tree it grades.
 - **Per-scenario fixture isolation.** One fresh fixture (repo,
   sandbox, dataset) per scenario, always. A shared fixture leaks one
   scenario's residue into the next — a leftover open session from
   scenario A tripping a gate in scenario B is the canonical instance —
   and with dry-runs structurally unavailable, the
   leak surfaces as a false HOLD in production.
+- **A fixture built from "at least these keys" is built against a
+  floor.** A reader that requires every key refuses a fixture the
+  brief described only by a floor: a format is pinned whole or not
+  at all, and a fixture built from a floor is built against a
+  guess. §3's byte-pinned record format is the brief's half of the
+  same rule.
 - **The checkpoint tracks the scope.** Any scope change — a split, a
   narrowed forecast, a rescope — invalidates the authored oracle:
   assertions can fall outside the new scope and HOLD a good session.
@@ -291,6 +358,16 @@ of it, the authoring craft:
   content does it by exact, byte-stable anchors, never by fuzzy
   match — a fuzzy locator that drifts passes the wrong content or
   HOLDs the right one.
+- **Count from the table, not from a proposal.** An oracle that
+  pins a count takes it from the data it grades — the table, the
+  schema, the file — never from a proposal's prose, which may have
+  counted something else, or counted before the last edit.
+- **An oracle that signals, kills or deletes acts only on what it
+  started itself.** A kill probe that registers made-up process ids
+  could signal a stranger's live process group on the operator's
+  machine at dry-run time. The oracle starts its own groups, records
+  what it started, and reaps exactly those; the same holds for every
+  file it deletes.
 - **Split probes by the text's provenance.** Preserved text may be
   pinned as fixed strings — the worker must carry it byte-verbatim
   anyway — but authored text gets a verbatim-required marker in the
@@ -309,6 +386,19 @@ of it, the authoring craft:
   dry-run exits 2, and a HOLD at `bale apply` counts an exit 2 as
   the checkpoint side — the planner's artifact, not the worker's.
   Exit 1 would read as a verdict on work the oracle never graded.
+- **A checkpoint's control calls the probe's own detector function,
+  not an inline copy of its expression.** A control that restates
+  the comparison passes while the real detector is disabled — found
+  twice at one desk by breaking a detector and watching the control
+  not fire. The dress rehearsal proves every path: the shipped tree
+  exits 1, its probes failing by name; the derived landing exits 0;
+  and each detector, broken in turn, exits 2 because its control
+  caught the break.
+- **An oracle's unexpected exception exits 2.** Set an excepthook,
+  or the language's equivalent, so an unplanned exit takes the code
+  a failed control takes: a traceback that exits 1 reads as a verdict
+  on work the oracle never graded. This is the failed-control rule
+  above, extended to every exit the oracle did not plan.
 - **Version-suffixed filenames; publish the hash; compare the
   echo.** Checkpoint files carry a version suffix in the filename so
   revisions never collide under first-match resolution (§2);
@@ -416,6 +506,8 @@ is orchestration doctrine, §14.
 - **End at milestones.** Masters end sittings at natural milestones
   rather than resolving open questions on a tired context — the
   sitting-level form of `AGENT.md` §11's bail-early discipline.
+  More project work, less master grooming: an arc's design sitting authors its own wave's bundles once the operator ratifies the decomposition; no master sits between it and its workers.
+  Closes are per wave, not per master. A master's last job is the wave's close, after its project work is dispatched.
 - **A sitting closes with a light-block ledger.** The light question
   block (`TARBALL.md` §5.10) is the worker's tier: `light_blocks` in
   the response's feedback is the worker's field, and bale never sees
@@ -425,6 +517,12 @@ is orchestration doctrine, §14.
   emitted, and each block's disposition: answered, as-assumed,
   formal, or unanswered. This is a close-notes convention, not a
   record field.
+- **A light-block question that events answer is closed, not
+  re-asked.** When a landing the block waited on makes every reading
+  of a question come out the same, events have answered it: the desk
+  proceeds, and the ledger records the question as "resolved by
+  events" rather than sending it again. Re-asking spends the
+  packer's attention on a question that no longer has two answers.
 - **Authoring practice accretes into doctrine, or it evaporates.**
   Planner practice keeps living in ephemeral chats until a gate
   refuses. When a sitting resolves an authoring
