@@ -22,8 +22,9 @@ The suite asserts:
   filesystem, never parsed from the human row;
 - reverting an already-closed session's leftovers reports
   `lock_cleared: false`;
-- refusal paths stay fail()-shaped: non-zero, stderr, nothing on
-  stdout;
+- refusal paths print one "revert-refused" line (v0.4.50; the
+  per-code cases are tests/test_refusal_codes.py's) beside the
+  unchanged stderr error, exit code unchanged;
 - human mode emits no JSON.
 
 The HOLD fixture fabricates git state directly (a real `bale pack` for
@@ -181,6 +182,9 @@ class RevertJsonTest(unittest.TestCase):
         # The v0.3.34 additive sweep key: null when [apply].sweep is
         # unset — the additive-null contract.
         self.assertIsNone(payload["sweep"])
+        # v0.4.50, additive: reason and cause ride the success line null.
+        self.assertIsNone(payload["reason"])
+        self.assertIsNone(payload["cause"])
         # The facts the keys report really happened.
         self.assertFalse(self.branch_exists(f"bale/{sid}"))
         self.assertTrue((self.repo / payload["telemetry"]).is_file())
@@ -263,15 +267,18 @@ class RevertJsonTest(unittest.TestCase):
         self.assertFalse(payload["lock_cleared"])
         self.assertFalse(self.branch_exists(f"bale/{sid}"))
 
-    # -- pinned behavior 5: refusal paths stay fail()-shaped -------------
+    # -- pinned behavior 5: refusal paths print the refused line --------
 
-    def test_refusal_emits_nothing_on_stdout(self) -> None:
-        """No session open, no sid: the refusal exits through fail() —
-        stderr, non-zero, nothing on stdout, like every other json
-        surface's error paths."""
+    def test_refusal_prints_the_refused_line(self) -> None:
+        """No session open, no sid: the refusal still exits 1 through
+        fail() with its stderr line, and since v0.4.50 stdout carries the
+        one "revert-refused" line (it carried nothing before)."""
         result = self.revert("--json")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(result.stdout.strip(), "")
+        self.assertEqual(result.returncode, 1)
+        payload = parse_single_json_line(result.stdout)
+        self.assertEqual(payload["outcome"], "revert-refused")
+        self.assertEqual(payload["reason"], "none-open")
+        self.assertIn("no session is open", payload["cause"])
         self.assertIn("no session is open", result.stderr)
 
     # -- pinned behavior 6: human mode emits no JSON ---------------------

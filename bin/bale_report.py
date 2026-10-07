@@ -894,19 +894,31 @@ CHECKPOINT_BAND_PREFIX = "=== blind checkpoint ("
 
 _RELAY_SENTINEL_PREFIX = "=== RELAY "
 
+# The exchange paste block's sentinels (TARBALL.md §5.9.2, BALE.md
+# §8.11): `BALE EXCHANGE BEGIN <sid>` opens the block, `BALE EXCHANGE
+# END` closes it. Declared once, here, since v0.4.50 (0.4.49's Proposal
+# 3): bin/bale_relay.py, the block's renderer and parser, reads the two
+# words from this module (and bin/bale re-exports them from there for the
+# crafter parity suite), and the prefix tuple below derives from the same
+# prefix. tools/craft_response.py keeps its own copy — it cannot import
+# bale — pinned equal by tests/test_craft_response.py.
+_EXCHANGE_SENTINEL_PREFIX = "BALE EXCHANGE "
+EXCHANGE_BLOCK_BEGIN = _EXCHANGE_SENTINEL_PREFIX + "BEGIN"
+EXCHANGE_BLOCK_END = _EXCHANGE_SENTINEL_PREFIX + "END"
+
 # Every shape's sentinel prefix, declared once: the relay's above, the
 # probe's (`=== PROBE BEGIN <slug> ===`), the light block's (`=== LIGHT
-# BEGIN <sid> ===`) and the exchange block's (`BALE EXCHANGE BEGIN
-# <sid>` / `BALE EXCHANGE END` — the END line starts with the prefix
-# too). Each carries its trailing space. _inline_lines indents a line
-# that starts with any of them, so text inlined into a relay block — a
-# worker's validation output or notes quoting a block it emitted — can
-# never read as another shape to a reader that is not span-aware.
+# BEGIN <sid> ===`) and the exchange block's (EXCHANGE_BLOCK_BEGIN /
+# EXCHANGE_BLOCK_END — the END line starts with the prefix too). Each
+# carries its trailing space. _inline_lines indents a line that starts
+# with any of them, so text inlined into a relay block — a worker's
+# validation output or notes quoting a block it emitted — can never read
+# as another shape to a reader that is not span-aware.
 _SHAPE_SENTINEL_PREFIXES = (
     _RELAY_SENTINEL_PREFIX,
     "=== PROBE ",
     "=== LIGHT ",
-    "BALE EXCHANGE ",
+    _EXCHANGE_SENTINEL_PREFIX,
 )
 
 
@@ -2487,12 +2499,19 @@ def format_pack_json(
                      "no-op" in format_unlock_json (v0.3.18), and
                      "unlock-refused" there too (v0.4.47); "reverted"
                      again in format_revert_json (v0.3.19), the revert
-                     command's own single reporting point; "context-packed"
+                     command's own single reporting point, and
+                     "revert-refused" there too (v0.4.50,
+                     REVERT_OUTCOMES); "context-packed"
                      in format_context_pack_json (v0.4.39, homed here
                      v0.4.40); "opened", "second-desk", "rehearsed" in
-                     format_open_json (v0.4.48, OPEN_OUTCOMES); "relayed",
+                     format_open_json (v0.4.48, OPEN_OUTCOMES), and
+                     "open-refused" there too (v0.4.50); "relayed",
                      "re-emitted", "relay-refused" in format_relay_json
-                     (v0.4.48, RELAY_OUTCOMES) —
+                     (v0.4.48, RELAY_OUTCOMES). The three refusal lines
+                     of v0.4.50 and unlock's carry a `reason` code from a
+                     closed vocabulary declared once here
+                     (OPEN_REFUSAL_REASONS, RELAY_REFUSAL_REASONS,
+                     REVERT_REFUSAL_REASONS, UNLOCK_REFUSAL_REASONS) —
                      so new outcomes extend an enum in one place rather
                      than scattering literals across callers.
       sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
@@ -2650,11 +2669,61 @@ PACK_REPORT_KEYS = (
 OPEN_OUTCOME_OPENED = "opened"
 OPEN_OUTCOME_SECOND_DESK = "second-desk"
 OPEN_OUTCOME_REHEARSED = "rehearsed"
+OPEN_OUTCOME_REFUSED = "open-refused"
 OPEN_OUTCOMES = (OPEN_OUTCOME_OPENED, OPEN_OUTCOME_SECOND_DESK,
-                 OPEN_OUTCOME_REHEARSED)
+                 OPEN_OUTCOME_REHEARSED, OPEN_OUTCOME_REFUSED)
 
 # The `rehearsal` key's values (null on a real open or a second desk).
 OPEN_REHEARSALS = ("check", "dry-run")
+
+# --- Refusal reason codes (v0.4.50) -----------------------------------------
+#
+# The closed `reason` vocabularies of the three refusal lines that landed
+# together in v0.4.50 — `bale open --json`'s "open-refused", `bale relay
+# --json`'s "relay-refused" and `bale revert --json`'s "revert-refused" —
+# each declared once here, beside its verb's outcome words, with one line
+# per code in the owning renderer's docstring. A consumer dispatches on
+# the code, never on the stderr wording (`cause`), so a new refusal site
+# that needs a code extends its tuple and the docstring together; the
+# renderers raise ValueError on anything else.
+#
+# How a code reaches a line (the seam, bin/bale): the refusal site passes
+# it to fail() as `reason=`, which rides the SystemExit beside the
+# `bale_cause` fail() already attaches; a call into a module whose fail()
+# sites sit outside the verb (bale_pack's argv gates, bale_config's typed
+# accessors, the replayed cmd_pack) is wrapped in refusal_reason(code),
+# which attaches the code to a refusal the block raised without one. The
+# verb's wrapper reads it back through exit_reason(), which hands back the
+# verb's fallback code when no code rode the exit, or one outside the
+# vocabulary did (logged). Never a mapping from stderr text to a code.
+#
+# The fallback is named in each vocabulary so every refusal has a line
+# with a code; the suites pin that no known refusal site reaches it.
+REFUSAL_REASON_FALLBACK = "unclassified"
+
+OPEN_REFUSAL_REASONS = (
+    "not-a-repo",          # the working directory is not in a git repository
+    "not-found",           # the bundle argument resolves to no file
+    "not-a-bundle",        # the file lacks the reserved .bale-bundle suffix
+    "manifest-invalid",    # bundle.json fails validate_bundle_manifest, or
+                           # the archive's seal (not a gzipped tar, a member
+                           # that is not flat, twice, undeclared or missing,
+                           # no bundle.json, bundle.json not UTF-8 JSON)
+    "member-mismatch",     # a member's sha256 disagrees with the manifest
+    "no-validation-base",  # a checkpoint member, no [validation] base pinned
+    "gate-refused",        # any run_pack_argv_gates refusal (text in cause)
+    "defective-oracle",    # the checkpoint dry-run exited outside 0/1
+    "sandbox-failed",      # the dry-run's confinement could not run
+    "desk-refused",        # a second desk refused (an event past the opens,
+                           # or the session's stamped manifest unreadable)
+    "pack-refused",        # the replayed pack refused (a cmd_pack refusal,
+                           # or its interactive threshold abort)
+    "config-invalid",      # a bale.toml key the open reads failed its check
+    "no-git",              # git is not on PATH
+    "internal-fault",      # the replayed pack exited 0 without one report
+                           # line to fold in
+    REFUSAL_REASON_FALLBACK,  # a refusal that carried no code (fallback)
+)
 
 
 def format_open_json(
@@ -2668,6 +2737,9 @@ def format_open_json(
     rehearsal: Optional[str] = None,
     checkpoint_dry_run: Optional[dict] = None,
     desk: Optional[str] = None,
+    tarball: Optional[str] = None,
+    reason: Optional[str] = None,
+    cause: Optional[str] = None,
 ) -> str:
     """Render the `bale open --json` end-of-run report as ONE line of JSON.
 
@@ -2682,11 +2754,12 @@ def format_open_json(
     Stream discipline holds from the first line of the run: every
     `[bale] ` line, the dry-run's echoed verdict lines, the rehearsal
     report, the second-desk summary and the opener's scissor block go to
-    stderr; stdout carries exactly this line on every path that exits 0.
-    The replayed pack's own report line is folded in here, never printed
-    as a second stdout line. Refusals are unchanged: a refused open exits
-    1 through fail() with the `[bale] error:` line on stderr and nothing
-    on stdout. Exit codes are those of the human verb.
+    stderr; stdout carries exactly this line on every path that exits 0,
+    and on every refusal that exits 1 (v0.4.50, "open-refused"), printed
+    beside the refusal's unchanged `[bale] error:` line on stderr. The
+    replayed pack's own report line is folded in here, never printed as a
+    second stdout line. A usage error argparse raises (exit 2) prints no
+    line. Exit codes are those of the human verb.
 
     Every line carries the same keys in the same order:
 
@@ -2699,6 +2772,9 @@ def format_open_json(
                               of minting a sid (BALE.md §6.7, row 123)
                "rehearsed"    `--check` or `--dry-run`: the rehearsal
                               passed and wrote nothing (see `rehearsal`)
+               "open-refused" (v0.4.50) any refusal that exits 1, a
+                              rehearsal's included: `reason` says which,
+                              `cause` says it in words (exit 1)
       sid, tarball, log, session_dir, context_files, readme_path,
       readme_heading, readme_sha256, checkpoint_file_path,
       checkpoint_file_sha256, branch, applied_latest, sweep,
@@ -2710,21 +2786,32 @@ def format_open_json(
                joined session, `opener` that desk's paste text (the lines
                between the scissor lines of the desk-qualified opener the
                summary printed, LF-joined, one trailing LF — the bytes the
-               clipboard copy carries); every other pack key is null —
-               `log` included, though the desk journals to the session
-               log: no pack ran, and these keys report a pack's facts.
-               On "rehearsed", all of them are null — a rehearsal mints
-               no sid and writes no log.
+               clipboard copy carries), and `tarball` (v0.4.50) the
+               absolute path of the request tarball desk one opened with,
+               .bale/outbox/request-<sid>.tar.gz, when that file exists —
+               null when it does not (the summary's "not in the outbox"
+               row); every other pack key is null — `log` included,
+               though the desk journals to the session log: no pack ran,
+               and these keys report a pack's facts. On "rehearsed" and
+               "open-refused", all of them are null — neither mints a sid
+               or writes a log.
       bundle   {"path": the bundle file's absolute resolved path,
                "sha256": sha256 hex of the file's bytes as read,
                "stem": the file name without the reserved suffix
-               (.bale-bundle)} — every outcome.
+               (.bale-bundle)} — every outcome but "open-refused", where
+               it is the same object once the open had read the file (a
+               refusal from the archive read onward) and null before
+               (not a repo, not found, not a bundle).
       members  {"brief": sha256 or null, "checkpoint": sha256 or null} —
                the member hashes the bundle manifest publishes (the
                LF-normalized bytes' hashes the open verified), null for a
-               slot the bundle declares absent — every outcome.
+               slot the bundle declares absent — every outcome but
+               "open-refused", where it is the same object once the
+               manifest passed its gate (a member-mismatch refusal
+               onward) and null before.
       rehearsal
-               null on "opened" and "second-desk"; "check" or "dry-run"
+               null on "opened", "second-desk" and "open-refused" (a
+               refused rehearsal too); "check" or "dry-run"
                (OPEN_REHEARSALS) on "rehearsed".
       checkpoint_dry_run
                null when no checkpoint member shipped, when `--check`
@@ -2734,22 +2821,104 @@ def format_open_json(
                code refuses the open), "log": the absolute path of the
                log the dry-run's output was kept in (.bale/logs/ on a real
                open, a temp directory outside the repository on a
-               rehearsal)}.
+               rehearsal)}; null on "open-refused" (a defective oracle's
+               exit code is in `cause`).
       desk     the desk name recorded on a "second-desk" open ("desk-N",
                as the human summary names it); null otherwise — a
                rehearsal of a second-desk bundle records no desk.
+      reason   (v0.4.50) on "open-refused", which refusal fired — one
+               code of the closed vocabulary OPEN_REFUSAL_REASONS, the
+               field to dispatch on; null on every other outcome:
+               "not-a-repo"         the working directory is not inside a
+                                    git repository
+               "not-found"          the bundle argument resolves to no file
+               "not-a-bundle"       the file lacks the reserved
+                                    .bale-bundle suffix
+               "manifest-invalid"   bundle.json fails
+                                    validate_bundle_manifest, or the
+                                    archive's seal does (not a gzipped tar;
+                                    a member not flat, twice, undeclared or
+                                    missing; no bundle.json, or one that is
+                                    not UTF-8 JSON)
+               "member-mismatch"    a member's LF-normalized sha256
+                                    disagrees with the manifest's
+               "no-validation-base" the bundle ships a checkpoint member and
+                                    the project pins no [validation] base
+               "gate-refused"       any refusal of run_pack_argv_gates —
+                                    flag pairs, the brief and checkpoint
+                                    reads, the include-naming checkpoint
+                                    gate, supersession guards, forecast
+                                    existence and disjointness; the gate's
+                                    own text is `cause`
+               "defective-oracle"   the checkpoint dry-run exited outside
+                                    the 0/1 verdicts
+               "sandbox-failed"     the dry-run's confinement could not run
+                                    (sandbox unavailable, or its prologue
+                                    failed before the checkpoint ran)
+               "desk-refused"       a second desk refused: the session has
+                                    recorded an event past its opens, or
+                                    its stamped manifest is unreadable
+               "pack-refused"       the replayed pack refused at one of its
+                                    own sites past the open's early gates,
+                                    or the operator declined its
+                                    interactive threshold prompt (`cause`
+                                    "exit 1": no refusal text was printed)
+               "config-invalid"     a bale.toml key the open reads (search
+                                    paths, [validation] base, [sandbox])
+                                    failed its typed accessor
+               "no-git"             git is not on PATH
+               "internal-fault"     the replayed pack exited 0 but handed
+                                    back no single report line to fold in
+               "unclassified"       the fallback: a refusal that carried
+                                    no code — none known reaches it, and
+                                    one that does is a site to name here
+      cause    (v0.4.50) on "open-refused", the refusal's first line —
+               failure_cause (bin/bale) of the fail() text, the
+               `[bale] error: ` prefix dropped; null otherwise. For
+               reading, not dispatch: its wording is stderr's and may
+               change.
 
     Raises ValueError on an outcome outside OPEN_OUTCOMES, a rehearsal
     value outside OPEN_REHEARSALS or present off "rehearsed", a desk off
-    "second-desk", or an "opened" line whose `pack_report` keys are not
-    exactly PACK_REPORT_KEYS — each would put an off-contract line on
-    stdout.
+    "second-desk", a tarball off "second-desk", an "opened" line whose
+    `pack_report` keys are not exactly PACK_REPORT_KEYS, a missing
+    bundle or members off "open-refused", and on "open-refused" a reason
+    outside OPEN_REFUSAL_REASONS, an empty cause, or a pack fact — or a
+    reason or cause on any other outcome. Each would put an off-contract
+    line on stdout.
 
     Pure: builds a string, prints nothing; the caller emits it.
     """
     if outcome not in OPEN_OUTCOMES:
         raise ValueError(f"unknown open outcome {outcome!r}; expected one "
                          f"of {', '.join(OPEN_OUTCOMES)}")
+    refused = outcome == OPEN_OUTCOME_REFUSED
+    if refused:
+        if reason not in OPEN_REFUSAL_REASONS:
+            raise ValueError(f"unknown open refusal reason {reason!r}; "
+                             f"expected one of "
+                             f"{', '.join(OPEN_REFUSAL_REASONS)}")
+        if not isinstance(cause, str) or not cause:
+            raise ValueError("an open-refused line carries a non-empty "
+                             "cause")
+        if any(v is not None for v in (pack_report, sid, opener,
+                                       checkpoint_dry_run)):
+            raise ValueError("an open-refused line carries no pack, desk "
+                             "or dry-run facts")
+    else:
+        if reason is not None or cause is not None:
+            raise ValueError(f"reason and cause belong to the "
+                             f"{OPEN_OUTCOME_REFUSED!r} outcome only; got "
+                             f"outcome {outcome!r}")
+        if bundle is None or members is None:
+            raise ValueError(f"an {outcome!r} line carries bundle and "
+                             f"members; only {OPEN_OUTCOME_REFUSED!r} may "
+                             f"leave them null")
+    if tarball is not None and outcome != OPEN_OUTCOME_SECOND_DESK:
+        raise ValueError(f"tarball is passed for the "
+                         f"{OPEN_OUTCOME_SECOND_DESK!r} outcome only (an "
+                         f"{OPEN_OUTCOME_OPENED!r} line folds the pack's); "
+                         f"got outcome {outcome!r}")
     if (rehearsal is not None) != (outcome == OPEN_OUTCOME_REHEARSED) \
             or (rehearsal is not None and rehearsal not in OPEN_REHEARSALS):
         raise ValueError(f"rehearsal {rehearsal!r} does not fit outcome "
@@ -2771,22 +2940,39 @@ def format_open_json(
             folded[k] = pack_report[k]
     elif outcome == OPEN_OUTCOME_SECOND_DESK:
         folded["sid"] = sid
+        folded["tarball"] = tarball
         folded["opener"] = opener
     payload = {"outcome": outcome, **folded}
     payload.update({
-        "bundle": {"path": bundle.get("path"),
-                   "sha256": bundle.get("sha256"),
-                   "stem": bundle.get("stem")},
-        "members": {"brief": members.get("brief"),
-                    "checkpoint": members.get("checkpoint")},
+        "bundle": ({"path": bundle.get("path"),
+                    "sha256": bundle.get("sha256"),
+                    "stem": bundle.get("stem")}
+                   if bundle is not None else None),
+        "members": ({"brief": members.get("brief"),
+                     "checkpoint": members.get("checkpoint")}
+                    if members is not None else None),
         "rehearsal": rehearsal,
         "checkpoint_dry_run": (
             {"exit_code": checkpoint_dry_run.get("exit_code"),
              "log": checkpoint_dry_run.get("log")}
             if checkpoint_dry_run is not None else None),
         "desk": desk,
+        "reason": reason,
+        "cause": cause,
     })
     return json.dumps(payload)
+
+
+def format_open_refusal_json(*, reason: str, cause: str,
+                             bundle: Optional[dict],
+                             members: Optional[dict]) -> str:
+    """A refused `bale open --json` run's one line (v0.4.50): a thin front
+    over format_open_json — whose docstring owns the key contract and the
+    `reason` vocabulary — so the refused line can never grow a key set of
+    its own: every key but these four is null. Raises ValueError for a
+    reason outside OPEN_REFUSAL_REASONS or an empty cause. Pure."""
+    return format_open_json(outcome=OPEN_OUTCOME_REFUSED, bundle=bundle,
+                            members=members, reason=reason, cause=cause)
 
 
 # --- bale relay --json (v0.4.48) --------------------------------------------
@@ -2796,6 +2982,40 @@ RELAY_OUTCOME_REEMITTED = "re-emitted"
 RELAY_OUTCOME_REFUSED = "relay-refused"
 RELAY_OUTCOMES = (RELAY_OUTCOME_RELAYED, RELAY_OUTCOME_REEMITTED,
                   RELAY_OUTCOME_REFUSED)
+
+# The `reason` vocabulary of the "relay-refused" line (v0.4.50; the
+# section comment above OPEN_REFUSAL_REASONS says how a code travels, and
+# format_relay_json's docstring carries one line per code).
+RELAY_REFUSAL_REASONS = (
+    "not-open",           # the sid is not open in the registry
+    "held-branch",        # the bale/<sid> branch exists
+    "not-found",          # the file argument resolves to nothing
+    "not-an-object",      # the input is not a JSON object (empty, not JSON,
+                          # or JSON of another type)
+    "trailer-mismatch",   # a paste block's sha256 trailer disagrees with
+                          # its body
+    "malformed-block",    # a paste block's frame is broken: no sid on its
+                          # BEGIN, no END, no body, or no trailer line
+    "wrong-session",      # the block's sentinel or the record's session_id
+                          # names another sid
+    "schema",             # exchange-record.schema.json or the
+                          # clarification-manifest gates refuse it
+    "stale-round",        # the record's round is behind the thread's next
+    "skipped-round",      # the record's round is past the thread's next
+    "planner-round-one",  # a planner record as round one
+    "unresolved-answer",  # an answers[] row resolves to no preserved
+                          # question
+    "thread-changed",     # the thread directory changed while relay read it
+    "no-rounds",          # the no-file form with nothing recorded
+    "unreadable-record",  # the latest recorded round cannot be read back
+    "unreadable-input",   # stdin or the located file cannot be read
+    "no-sid",             # the sid argument is blank
+    "not-a-repo",         # the working directory is not in a git repository
+    "system-dir",         # run at a system directory or at $HOME
+    "config-invalid",     # [apply] search_paths failed its typed accessor
+    "no-git",             # git is not on PATH
+    REFUSAL_REASON_FALLBACK,  # a refusal that carried no code (fallback)
+)
 
 
 def format_relay_json(
@@ -2812,6 +3032,7 @@ def format_relay_json(
     clipboard: bool = False,
     cause: Optional[str] = None,
     telemetry: Optional[str] = None,
+    reason: Optional[str] = None,
 ) -> str:
     """Render the `bale relay --json` report as ONE line of JSON.
 
@@ -2829,7 +3050,7 @@ def format_relay_json(
     An argparse usage error (exit 2) never reaches the verb and prints no
     line.
 
-    Every line carries the same twelve keys in the same order:
+    Every line carries the same thirteen keys in the same order:
 
       outcome    one of RELAY_OUTCOMES:
                  "relayed"        a round was recorded and its block
@@ -2838,7 +3059,8 @@ def format_relay_json(
                                   round's block, recording nothing (exit 0)
                  "relay-refused"  any refusal that exits 1 — the session
                                   gates and the ingest, validation and
-                                  sequencing refusals alike
+                                  sequencing refusals alike; `reason`
+                                  (v0.4.50) says which
       sid        the sid argument as given.
       round      the round recorded or re-emitted (int); null on a refusal.
       from       "worker" or "planner" — the record's side; null on a
@@ -2873,13 +3095,73 @@ def format_relay_json(
                  (ingest, validation and sequencing refusals write one;
                  the session gates and a missing input file record
                  nothing); null otherwise.
+      reason     (v0.4.50) on "relay-refused", which refusal fired — one
+                 code of the closed vocabulary RELAY_REFUSAL_REASONS, the
+                 field to dispatch on (`cause` is for reading); null on
+                 "relayed" and "re-emitted":
+                 "not-open"           the sid is not open in the registry
+                 "held-branch"        the bale/<sid> branch exists (a held
+                                      normal response)
+                 "not-found"          the file argument resolves to nothing
+                 "not-an-object"      the input is not a JSON object: empty,
+                                      not JSON (bare or a block's body), or
+                                      JSON of another type
+                 "trailer-mismatch"   a paste block's sha256 trailer
+                                      disagrees with its body (the carrier-
+                                      unescaped variant included)
+                 "malformed-block"    a paste block's frame is broken: its
+                                      BEGIN sentinel carries no sid, or it
+                                      has no END sentinel, no body, or no
+                                      trailer as its last inner line
+                 "wrong-session"      the block's sentinel, or the record's
+                                      or manifest's session_id, names
+                                      another sid
+                 "schema"             the record fails
+                                      exchange-record.schema.json, or the
+                                      clarification manifest fails the
+                                      question-row gate
+                 "stale-round"        the record's round is behind the
+                                      thread's next
+                 "skipped-round"      the record's round is past the
+                                      thread's next
+                 "planner-round-one"  a from: planner record as round one
+                 "unresolved-answer"  an answers[] row resolves to no
+                                      preserved question
+                 "thread-changed"     the thread directory changed while
+                                      relay was reading it
+                 "no-rounds"          the no-file form, nothing recorded
+                 "unreadable-record"  the latest recorded round cannot be
+                                      read back (the no-file form's read,
+                                      or the read-back after preserving)
+                 "unreadable-input"   stdin or the located file could not
+                                      be read
+                 "no-sid"             the sid argument is blank
+                 "not-a-repo"         the working directory is not inside a
+                                      git repository
+                 "system-dir"         run at a system directory or at $HOME
+                 "config-invalid"     [apply] search_paths failed its typed
+                                      accessor while locating the file
+                 "no-git"             git is not on PATH
+                 "unclassified"       the fallback: a refusal that carried
+                                      no code — none known reaches it, and
+                                      one that does is a site to name here
 
-    Raises ValueError on an outcome outside RELAY_OUTCOMES. Pure: builds
-    a string, prints nothing; the caller emits it.
+    Raises ValueError on an outcome outside RELAY_OUTCOMES, and on a
+    reason outside RELAY_REFUSAL_REASONS on "relay-refused" or a reason
+    on any other outcome. Pure: builds a string, prints nothing; the
+    caller emits it.
     """
     if outcome not in RELAY_OUTCOMES:
         raise ValueError(f"unknown relay outcome {outcome!r}; expected one "
                          f"of {', '.join(RELAY_OUTCOMES)}")
+    if outcome == RELAY_OUTCOME_REFUSED:
+        if reason not in RELAY_REFUSAL_REASONS:
+            raise ValueError(f"unknown relay refusal reason {reason!r}; "
+                             f"expected one of "
+                             f"{', '.join(RELAY_REFUSAL_REASONS)}")
+    elif reason is not None:
+        raise ValueError(f"reason belongs to the {RELAY_OUTCOME_REFUSED!r} "
+                         f"outcome only; got outcome {outcome!r}")
     return json.dumps({
         "outcome": outcome,
         "sid": sid,
@@ -2893,18 +3175,21 @@ def format_relay_json(
         "clipboard": bool(clipboard),
         "cause": cause,
         "telemetry": telemetry,
+        "reason": reason,
     })
 
 
-def format_relay_refusal_json(*, sid: str, cause: str,
+def format_relay_refusal_json(*, sid: str, reason: str, cause: str,
                               log_path: Optional[str],
                               telemetry: Optional[str]) -> str:
-    """A refused `bale relay --json` run's one line (v0.4.48): a thin
-    front over format_relay_json — whose docstring owns the key contract
-    — so the refused line can never grow a key set of its own: every key
-    but these four is null, `clipboard` false. Pure."""
+    """A refused `bale relay --json` run's one line (v0.4.48; `reason`
+    v0.4.50): a thin front over format_relay_json — whose docstring owns
+    the key contract and the `reason` vocabulary — so the refused line
+    can never grow a key set of its own: every key but these five is
+    null, `clipboard` false. Raises ValueError for a reason outside
+    RELAY_REFUSAL_REASONS. Pure."""
     return format_relay_json(outcome=RELAY_OUTCOME_REFUSED, sid=sid,
-                             cause=cause, log_path=log_path,
+                             reason=reason, cause=cause, log_path=log_path,
                              telemetry=telemetry)
 
 
@@ -3931,18 +4216,45 @@ def format_unlock_refusal_json(
     )
 
 
+# The outcome words of `bale revert --json` (v0.3.19; "revert-refused"
+# v0.4.50), part of the one-place outcome vocabulary this module owns
+# (format_pack_json's docstring).
+REVERT_OUTCOME_REVERTED = "reverted"
+REVERT_OUTCOME_REFUSED = "revert-refused"
+REVERT_OUTCOMES = (REVERT_OUTCOME_REVERTED, REVERT_OUTCOME_REFUSED)
+
+# The `reason` vocabulary of the "revert-refused" line (v0.4.50; the
+# section comment above OPEN_REFUSAL_REASONS says how a code travels, and
+# format_revert_json's docstring carries one line per code).
+REVERT_REFUSAL_REASONS = (
+    "not-a-repo",        # the working directory is not in a git repository
+    "none-open",         # no sid given and nothing open
+    "several-open",      # no sid given and several sessions open
+    "no-metadata",       # no usable session metadata (origin_branch) for sid
+    "no-branch",         # no bale/<sid> branch (the already-applied case)
+    "already-merged",    # bale/<sid> is already an ancestor of its origin
+    "checkout-refused",  # git refused to switch off a checked-out bale/<sid>
+    "system-dir",        # run at a system directory or at $HOME
+    "no-git",            # git is not on PATH
+    REFUSAL_REASON_FALLBACK,  # a refusal that carried no code (fallback)
+)
+
+
 def format_revert_json(
     *,
-    sid: str,
-    log_path: str,
-    closure_reason: Optional[str],
-    origin_branch: Optional[str],
-    branch_deleted: str,
-    lock_cleared: bool,
-    staging_state: str,
-    staging_path: Optional[str],
-    telemetry: Optional[str],
+    sid: Optional[str],
+    log_path: Optional[str] = None,
+    closure_reason: Optional[str] = None,
+    origin_branch: Optional[str] = None,
+    branch_deleted: Optional[str] = None,
+    lock_cleared: bool = False,
+    staging_state: Optional[str] = None,
+    staging_path: Optional[str] = None,
+    telemetry: Optional[str] = None,
     sweep: Optional[dict] = None,
+    outcome: str = REVERT_OUTCOME_REVERTED,
+    reason: Optional[str] = None,
+    cause: Optional[str] = None,
 ) -> str:
     """Render the `bale revert --json` end-of-run report as ONE line of JSON.
 
@@ -3959,16 +4271,20 @@ def format_revert_json(
     staging facts revert's human rows carry ride as machine keys instead.
     The set:
 
-      outcome  "reverted" — the only state that reaches revert's
-               end-of-run report. Every refusal path (no metadata, no
-               branch, already merged, dirty inspection checkout) exits
-               through fail() — stderr, non-zero, nothing on stdout —
-               like every other json surface's error paths. Part of the
-               one-place outcome vocabulary this module owns (see
+      outcome  one of REVERT_OUTCOMES. "reverted" — the discard ran, the
+               end-of-run report (exit 0). "revert-refused" (v0.4.50) —
+               any refusal that exits 1, printed beside its unchanged
+               `[bale] error:` line on stderr; `reason` says which. A
+               usage error argparse raises (exit 2) prints no line. Part
+               of the one-place outcome vocabulary this module owns (see
                format_pack_json); distinct from format_apply_json's
                "reverted", which reports the apply walkthrough's own
                revert branch.
-      sid      the reverted session id, `YYYY-MM-DD-<slug>-NNN`.
+      sid      the reverted session id, `YYYY-MM-DD-<slug>-NNN`. On
+               "revert-refused", the sid asked for, or the one the
+               registry resolved, when the refusal fired after there was
+               one; null when there is none (not a repo, nothing open,
+               several open with no sid given).
       log      absolute path to the session log (.bale/logs/<sid>.log).
       closure_reason
                the operator's --reason as stamped into the telemetry
@@ -4005,12 +4321,63 @@ def format_revert_json(
                sweep ran ([apply].sweep unset/false), else the object
                format_apply_json's docstring owns (the sub-object's one
                home).
+      reason   (v0.4.50) on "revert-refused", which refusal fired — one
+               code of the closed vocabulary REVERT_REFUSAL_REASONS, the
+               field to dispatch on; null on "reverted":
+               "not-a-repo"        the working directory is not inside a
+                                   git repository
+               "none-open"         no sid given and no session is open
+               "several-open"      no sid given and several sessions are
+                                   open (an explicit sid is required)
+               "no-metadata"       no usable session metadata for the sid
+                                   (no origin_branch stamp, or an empty one)
+               "no-branch"         no bale/<sid> branch — the already-
+                                   applied case (`bale rollback <sid>`)
+               "already-merged"    bale/<sid> is already an ancestor of its
+                                   origin branch (`bale rollback <sid>`)
+               "checkout-refused"  bale/<sid> is checked out and git
+                                   refused to switch off it over local
+                                   changes
+               "system-dir"        run at a system directory or at $HOME
+               "no-git"            git is not on PATH
+               "unclassified"      the fallback: a refusal that carried no
+                                   code — none known reaches it, and one
+                                   that does is a site to name here
+      cause    (v0.4.50) on "revert-refused", the refusal's first line —
+               failure_cause (bin/bale) of the fail() text, the
+               `[bale] error: ` prefix dropped; null on "reverted". For
+               reading, not dispatch: its wording is stderr's.
+
+    On "revert-refused" every key but outcome, sid, reason and cause is
+    null — lock_cleared false. Raises ValueError on an outcome outside
+    REVERT_OUTCOMES, on "revert-refused" a reason outside
+    REVERT_REFUSAL_REASONS, an empty cause or a discard fact, and a
+    reason or cause on "reverted".
 
     Pure: builds a string, prints nothing; the caller emits it, which
     supplies the trailing newline.
     """
+    if outcome not in REVERT_OUTCOMES:
+        raise ValueError(f"unknown revert outcome {outcome!r}; expected one "
+                         f"of {', '.join(REVERT_OUTCOMES)}")
+    if outcome == REVERT_OUTCOME_REFUSED:
+        if reason not in REVERT_REFUSAL_REASONS:
+            raise ValueError(f"unknown revert refusal reason {reason!r}; "
+                             f"expected one of "
+                             f"{', '.join(REVERT_REFUSAL_REASONS)}")
+        if not isinstance(cause, str) or not cause:
+            raise ValueError("a revert-refused line carries a non-empty "
+                             "cause")
+        if lock_cleared or any(v is not None for v in (
+                log_path, closure_reason, origin_branch, branch_deleted,
+                staging_state, staging_path, telemetry, sweep)):
+            raise ValueError("a revert-refused line carries no discard "
+                             "facts")
+    elif reason is not None or cause is not None:
+        raise ValueError(f"reason and cause belong to the "
+                         f"{REVERT_OUTCOME_REFUSED!r} outcome only")
     payload = {
-        "outcome": "reverted",
+        "outcome": outcome,
         "sid": sid,
         "log": log_path,
         "closure_reason": closure_reason,
@@ -4024,8 +4391,24 @@ def format_revert_json(
         # sweep ran (semantics in the docstring above; the sub-object's
         # one home is format_apply_json's docstring).
         "sweep": format_sweep_json(sweep),
+        # v0.4.50, additive: the refusal's code and first line — null on
+        # "reverted" (semantics in the docstring above).
+        "reason": reason,
+        "cause": cause,
     }
     return json.dumps(payload)
+
+
+def format_revert_refusal_json(*, reason: str, cause: str,
+                               sid: Optional[str]) -> str:
+    """A refused `bale revert --json` run's one line (v0.4.50): a thin
+    front over format_revert_json — whose docstring owns the key contract
+    and the `reason` vocabulary — so the refused line can never grow a key
+    set of its own: every key but these three and `outcome` is null,
+    lock_cleared false. Raises ValueError for a reason outside
+    REVERT_REFUSAL_REASONS or an empty cause. Pure."""
+    return format_revert_json(outcome=REVERT_OUTCOME_REFUSED, sid=sid,
+                              reason=reason, cause=cause)
 
 
 # --- status: session-registry human-value formatters (v0.3.0, ADR-0006) ---
