@@ -179,6 +179,24 @@ forecast_departures as the one conditional, optional seed. The
 redundant tests/-on-path guard in ExchangeBlockParity.setUpClass is
 gone (tests/__init__.py covers the dotted form).
 
+Session 2026-10-08-crafter-probe-timeout-002 (bale 0.4.52) bounds the
+--probe scaffold's wall clock. CraftProbeBound pins the purpose
+header's bound line (the default and BALE_PROBE_TIMEOUT) beside the
+unchanged sentinels, trailer, read-only line and the two placeholder
+lines, then runs the emitted script through bash with a body spliced
+over the placeholders: a body sleeping past a small bound returns
+promptly with the lines printed before the cut, the marker, a true
+trailer and both sentinels; BALE_PROBE_TIMEOUT=0 does not cut; a body
+reading stdin does not block while the script's own stdin is a pipe
+nobody closes; the unset default leaves a quick body's block as it
+was; a bad value is reported and the default holds; a body that leaves
+a command in the background does not hold the block open; and with no
+timeout on PATH the script says so and runs unbounded. Every run has
+PATH holding no bale and a cwd with no bale.toml. The two fragment
+emitters' heredoc pins move from `python3 -B -` to `python3 -I -B -`,
+and CraftEpilogueFragments pins that the epilogue carries no registry
+citation (no `fold-in`, no `008`).
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -777,8 +795,11 @@ class CraftProbeMode(unittest.TestCase):
         self.assertIn("probe() {", out)
         self.assertIn(f'echo "=== PROBE BEGIN {self.SLUG} ==="', out)
         self.assertIn(f'echo "=== PROBE END {self.SLUG} ==="', out)
-        # Capture-then-count integrity machinery, 4.2's form.
-        self.assertIn('out="$(probe 2>&1)"', out)
+        # Capture-then-count integrity machinery, 4.2's form; since
+        # 0.4.52 the capture runs probe() in a bounded child bash
+        # (CraftProbeBound pins the behaviour).
+        self.assertIn('out="$(\n', out)
+        self.assertIn('bash -c "$(declare -f probe)"', out)
         self.assertIn("--- integrity: %s lines ---", out)
         self.assertIn("wc -l", out)
         # Loud placeholders: what/why lines and the example section,
@@ -875,6 +896,242 @@ class CraftProbeMode(unittest.TestCase):
         cp = run_craft("--sid", "s-042")
         self.assertEqual(cp.returncode, 2)
         self.assertIn("response dir is required", cp.stderr)
+
+
+class CraftProbeBound(unittest.TestCase):
+    """Session crafter-probe-timeout: the --probe scaffold bounds its own
+    wall clock. probe() runs with stdin closed and git told not to page
+    or prompt, under a bound the purpose header states, which
+    BALE_PROBE_TIMEOUT overrides (0 lifts it, a bad value is reported
+    and the default holds); a cut block still carries the BEGIN
+    sentinel, the lines printed before the cut, one marker line naming
+    the bound and the variable, a true trailer and the END sentinel.
+
+    Behaviour is proven by running the emitted script through bash with
+    a body spliced over the two placeholder lines (as an oracle does),
+    PATH holding no bale (the clipboard tail copies nothing) and cwd a
+    scratch directory with no bale.toml in reach."""
+
+    SLUG = "fixture-probe"
+    PLACEHOLDER = (
+        '  echo "--- section: TODO-example ---"\n'
+        '  echo "TODO(worker): unfilled probe placeholder — not ready to '
+        'paste"\n')
+    MARKER_PREFIX = "*** PROBE CUT: "
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def emit(self) -> str:
+        cp = run_craft("--probe", self.SLUG, cwd=self.tmp)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        return cp.stdout
+
+    def default_seconds(self) -> int:
+        return _load_crafter_module().PROBE_DEFAULT_TIMEOUT_SECONDS
+
+    def spliced(self, body: str) -> Path:
+        out = self.emit()
+        self.assertEqual(out.count(self.PLACEHOLDER), 1)
+        script = self.tmp / "probe.sh"
+        script.write_text(out.replace(self.PLACEHOLDER, body),
+                          encoding="utf-8")
+        chk = subprocess.run(["bash", "-n", str(script)],
+                             capture_output=True, text=True)
+        self.assertEqual(chk.returncode, 0, chk.stderr)
+        return script
+
+    def env(self, timeout_value: str | None, path: str | None = None
+            ) -> dict:
+        env = dict(os.environ)
+        env["PATH"] = path if path is not None else path_without_bale()
+        env.pop("BALE_PROBE_TIMEOUT", None)
+        if timeout_value is not None:
+            env["BALE_PROBE_TIMEOUT"] = timeout_value
+        return env
+
+    def run_script(self, script: Path, timeout_value: str | None, *,
+                   path: str | None = None, limit: float = 60.0
+                   ) -> tuple[subprocess.CompletedProcess, float]:
+        import time
+        t0 = time.monotonic()
+        run = subprocess.run(["bash", str(script)], cwd=self.tmp,
+                             env=self.env(timeout_value, path),
+                             stdin=subprocess.DEVNULL,
+                             capture_output=True, text=True, timeout=limit)
+        return run, time.monotonic() - t0
+
+    def block(self, run: subprocess.CompletedProcess) -> list[str]:
+        """The sentinel-bracketed block, checked whole: BEGIN first, END
+        last, and the trailer true to the lines between them."""
+        lines = run.stdout.splitlines()
+        self.assertEqual(lines[0], f"=== PROBE BEGIN {self.SLUG} ===",
+                         run.stdout)
+        self.assertEqual(lines[-1], f"=== PROBE END {self.SLUG} ===")
+        inner = lines[1:-2]
+        self.assertEqual(lines[-2], f"--- integrity: {len(inner)} lines ---")
+        return inner
+
+    # -- shape -------------------------------------------------------
+
+    def test_header_states_the_default_and_the_variable(self):
+        out = self.emit()
+        lines = out.splitlines()
+        n = self.default_seconds()
+        self.assertEqual(n, 120)
+        self.assertEqual(
+            lines[3],
+            "# Read-only: writes nothing anywhere; stdout is the only "
+            "output.")
+        self.assertEqual(
+            lines[4],
+            f"# Bound: probe() gets {n} seconds of wall clock; "
+            "BALE_PROBE_TIMEOUT=<seconds> overrides it, "
+            "BALE_PROBE_TIMEOUT=0 runs it unbounded.")
+        self.assertIn(f"probe_bound={n}\n", out)
+
+    def test_fixed_lines_survive_and_placeholders_stay_last(self):
+        """Sentinels, trailer and read-only line byte-for-byte (twine's
+        take reader locates the format by them); the two placeholder
+        lines verbatim as the last two lines of probe()'s body."""
+        out = self.emit()
+        for line in (
+                f'  echo "=== PROBE BEGIN {self.SLUG} ==="\n',
+                f'  echo "=== PROBE END {self.SLUG} ==="\n',
+                "  printf -- '--- integrity: %s lines ---\\n' "
+                "\"$(printf '%s\\n' \"$out\" | wc -l | tr -d ' ')\"\n",
+                "# Read-only: writes nothing anywhere; stdout is the only "
+                "output.\n"):
+            with self.subTest(line=line):
+                self.assertEqual(out.count(line), 1)
+        self.assertIn(self.PLACEHOLDER + "}\n", out)
+
+    def test_body_never_waits_on_a_terminal_by_construction(self):
+        out = self.emit()
+        self.assertIn("GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0", out)
+        self.assertIn("</dev/null 2>&1 &", out)
+        # The marker holds no `!`: a probe pasted into an interactive
+        # bash would history-expand `!!` and replace the captured output.
+        marker_line = next(ln for ln in out.splitlines()
+                           if self.MARKER_PREFIX in ln)
+        self.assertNotIn("!", marker_line)
+
+    # -- behaviour ---------------------------------------------------
+
+    def test_bound_cuts_a_sleeping_body_and_the_block_says_so(self):
+        script = self.spliced('  echo "--- section: slow ---"\n'
+                              '  echo before-the-cut\n'
+                              '  sleep 30\n'
+                              '  echo after-the-cut\n')
+        run, took = self.run_script(script, "2")
+        self.assertLess(took, 15, "the bound did not bite promptly")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        inner = self.block(run)
+        self.assertEqual(inner[:2], ["--- section: slow ---",
+                                     "before-the-cut"])
+        self.assertNotIn("after-the-cut", run.stdout)
+        markers = [ln for ln in inner if ln.startswith(self.MARKER_PREFIX)]
+        self.assertEqual(len(markers), 1, run.stdout)
+        self.assertEqual(inner[-1], markers[0])
+        self.assertIn("2-second bound", markers[0])
+        self.assertIn("BALE_PROBE_TIMEOUT", markers[0])
+        self.assertIn("cut at its 2-second bound", run.stderr)
+
+    def test_zero_runs_unbounded(self):
+        script = self.spliced('  echo "--- section: z ---"\n'
+                              '  sleep 3\n'
+                              '  echo finished\n')
+        run, took = self.run_script(script, "0")
+        self.assertGreaterEqual(took, 3)
+        inner = self.block(run)
+        self.assertEqual(inner, ["--- section: z ---", "finished"])
+        self.assertNotIn(self.MARKER_PREFIX, run.stdout)
+        self.assertIn("BALE_PROBE_TIMEOUT=0: probe() runs unbounded",
+                      run.stderr)
+
+    def test_stdin_reader_does_not_block_on_an_open_pipe(self):
+        """The script's own stdin is a pipe nobody closes; the body's
+        `read` sees end of input at once instead of waiting on it."""
+        script = self.spliced('  echo "--- section: stdin ---"\n'
+                              '  read -r line\n'
+                              '  echo "read-rc=$?"\n')
+        proc = subprocess.Popen(["bash", str(script)], cwd=self.tmp,
+                                env=self.env(None),
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True)
+        try:
+            proc.wait(timeout=20)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            self.fail("the probe blocked on its stdin")
+        finally:
+            proc.stdin.close()
+        out = proc.stdout.read()
+        proc.stdout.close()
+        proc.stderr.close()
+        run = subprocess.CompletedProcess(proc.args, proc.returncode, out, "")
+        self.assertEqual(self.block(run),
+                         ["--- section: stdin ---", "read-rc=1"])
+
+    def test_default_path_is_unchanged_for_a_quick_body(self):
+        script = self.spliced('  echo "--- section: quick ---"\n'
+                              '  echo "two words"\n')
+        run, _ = self.run_script(script, None)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(run.stdout,
+                         f"=== PROBE BEGIN {self.SLUG} ===\n"
+                         "--- section: quick ---\n"
+                         "two words\n"
+                         "--- integrity: 2 lines ---\n"
+                         f"=== PROBE END {self.SLUG} ===\n")
+        self.assertNotIn("[probe]", run.stderr)
+
+    def test_bad_value_is_reported_and_the_default_holds(self):
+        script = self.spliced('  echo "--- section: bad ---"\n'
+                              '  echo ok\n')
+        n = self.default_seconds()
+        for bad in ("abc", "-5", "1.5", "", " 3"):
+            with self.subTest(bad=bad):
+                run, _ = self.run_script(script, bad)
+                self.assertEqual(run.returncode, 0, run.stderr)
+                self.assertEqual(self.block(run),
+                                 ["--- section: bad ---", "ok"])
+                self.assertIn(f"BALE_PROBE_TIMEOUT='{bad}' is not a whole "
+                              "number of seconds", run.stderr)
+                self.assertIn(f"default bound of {n} seconds", run.stderr)
+                self.assertNotIn("runs unbounded", run.stderr)
+
+    def test_background_leftover_does_not_hold_the_block_open(self):
+        script = self.spliced('  echo "--- section: bg ---"\n'
+                              '  sleep 30 &\n'
+                              '  echo left-behind\n')
+        run, took = self.run_script(script, None)
+        self.assertLess(took, 15)
+        self.assertEqual(self.block(run), ["--- section: bg ---",
+                                           "left-behind"])
+
+    def test_no_timeout_command_says_so_and_runs_unbounded(self):
+        """A PATH carrying only what the script needs, none of it a
+        timeout: stderr says so, the body runs to the end, nothing
+        fails for that reason."""
+        bindir = self.tmp / "no-timeout-bin"
+        bindir.mkdir()
+        import shutil
+        for tool in ("bash", "env", "cat", "wc", "tr", "sleep"):
+            found = shutil.which(tool)
+            self.assertIsNotNone(found, tool)
+            (bindir / tool).symlink_to(found)
+        script = self.spliced('  echo "--- section: nt ---"\n'
+                              '  sleep 2\n'
+                              '  echo done\n')
+        run, _ = self.run_script(script, "1", path=str(bindir))
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(self.block(run), ["--- section: nt ---", "done"])
+        self.assertIn("no timeout command here", run.stderr)
 
 
 class SchemaDriftBridge(unittest.TestCase):
@@ -1315,24 +1572,50 @@ class CraftValidationEpilogue(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn("[SKIP] claims reconciliation", run.stdout)
 
-    def test_heredoc_python_runs_under_dash_B(self):
-        """The reconciliation heredoc is `python3 -B -` (session
+    def test_heredoc_python_runs_under_dash_I_dash_B(self):
+        """The reconciliation heredoc is `python3 -I -B -`. `-B` (session
         inline-sentinels-and-crafter-b): TARBALL.md 7.1 asks every
         validation.sh to announce or suppress interpreter caches, and
-        the pasted fragment says so itself — three workers had edited
-        the emitted `python3 -` by hand. Same arguments, same delimiter,
-        and no bare `python3 - ` survives anywhere in the emission."""
+        the pasted fragment says so itself. `-I` (session
+        crafter-probe-timeout): the fragment runs from the staging root,
+        which would otherwise be sys.path[0]. Same arguments, same
+        delimiter; no bare `python3 - ` and no `python3 -B -` without
+        `-I` survives anywhere in the emission."""
         out = self.emit()
         self.assertIn(
-            '  python3 -B - "$manifest" ${pairs[@]+"${pairs[@]}"} '
+            '  python3 -I -B - "$manifest" ${pairs[@]+"${pairs[@]}"} '
             "<<'BALE_RECONCILE'\n", out)
         self.assertNotIn("python3 - ", out)
-        self.assertEqual(out.count("python3 -B -"), 1)
+        self.assertNotIn("python3 -B -", out)
+        self.assertEqual(out.count("python3 -I -B -"), 1)
         # The separable parts carry the same invocation; definitions
         # is the part that holds the heredoc.
         defs = self.emit("--fragment", "definitions")
-        self.assertIn("python3 -B - ", defs)
+        self.assertIn("python3 -I -B - ", defs)
         self.assertNotIn("python3 - ", defs)
+        self.assertNotIn("python3 -B -", defs)
+
+    def test_planted_stdlib_shadow_in_cwd_is_not_imported(self):
+        """What `-I` closes, run: a `json.py` planted in the staging
+        root beside .bale-manifest.json does not shadow the stdlib for
+        the reconciliation script."""
+        out = self.emit()
+        stage = self.tmp / "shadow-stage"
+        stage.mkdir()
+        (stage / ".bale-manifest.json").write_text(json.dumps({
+            "claims": {"suite": "pass"}}))
+        (stage / "json.py").write_text(
+            "raise SystemExit('planted json.py was imported')\n")
+        script = stage / "validation.sh"
+        script.write_text(
+            "#!/usr/bin/env bash\nset -euo pipefail\nexit_code=0\n"
+            + out + '\nrecord_verdict "suite" pass\nreconcile_claims\n'
+            'exit "$exit_code"\n')
+        run = subprocess.run(["bash", str(script)], cwd=stage,
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertNotIn("planted", run.stderr + run.stdout)
+        self.assertIn("[agree]", run.stdout)
 
     def test_exec_assertions_share_the_chmod_source(self):
         """One source, two emissions: the same --executable list yields
@@ -1469,11 +1752,22 @@ class CraftEpilogueFragments(unittest.TestCase):
         self.assertEqual(cp2.returncode, 2)
         self.assertIn("--executable", cp2.stderr)
 
+    def test_epilogue_carries_no_registry_citation(self):
+        """Session crafter-probe-timeout: the capped-label comment
+        states its rule without the registry citation it used to carry
+        into every project's validation.sh."""
+        for argv in ((), ("--fragment", "definitions")):
+            with self.subTest(argv=argv):
+                out = self.emit(*argv)
+                self.assertNotIn("fold-in", out)
+                self.assertNotIn("008", out)
+                self.assertIn("# Label column is capped: one pathological "
+                              "label must not drag every\n", out)
+
     def test_label_column_is_capped(self):
-        """Fold-in (008's accepted proposal): the label column tops
-        out, so one pathological label can't drag every row; the long
-        label itself still prints in full — identifiers are verbatim,
-        never truncated."""
+        """The label column tops out, so one pathological label can't
+        drag every row; the long label itself still prints in full —
+        identifiers are verbatim, never truncated."""
         out = self.emit()
         long_label = "an implausibly long project-level check label " \
                      "that would widen every row"
@@ -1564,24 +1858,27 @@ class CraftDocAssertions(unittest.TestCase):
         self.assertNotIn("ADR guards", only_prune)
         self.assertNotIn("index-header coherence", only_prune)
 
-    def test_every_block_runs_its_heredoc_under_dash_B(self):
-        """Each block's guarded heredoc is `if ! python3 -B - <args>
-        <<'DELIM'` (session inline-sentinels-and-crafter-b, the twin of
-        CraftValidationEpilogue.test_heredoc_python_runs_under_dash_B):
+    def test_every_block_runs_its_heredoc_under_dash_I_dash_B(self):
+        """Each block's guarded heredoc is `if ! python3 -I -B - <args>
+        <<'DELIM'` (`-B` since session inline-sentinels-and-crafter-b,
+        `-I` since session crafter-probe-timeout; the twin of
+        CraftValidationEpilogue.test_heredoc_python_runs_under_dash_I_dash_B):
         one invocation per selected block, the argv and delimiter as
-        before, and no bare `python3 - ` anywhere in the emission."""
+        before, and no bare `python3 - ` or `-B` without `-I` anywhere in
+        the emission."""
         out = self.emit("--index", "claude/INDEX.md",
                         "--adr-dir", "claude/context/adr",
                         "--prune-reasons",
                         "--index-header", "bin/tool.py",
                         "--index-header", "bin/other.py")
         self.assertNotIn("python3 - ", out)
+        self.assertNotIn("python3 -B -", out)
         heads = [ln for ln in out.splitlines() if "python3" in ln]
         self.assertEqual(heads, [
-            "if ! python3 -B - claude/INDEX.md <<'BALE_DOC_INDEX'",
-            "if ! python3 -B - claude/context/adr <<'BALE_DOC_ADR'",
-            "if ! python3 -B - <<'BALE_DOC_PRUNE'",
-            "if ! python3 -B - bin/tool.py bin/other.py "
+            "if ! python3 -I -B - claude/INDEX.md <<'BALE_DOC_INDEX'",
+            "if ! python3 -I -B - claude/context/adr <<'BALE_DOC_ADR'",
+            "if ! python3 -I -B - <<'BALE_DOC_PRUNE'",
+            "if ! python3 -I -B - bin/tool.py bin/other.py "
             "<<'BALE_DOC_HEADER'",
         ])
 
