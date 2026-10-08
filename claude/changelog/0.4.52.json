@@ -1,0 +1,21 @@
+{
+  "record_version": 1,
+  "version": "0.4.52",
+  "session_id": "2026-10-08-crafter-probe-timeout-002",
+  "at": "2026-10-08T14:03:02+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.51 -> 0.4.52"
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "--probe's emitted scaffold bounds its wall clock: the purpose header gains a fifth line, `# Bound: probe() gets 120 seconds of wall clock; BALE_PROBE_TIMEOUT=<seconds> overrides it, BALE_PROBE_TIMEOUT=0 runs it unbounded.` (new constant PROBE_DEFAULT_TIMEOUT_SECONDS = 120); the capture `out=\"$(probe 2>&1)\"` becomes a bounded run of probe() in a child bash (`bash -c \"$(declare -f probe)\"`) under coreutils' timeout (or gtimeout) with `-k 5`, stdin /dev/null and GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0, whose process group is killed once the body is done; when the bound bites, one line `*** PROBE CUT: probe() hit its N-second bound and was stopped; ... BALE_PROBE_TIMEOUT ... ***` joins the captured output, so the block keeps BEGIN, the lines printed before the cut, the marker, a trailer counting them and END; BALE_PROBE_TIMEOUT=0 runs unbounded, any other non-integer value is reported on stderr and the default holds, and no usable timeout is reported on stderr and runs unbounded; the script's exit status stays the clipboard tail's (nothing at top level calls exit); the sentinel lines, the trailer line, the read-only line, the two placeholder lines (still last in probe()) and the clipboard tail are byte-identical to 0.4.51, the worked comments in probe() shrink; the two validation.sh fragment emitters run their heredoc Python as `python3 -I -B -` (reconcile_claims' `python3 -I -B - \"$manifest\" ...<<'BALE_RECONCILE'` and every --doc-assertions block's `if ! python3 -I -B - <args> <<'DELIM'`), same arguments and delimiters; the epilogue's capped-label comment reads `# Label column is capped: one pathological label must not drag every` (re-wrapped, no registry citation); --bundle, --emit-block, --light-block, the manifest skeleton, --changes-only and --apply-only emissions byte-identical to 0.4.51"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "new CraftProbeBound (header bound line and default, fixed lines and placeholders kept last, no-terminal construction, and behaviour with a spliced body under PATH without bale: cut at a small bound with marker and true trailer, 0 unbounded, stdin pipe left open does not block, unset default unchanged for a quick body, bad values reported with the default holding, a background leftover does not hold the block, no timeout on PATH runs unbounded); CraftProbeMode's capture pin moves to the bounded form; CraftValidationEpilogue and CraftDocAssertions pin `python3 -I -B -` with no `python3 -B -` without `-I`, plus a planted json.py in the staging root that the reconciliation no longer imports; CraftEpilogueFragments pins the epilogue free of `fold-in` and `008`"
+    }
+  ],
+  "notes": "For twine's pin diff: the --probe emission's bytes changed (a fifth purpose-header line, the bounded capture block between probe() and emit_probe_block, shorter worked comments inside probe()) while its PROBE BEGIN/END sentinel lines, its integrity trailer line, its read-only line and its two placeholder lines did not; a block cut by the bound carries one extra line inside the sentinels, starting `*** PROBE CUT: `, which the trailer counts. The two fragment emitters now print `python3 -I -B -` (--validation-epilogue once, each --doc-assertions block once). A validation.sh built from 0.4.51's fragments keeps working unchanged; one crafted at 0.4.52 no longer reads modules from the staging root."
+}

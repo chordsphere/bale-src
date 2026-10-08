@@ -1683,6 +1683,13 @@ these required properties:
   a line count (or checksum) of the emitted output, so the receiving
   session can detect a truncated or partial paste and re-request
   instead of reasoning from half an environment.
+- **Bounded wall clock.** The body runs under a bound in seconds that
+  the purpose header states. `BALE_PROBE_TIMEOUT`, read at run time,
+  overrides it in whole seconds and `0` lifts it; any other value is
+  reported on stderr and the stated bound holds. When the bound bites,
+  the block still closes: the lines printed before the cut, one marker
+  line naming the bound and `BALE_PROBE_TIMEOUT`, the integrity
+  trailer counting them, and the `PROBE END` sentinel.
 
 The canonical skeleton is mechanized: when a probe is the response,
 `tools/craft_response.py --probe <session-slug>` (shipped in every
@@ -1726,6 +1733,12 @@ These apply to both the paste-back shape and the §4.4 fallback:
   secret patterns. Records *presence* (`OPENAI_API_KEY: set`), never
   values.
 - **Logged.** Every step prints a line. Silent operations are bugs.
+- **Never waits on a terminal.** The body runs with its standard
+  input closed (`/dev/null`) and git told neither to page nor to
+  prompt (`GIT_PAGER=cat`, `PAGER=cat`, `GIT_TERMINAL_PROMPT=0`): a
+  `read` meets end of input, nothing pages, and git refuses a
+  credential prompt rather than asking, so none of them holds the
+  paste open.
 
 The crafter's probe scaffold additionally ends with an opt-in
 clipboard copy, made by bale: the emitted script pipes its
