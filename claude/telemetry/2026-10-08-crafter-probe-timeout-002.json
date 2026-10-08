@@ -1,0 +1,261 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-08-crafter-probe-timeout-002",
+  "created_at": "2026-10-08T13:49:40+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-08T13:49:40+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "claude/changelog",
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-08-crafter-probe-timeout-002.log",
+      "bundle": {
+        "stem": "2026-10-08-crafter-probe-timeout",
+        "brief_sha256": "5974c1d353a0f8e70d0d1e859a27b39cc1b0f4c8acf13c0f02755c8a6d307c7d",
+        "checkpoint_sha256": "55cd1754c952434a434b22f5fbc62eb0a1f202a6f0668c4f75d3a07d4ce98756",
+        "manifest_sha256": "50b8a33431afcdc8fe6c471b01c6e7e304f16d935e893fdc062f706188b2ea2b"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-08T13:49:39+00:00"
+      }
+    },
+    {
+      "at": "2026-10-08T14:25:38+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-08-crafter-probe-timeout-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests.test_craft_response": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_changelog_record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "doc suites (crossrefs, selfcontainment, sanctioned pairs, global noun)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full suite, discover form (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests.test_craft_response": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_changelog_record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc suites (crossrefs, selfcontainment, sanctioned pairs, global noun)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full suite, discover form (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (py, json)",
+          "tests.test_craft_response",
+          "tests.test_changelog_record",
+          "doc suites (crossrefs, selfcontainment, sanctioned pairs, global noun)",
+          "full suite, discover form (--slow)",
+          "assert: bin/VERSION is 0.4.52",
+          "assert: changelog record 0.4.52",
+          "assert: AGENT, DOCS, CODE, PLANNER byte-identical",
+          "assert: TARBALL.md gains exactly the 4.2 and 4.3 bullets",
+          "assert: probe header states the bound; fixed lines byte-identical",
+          "assert: probe emission is the reviewed bytes",
+          "assert: probe bound cuts a sleeping body, block well-formed",
+          "assert: probe BALE_PROBE_TIMEOUT=0 runs unbounded",
+          "assert: probe body reading stdin does not block",
+          "assert: probe default path unchanged for a quick body",
+          "assert: probe bad BALE_PROBE_TIMEOUT reported, default holds",
+          "assert: fragment emitters print python3 -I -B -",
+          "assert: epilogue carries no fold-in or 008",
+          "assert: epilogue and doc blocks otherwise byte-identical to 0.4.51",
+          "assert: other crafter emissions byte-identical to 0.4.51"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "claude/changelog",
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "claude/changelog/0.4.52.json",
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tools/craft_response.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.51",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "c32a8dc8bbc01634a9a5bfcff2bc6240b835f3ff6c71144f2e5d651600a04112",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "22c4f52e73fde726b3ffab8256e2a957a18378093757f8882331315bbb2af82c"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-08-crafter-probe-timeout-002.sh",
+              "sha256": "55cd1754c952434a434b22f5fbc62eb0a1f202a6f0668c4f75d3a07d4ce98756"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-08T13:49:39+00:00",
+            "base_files": {
+              "bin/VERSION": "5e726fc4c62b3affd1ce4bdf0bcb18b3ab9c0ce0827cb52fa14c7283ccb0d1f9",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "claude/changelog/0.4.42.json": "c0d26fe4b30cefa33612a497d8390c6e3eeec67df79434ac61ddbe46df660e46",
+              "claude/changelog/0.4.43.json": "90b4854fd11251bf9a6d02cc2516142d88c1dfa7d33f8d20c62bba5467576f36",
+              "claude/changelog/0.4.44.json": "62e71e58abf649a076c606c0c06097819980862e728824d48eeaaa14f553c570",
+              "claude/changelog/0.4.45.json": "2088ed72407753211e2ca185e5e5b9f91e206ef7a4db35a1934e7a98fa3aad20",
+              "claude/changelog/0.4.46.json": "9dc57d747790184a77e153050c50e07f7526c5c8c808cfc49d86cc2a39b234af",
+              "claude/changelog/0.4.47.json": "a786e73afb7ef135cb1574d7e8273c3e3b43e3cd45d65b70577a1e71fda43230",
+              "claude/changelog/0.4.48.json": "8b184d558c06bc11d61452c2522b7d10581a928839f5feaf2f8d0a2b14918e08",
+              "claude/changelog/0.4.49.json": "9e375d9c420815e2d241ed78f69e0cd82c6d7d0a17572a569c55dd2b027e4661",
+              "claude/changelog/0.4.50.json": "f7798e7d0b89c38fa804b262ccec8c84abb3415cff1d657f75f875fa94ac267f",
+              "claude/changelog/0.4.51.json": "545b2e2aa3308e10bfe40249f57e384bbed3e830104a15d360ed00594e88eef0",
+              "docs/TARBALL.md": "c32a8dc8bbc01634a9a5bfcff2bc6240b835f3ff6c71144f2e5d651600a04112",
+              "tests/test_craft_response.py": "22e4847fd7f25bb8f3904381f267589ddb40188ff89b5937a488ea6c8424881e",
+              "tools/craft_response.py": "3d82833b7bc446207e1aeb2c970a78e455ae4b0e15d5cb78342b6badea487b08"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The probe is often pasted into an interactive shell, so the scaffold must never call exit at top level and its marker must not contain `!` (bash history expansion); the exit status therefore stays the clipboard tail's.",
+            "coreutils timeout puts the bounded child in its own process group and signals the group (true of GNU coreutils, which the operator's WSL2 Ubuntu has); a busybox timeout that does not may leave a grandchild holding the capture until it exits."
+          ],
+          "judgment_calls": [
+            "Default bound 120 seconds, as the desk suggested.",
+            "One bound over the whole body, not per command; -k 5 sends KILL five seconds after TERM, so the worst case is bound + 5 s.",
+            "probe() runs in a child bash (`bash -c \"$(declare -f probe)\"`) in every path, bounded or not, so its semantics do not change with the variable; the scaffold comment tells the worker to keep everything inside probe().",
+            "Once a bounded body finishes, its process group is killed, so a command left running in the background cannot hold the block open past the body.",
+            "A cut is detected by timeout's 124/137 together with elapsed time >= the bound, so a body that merely exits 124 is not mislabelled.",
+            "Marker wording: `*** PROBE CUT: probe() hit its N-second bound and was stopped; the lines above are partial. Rerun with BALE_PROBE_TIMEOUT=<seconds> for longer, or BALE_PROBE_TIMEOUT=0 for no bound. ***`; it joins the captured output so the unchanged trailer counts it.",
+            "Exit status is not changed by a cut (no top-level exit; the clipboard tail's status stands); the cut is reported by the marker on stdout and a [probe] line on stderr.",
+            "The bound line is a fifth purpose-header line, after the verbatim read-only line, so lines 1-4 keep their positions.",
+            "gtimeout is accepted where timeout is absent (macOS with Homebrew coreutils); a timeout that rejects coreutils' arguments is reported and the body runs unbounded.",
+            "An empty-but-set BALE_PROBE_TIMEOUT counts as a bad value (reported, default holds), not as unset.",
+            "Reworded comment: `# Label column is capped: one pathological label must not drag every` / `# row's alignment out. ...` re-wrapped, rule unchanged.",
+            "-B stays explicit beside -I because -I ignores PYTHON* variables, PYTHONDONTWRITEBYTECODE included.",
+            "The changelog record lists the three surfaces the brief names, not docs/TARBALL.md, following 0.4.49's record, which left its doc change out of surfaces too."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through 11.2",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5.1-5.4.1, 7, 4, 10.1",
+            "claude/responses/2026-10-07-inline-sentinels-and-crafter-b-004/notes.md",
+            "claude/changelog/0.4.49.json and 0.4.51.json"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-10-08-crafter-probe-timeout-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-08-crafter-probe-timeout-002.sh",
+          "sha256": "55cd1754c952434a434b22f5fbc62eb0a1f202a6f0668c4f75d3a07d4ce98756"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-08T14:25:38+00:00",
+  "outcome": "applied"
+}
