@@ -7,7 +7,9 @@ worker agent returns, `bale open` consumes a planner bundle into a
 packed session (verify, dry-run, replay — bin/bale_open.py, board
 49a-ii), and the ancillary commands (revert, rollback, retry,
 amend-checkpoint, relay, unlock, handoff, config init, status, stats) manage
-the session lifecycle around them. BALE.md at the repo root is the canonical design
+the session lifecycle around them; `bale contract` publishes the machine
+contract (closed vocabularies, refusal codes, --json key sets) repo-free.
+BALE.md at the repo root is the canonical design
 document — comments below cite its sections. Stdlib-only, Python 3.10+
 (3.11+ uses stdlib `tomllib`; 3.10 the vendored parser in
 `bin/_bale_toml.py`). The version narrative that once lived here is git
@@ -34,6 +36,7 @@ Sections:
   25. Status                                              (~line  4235)
   30. Clipboard (the probe scaffold's copy route)         (~line  5000)
   27. Stats                                               (~line  5005)
+  31. Contract                                            (~line  5060)
   26. CLI                                                 (~line  5065)
 
 Sections 11-15 (the pack path: scope projection + threshold caps, slug
@@ -61,8 +64,11 @@ sibling owns the verb, this file keeps the CLI wiring. Section 30
 25 with a fresh number, the same way: `bale clipboard` reads the
 per-machine key the status row reports (`[clipboard] command` since
 session clipboard-key-rename, its legacy `[probe] clipboard_command`
-spelling still read). The listing above is in
-physical order, the numbers stay stable.
+spelling still read). Section 31 (Contract, v0.4.53) sits after section
+27 with a fresh number, the last section before the CLI tail: `bale
+contract` is wiring only — bale_report owns the payload and both
+renderings. The listing above is in physical order, the numbers stay
+stable.
 """
 
 from __future__ import annotations
@@ -180,6 +186,9 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_stats_report,
     format_session_dossier_json,
     format_session_dossier_report,
+    contract_schema_homes,
+    format_contract_json,
+    format_contract_report,
 )
 
 # The `bale stats` aggregation core — corpus loading, parsing tolerances,
@@ -6733,6 +6742,48 @@ def _stats_dossier(args, telemetry_dir: Path,
 
 
 # ---------------------------------------------------------------------------
+# 31. Contract
+# ---------------------------------------------------------------------------
+
+def cmd_contract(args) -> int:
+    """`bale contract` — print bale's machine contract (v0.4.53).
+
+    Repo-free, like `bale help` and `bale completion`: it reads nothing but
+    the install it runs from — bin/VERSION (already in VERSION) and the
+    schema files bale_report.contract_schema_homes() names, under
+    INSTALL_ROOT — and never the working directory, a repository, .bale/
+    or a config. No lock, no prompts, no writes, no session, no telemetry;
+    exit 0.
+
+    Wiring only: bale_report.build_contract_payload assembles the report
+    from the homes its declaration tuples name, format_contract_json
+    renders the --json line (its docstring owns the key contract) and
+    format_contract_report the human listing. --json engages the shared
+    stream discipline first, so stdout carries exactly the one line. A
+    schema the install cannot read or parse is a broken install: fail()
+    names the file (stderr, exit 1, nothing on stdout).
+    """
+    if args.json:
+        enable_json_mode()
+    schemas = {}
+    for home in contract_schema_homes():
+        path = INSTALL_ROOT / home
+        try:
+            schemas[home] = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            fail(f"bale contract: could not read {home} from the install "
+                 f"at {INSTALL_ROOT}: {exc} — the install is incomplete "
+                 f"(re-run install.sh, or upgrade.sh over a fresh release "
+                 f"tarball)")
+    if args.json:
+        emit_json_line(format_contract_json(version=VERSION,
+                                            schemas=schemas))
+    else:
+        print(format_contract_report(version=VERSION, schemas=schemas))
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # 26. CLI
 # ---------------------------------------------------------------------------
 
@@ -8418,6 +8469,40 @@ def build_parser() -> argparse.ArgumentParser:
              "stdout carries exactly the JSON line.",
     )
     p_stats.set_defaults(func=cmd_stats)
+
+    # contract — the machine contract in one read (v0.4.53, section 31).
+    # Repo-free like help and completion; surfaces in both for free, the
+    # --json flag included, since they walk this one parser.
+    p_contract = sub.add_parser(
+        "contract",
+        formatter_class=SubcommandHelpFormatter,
+        help="Print bale's machine contract: closed vocabularies, "
+             "refusal reasons, and every --json line's keys.",
+        description=(
+            "Print the contract a consumer of bale's --json lines reads: "
+            "every closed vocabulary (outcome words, the telemetry "
+            "schema's outcome and closure_reason enums, and the rest), "
+            "the refusal-reason codes of open, relay, unlock and revert, "
+            "and the ordered top-level keys of every --json line bale "
+            "emits — each with its home in the install and a pointer "
+            "into it (a JSON pointer into a schema, or a constant's "
+            "name in bin/bale_report.py). Repo-free: reads only the "
+            "install it runs from, works in any directory, takes no "
+            "lock, prompts for nothing, writes nothing, and exits 0."
+        ),
+    )
+    p_contract.add_argument(
+        "--json", action="store_true",
+        help="Emit the contract as one line of JSON on stdout instead of "
+             "the human listing. The format_contract_json docstring in "
+             "bin/bale_report.py owns the key contract (stable keys, "
+             "additions only). The line is deterministic — no "
+             "timestamps, no absolute paths — so two releases' lines "
+             "diff cleanly. Stream discipline matches pack/apply --json: "
+             "'[bale] ' lines go to stderr and stdout carries exactly the "
+             "JSON line.",
+    )
+    p_contract.set_defaults(func=cmd_contract)
 
     return p
 

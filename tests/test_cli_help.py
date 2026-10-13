@@ -50,7 +50,7 @@ class SubcommandHelpLayoutTest(unittest.TestCase):
         ("relay",), ("revert",), ("rollback",), ("unlock",), ("open",),
         ("handoff",), ("config",), ("config", "init"), ("config", "hooks"),
         ("help",), ("completion",), ("status",), ("stats",),
-        ("clipboard",),
+        ("clipboard",), ("contract",),
     )
 
     def setUp(self) -> None:

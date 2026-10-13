@@ -361,6 +361,18 @@ is *for* — and stays stable as the per-section line numbers drift:
     its notices are `bale_report`'s. By file order this cluster is
     banner section 30, placed right after Status (banner section 25)
     with a fresh number, the stable-numbering posture above.
+21. **Contract verb.** `cmd_contract` (v0.4.53, session contract-verb):
+    `bale contract [--json]` prints bale's machine contract — the closed
+    vocabularies, the four refusal-reason sets and every `--json`
+    line's ordered keys, each with its home and pointer. Repo-free like
+    `help` and `completion`: it reads `VERSION` and the schema files
+    `bale_report.contract_schema_homes()` names under `INSTALL_ROOT`,
+    nothing else (an unreadable schema is a `fail()`). Wiring only —
+    `bale_report` owns the payload (`build_contract_payload`) and both
+    renderings (`format_contract_json`, whose docstring owns the key
+    contract; `format_contract_report`). By file order this cluster is
+    banner section 31, after Stats (banner section 27) and before the
+    CLI tail, a fresh number per the stable-numbering posture.
 
 `bin/bale_config.py` has four sections (with its own index header).
 **1, constants:** the paths above, `HOOK_NAMES`, one key tuple per
@@ -582,7 +594,19 @@ and `format_revert_refusal_json`, `reason` and `cause` on every open and
 revert line and `reason` on every relay line, and the three closed
 reason vocabularies `OPEN_REFUSAL_REASONS`, `RELAY_REFUSAL_REASONS` and
 `REVERT_REFUSAL_REASONS` beside `UNLOCK_REFUSAL_REASONS`, each code with
-its line in the owning docstring), plus the json-mode stream-discipline state the three
+its line in the owning docstring; v0.4.53 lifted every line renderer's key
+order into a module-level tuple — `PACK_REPORT_KEYS` beside the new
+`OPEN_REPORT_KEYS`, `RELAY_REPORT_KEYS`, `APPLY_REPORT_KEYS`,
+`UNLOCK_REPORT_KEYS`, `REVERT_REPORT_KEYS`, `STATUS_REPORT_KEYS`,
+`STATS_REPORT_KEYS`, the two dossier tuples, `CONTEXT_PACK_REPORT_KEYS`
+and `CONFIG_HOOKS_REPORT_KEYS` — each renderer emitting through
+`_keyed_line` in its tuple's order, every verb's outcome words into a
+tuple (`APPLY_OUTCOMES`, `UNLOCK_OUTCOMES`, `PACK_OUTCOMES`, ...), and
+added the `bale contract` section at the file's end:
+`CONTRACT_VOCABULARIES`, `CONTRACT_REFUSAL_REASONS` and
+`CONTRACT_JSON_SURFACES` declare what the verb publishes by home and
+pointer, and `build_contract_payload` reads each value from there),
+plus the json-mode stream-discipline state the three
 share (`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8: every
 human-facing line goes to stderr under a --json run, so stdout carries
 exactly the report line). Its paste-block copy section (session
@@ -736,10 +760,11 @@ line) — which also keeps the module stdlib-pure and importable without
 `tests/test_stats_aggregation.py` drives the command E2E over the
 fixture corpus at `tests/fixtures/stats_corpus/`.
 
-Two-level subparsing only — `bale <verb>` for twelve top-level commands
-(`pack`, `apply`, `retry`, `revert`, `rollback`, `unlock`, `handoff`,
-`config`, `help`, `completion`, `status`, `stats`), plus `bale config <subcommand>`
-for the config family. At v0.0.x the only `config` subcommand is `init`;
+Two-level subparsing only — `bale <verb>` for seventeen top-level
+commands (`pack`, `apply`, `retry`, `amend-checkpoint`, `relay`,
+`revert`, `rollback`, `unlock`, `open`, `handoff`, `config`, `help`,
+`completion`, `status`, `clipboard`, `stats`, `contract`), plus `bale
+config <subcommand>` for the config family. At v0.0.x the only `config` subcommand is `init`;
 `set`, `get`, `edit` are deliberately out of scope until they earn a place.
 `help` and `completion` (added v0.2.2) are top-level rather than nested
 because both are bale-wide discoverability surfaces, not configuration
@@ -752,7 +777,10 @@ bale state, flagless until v0.2.9 added `--json` — and it surfaces in
 both read the one argparse parser. `stats` (added v0.3.24) is the second
 read-only top-level surface — the trust ledger's read side, wired in
 cluster 19 — and likewise surfaces in `help` and `completion` for free,
-its `--work-class`, `--since`, and `--json` flags included.
+its `--work-class`, `--since`, and `--json` flags included. `contract`
+(added v0.4.53, cluster 21) is the third read-only top-level surface
+and, like `help` and `completion`, repo-free: it reads only the
+install, and its `--json` flag surfaces in both the same way.
 
 ---
 
