@@ -1,0 +1,37 @@
+{
+  "record_version": 1,
+  "version": "0.4.55",
+  "session_id": "2026-10-13-hook-non-tty-006",
+  "at": "2026-10-13T22:12:43+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.54 -> 0.4.55"
+    },
+    {
+      "path": "bin/bale",
+      "change": "run_hook: a pack-side hook (new PACK_SIDE_HOOKS = {post_pack}) whose stdin is not a terminal (new stdin_is_terminal(): sys.stdin None, not a TTY, or closed) is not offered its prompt — the banner still prints, the `default:` line and `run this hook?` do not, no configuration is consulted, nothing is recorded in the acceptance store, and the new fixed line HOOK_DECLINE_LINE_NOT_A_TERMINAL is logged as `[hook post_pack] declined (stdin is not a terminal; the prompt was not offered); not invoking.` (stderr under --json); covers the session pack, `bale handoff`, the context pack and the pack `bale open` replays with no caller change; HOOK_DECLINE_LINES, the terminal prompt and the apply pipeline's no_interact branch are byte-identical; post_apply_pass outside non-interactive mode still prompts whatever stdin is"
+    },
+    {
+      "path": "bin/bale",
+      "change": "`bale pack --context` help text: the post_pack offer is made only when stdin is a terminal, otherwise declined with a log line saying so"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "`bale config init` wizard wording for hooks.post_pack: the summary and description say bale asks on a terminal and, with stdin not a terminal, declines without prompting and logs why; no key, default or behaviour changes"
+    },
+    {
+      "path": "tests/test_hook_non_tty.py",
+      "change": "new suite: the fixed line verbatim and on one physical source line, HOOK_DECLINE_LINES unchanged, PACK_SIDE_HOOKS exactly post_pack, stdin_is_terminal's shapes; run_hook in process never reaching input() off a terminal; piped session pack (global and project hooks, human and --json), piped `bale handoff`, and `bale open <bundle>` replays (--json with stdout one line, and human mode) each declining with the fixed line and the hook's marker absent; a pty still prompting [Y/n] and running a global hook on Enter, with `n` and EOF keeping their board-83 lines; apply's --no-interact line byte-identical and piped apply still offering post_apply_pass"
+    },
+    {
+      "path": "tests/test_context_pack.py",
+      "change": "ContextPackHookTest's two piped cases now pin the non-terminal decline (no prompt, no default line, the fixed line) instead of the EOF decline; the first is renamed test_shows_the_banner_and_declines_off_a_terminal"
+    },
+    {
+      "path": "tests/test_hook_acceptance.py",
+      "change": "PostPackTarballTest.test_session_pack_prompt_shows_bale_tarball pins the non-terminal decline line for its piped session pack"
+    }
+  ],
+  "notes": "For twine: a hosted `bale open <bundle> --json` with stdin from /dev/null no longer offers the global post_pack prompt; stderr carries the hook banner and the one fixed decline line, stdout stays the one JSON line, and nothing needs configuring. apply.hook_auto_accept is still consulted only by the apply pipeline's non-interactive mode."
+}

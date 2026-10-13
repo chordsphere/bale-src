@@ -980,8 +980,17 @@ prompt is replaced by a configured decision — `apply.hook_auto_accept
 default — and the decision plus its source is logged. The safety net
 becomes the explicit config opt-in plus the audit log instead of a
 per-run prompt; the pre-invocation banner (script path, env, warning)
-still prints. Pack- and handoff-side `post_pack` invocations are
-untouched and always prompt. Since v0.4.51 the context pack
+still prints. Pack- and handoff-side `post_pack` invocations never
+consult that mode or its config. They prompt on a terminal stdin; since
+v0.4.55 (session hook-non-tty) a non-terminal stdin is not offered the
+prompt at all — `run_hook` tests `PACK_SIDE_HOOKS` and
+`stdin_is_terminal()`, prints the banner, and logs the fixed
+`HOOK_DECLINE_LINE_NOT_A_TERMINAL` instead of reading EOF and logging
+"stdin closed or interrupted", recording nothing in the acceptance
+store. The test lives in `run_hook`, so the session pack, `bale
+handoff`, the context pack and the pack `bale open` replays all get it
+with no caller change. `post_apply_pass` outside non-interactive mode
+still prompts whatever stdin is. Since v0.4.51 the context pack
 (`bale pack --context`, `cmd_pack_context`) offers `post_pack` too,
 through the same `run_hook` after its tarball is written and before
 its report, with `BALE_SESSION_ID` empty and the hook resolved from

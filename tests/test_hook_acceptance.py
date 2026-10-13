@@ -284,9 +284,10 @@ class PostPackTarballTest(_HookFixture):
     """v0.4.51 (session pack-apply-ux): every post_pack prompt carries
     BALE_TARBALL — the tarball the run just wrote, absolute — in its
     `env:` lines beside BALE_SESSION_ID, and exports it to the script.
-    The piped runs decline on closed stdin, so the script never runs
-    there (its marker is asserted absent); the one pty run accepts to
-    prove the export. post_apply_pass writes no tarball and its prompt
+    The piped runs are not offered the prompt (v0.4.55, session
+    hook-non-tty; tests/test_hook_non_tty.py owns that decline), so the
+    script never runs there (its marker is asserted absent); the one
+    pty run accepts to prove the export. post_apply_pass writes no tarball and its prompt
     is unchanged. The context pack's offer is tests/test_context_pack.py
     (ContextPackHookTest)."""
 
@@ -329,8 +330,9 @@ class PostPackTarballTest(_HookFixture):
                       f"          BALE_SESSION_ID={sid}\n"
                       f"          BALE_TARBALL={tarball}\n"
                       f"          BALE_REPO_ROOT={self.repo}\n", r.stdout)
-        self.assertIn("[hook post_pack] declined (stdin closed or "
-                      "interrupted); not invoking.", r.stdout)
+        self.assertIn("[hook post_pack] declined (stdin is not a "
+                      "terminal; the prompt was not offered); not "
+                      "invoking.", r.stdout)
         self.assertFalse(self.marker.exists(), "the hook must not run")
 
     def test_accepted_post_pack_receives_bale_tarball(self) -> None:

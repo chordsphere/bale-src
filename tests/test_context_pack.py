@@ -391,10 +391,12 @@ class ContextPackHookTest(_Sandbox):
     """`bale pack --context` offers the post_pack hook with the session
     pack's own prompt (run_hook): after the tarball is written, before
     the report; BALE_TARBALL names the context tarball; BALE_SESSION_ID
-    is empty (there is no session). Piped runs decline on closed stdin,
-    so the configured script never runs there — asserted by its marker.
-    The one pty case accepts at a global hook's accept default to prove
-    the two variables reach the script's environment."""
+    is empty (there is no session). Since v0.4.55 (session hook-non-tty)
+    piped runs are not offered the prompt: the banner prints, the
+    pack side's fixed non-terminal line is logged, and the configured
+    script never runs there — asserted by its marker. The one pty case
+    accepts at a global hook's accept default to prove the two
+    variables reach the script's environment."""
 
     MARK = "post-pack-ran.txt"
 
@@ -420,7 +422,7 @@ class ContextPackHookTest(_Sandbox):
             '[hooks]\npost_pack = "scripts/copy.sh"\n', encoding="utf-8")
         return script
 
-    def test_offers_the_hook_and_declines_on_closed_stdin(self) -> None:
+    def test_shows_the_banner_and_declines_off_a_terminal(self) -> None:
         script = self.write_global_hook()
         r = self.context(self.dir)
         self.assertOk(r)
@@ -432,9 +434,12 @@ class ContextPackHookTest(_Sandbox):
                       "          BALE_SESSION_ID=\n"
                       f"          BALE_TARBALL={self.out}\n"
                       f"          BALE_REPO_ROOT={self.dir}\n", out)
-        self.assertIn("run this hook? [Y/n]", out)
-        self.assertIn("[bale] [hook post_pack] declined (stdin closed or "
-                      "interrupted); not invoking.", out)
+        self.assertNotIn("run this hook?", out)
+        self.assertNotIn("  default: ", out)
+        self.assertIn("[bale] [hook post_pack] declined (stdin is not a "
+                      "terminal; the prompt was not offered); not "
+                      "invoking.", out)
+        self.assertNotIn("stdin closed or interrupted", out)
         self.assertFalse(self.marker.exists(), "the hook must not run")
         self.assertTrue(self.out.is_file(), "the tarball is still written")
         # Placement: after the tarball is written, before the report.
@@ -459,11 +464,11 @@ class ContextPackHookTest(_Sandbox):
         self.assertOk(r)
         out_path = sub / ".bale" / "outbox" / "context-docs.tar.gz"
         self.assertIn("  hook:   post_pack (project)\n", r.stdout)
-        self.assertIn("  default: decline — project-layer hook not yet "
-                      "accepted", r.stdout)
+        self.assertNotIn("  default: ", r.stdout)
         self.assertIn(f"          BALE_TARBALL={out_path}\n", r.stdout)
         self.assertIn(f"          BALE_REPO_ROOT={repo}\n", r.stdout)
-        self.assertIn("declined (stdin closed or interrupted)", r.stdout)
+        self.assertIn("declined (stdin is not a terminal; the prompt was "
+                      "not offered)", r.stdout)
         self.assertFalse(self.marker.exists(), "the hook must not run")
         self.assertTrue(out_path.is_file())
 

@@ -593,7 +593,16 @@ The following flags apply across multiple commands:
   context pack's, §7.8) also carries `BALE_TARBALL`, the absolute
   path of the tarball the run just wrote, beside `BALE_SESSION_ID`,
   and exports it to the script; `post_apply_pass` writes no tarball
-  and its prompt is unchanged.
+  and its prompt is unchanged. On the pack side (v0.4.55) the prompt
+  is offered only to a terminal: when stdin is not a TTY — piped,
+  `/dev/null`, CI, the pack `bale open` replays under automation —
+  every `post_pack` path (the session pack, `bale handoff`, the
+  context pack, the open replay) still prints the banner, skips the
+  `default:` line and the prompt, consults no configuration, records
+  nothing in the acceptance store, and declines with the fixed line
+  `[hook post_pack] declined (stdin is not a terminal; the prompt was
+  not offered); not invoking.` (on stderr under `--json`, like every
+  other `[bale]` line there).
 - `--allow-out-of-scope <path>` — apply-scoped, repeatable (one path
   per flag): admit exactly the named `changes[]` path(s) past the
   own-scope drift gate (§8.1 step 14, §11 row 22); any other
@@ -2550,7 +2559,8 @@ when a `post_pack` hook is configured, the context pack offers it
 after the tarball is written and before the report, through the
 session pack's own `run_hook` — the same prompt, the same default
 (trust by layer, then by bytes), the same decline causes and the same
-acceptance store (§5.4). The hook receives `BALE_TARBALL`, the context
+acceptance store (§5.4), including the pack side's non-terminal
+decline: with stdin not a TTY the prompt is not offered (v0.4.55). The hook receives `BALE_TARBALL`, the context
 tarball's absolute path, and `BALE_SESSION_ID` empty, since there is
 no session; it resolves from the config root the walk already reads —
 the git work tree's root inside one, else the packed directory —
