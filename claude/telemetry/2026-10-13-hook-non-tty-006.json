@@ -1,0 +1,290 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-13-hook-non-tty-006",
+  "created_at": "2026-10-13T21:55:47+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-13T21:55:47+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "claude/changelog",
+        "claude/context/bale-internals.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-13-hook-non-tty-006.log",
+      "bundle": {
+        "stem": "2026-10-13-hook-non-tty",
+        "brief_sha256": "262123eeda8ebd43f244bf4fe1889c782c0a5df040738e74674312cafe020e7f",
+        "checkpoint_sha256": "1c6ea79b5c495a7f5d2a7daf2f0c320de1733052949edd8d1ce0e672cde58acc",
+        "manifest_sha256": "7a264b59431b88d27a0bebde7ba7d9d8892e705491b651f3aa65da41154ef4e9"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-13T21:55:46+00:00"
+      }
+    },
+    {
+      "at": "2026-10-13T22:53:14+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-13-hook-non-tty-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "executable bit: bin/bale": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: fixed decline line in bin/bale, byte-exact on one line": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: board-83 decline lines unchanged in bin/bale": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: bin/VERSION is 0.4.55": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: changelog record 0.4.55 validates and names bin/bale": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session: manifest declares no change under docs/ or to an existing changelog record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: new suite (test_hook_non_tty)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: edited hook suites run whole (test_context_pack, test_hook_acceptance)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: whole suite (python3 -B -m unittest discover -s tests)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "validate.sh": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false,
+        "validation_will_run": [
+          "file syntax (python, json)",
+          "executable bit: bin/bale",
+          "session: fixed decline line in bin/bale, byte-exact on one line",
+          "session: board-83 decline lines unchanged in bin/bale",
+          "session: bin/VERSION is 0.4.55",
+          "session: changelog record 0.4.55 validates and names bin/bale",
+          "session: manifest declares no change under docs/ or to an existing changelog record",
+          "tests: new suite (test_hook_non_tty)",
+          "tests: edited hook suites run whole (test_context_pack, test_hook_acceptance)",
+          "tests: whole suite (python3 -B -m unittest discover -s tests)",
+          "validate.sh"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "claude/changelog",
+        "claude/context/bale-internals.md"
+      ],
+      "overridden_paths": [
+        "bin/bale_config.py",
+        "tests/test_context_pack.py",
+        "tests/test_hook_acceptance.py",
+        "tests/test_hook_non_tty.py"
+      ],
+      "overridden_path_sources": {
+        "bin/bale_config.py": "prompt",
+        "tests/test_context_pack.py": "prompt",
+        "tests/test_hook_acceptance.py": "prompt",
+        "tests/test_hook_non_tty.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_config.py",
+        "claude/changelog/0.4.55.json",
+        "claude/context/bale-internals.md",
+        "tests/test_context_pack.py",
+        "tests/test_hook_acceptance.py",
+        "tests/test_hook_non_tty.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.54",
+            "contract_docs": {
+              "AGENT.md": "31dcdded2a8fd175f7778c2bd1be09688e89e76b8fd4cd62b7646aacfa2782c4",
+              "TARBALL.md": "3037b905ee561af44f27cc83ec45d832feb7d429a98d4e07b4482a518cda6e94",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "a8e5714e51049768e52bb5bc0ede9338db1175e7095d9b2bdd0d314ab3e01078"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-13-hook-non-tty-006.sh",
+              "sha256": "1c6ea79b5c495a7f5d2a7daf2f0c320de1733052949edd8d1ce0e672cde58acc"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-13T21:55:46+00:00",
+            "base_files": {
+              "BALE.md": "6ca874724294de3533ade27f85a981554ad21ecf2a26d4f04ca7006555b16761",
+              "bin/VERSION": "6b100b495c461298b554555dfea9ac13368acba909261f7b2e6ce84c8ec693bd",
+              "bin/bale": "72eab80ccffe0fd23dbdc686ce886b13c5bf9251a33a9d223fdf829a81dea544",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "claude/changelog/0.4.42.json": "c0d26fe4b30cefa33612a497d8390c6e3eeec67df79434ac61ddbe46df660e46",
+              "claude/changelog/0.4.43.json": "90b4854fd11251bf9a6d02cc2516142d88c1dfa7d33f8d20c62bba5467576f36",
+              "claude/changelog/0.4.44.json": "62e71e58abf649a076c606c0c06097819980862e728824d48eeaaa14f553c570",
+              "claude/changelog/0.4.45.json": "2088ed72407753211e2ca185e5e5b9f91e206ef7a4db35a1934e7a98fa3aad20",
+              "claude/changelog/0.4.46.json": "9dc57d747790184a77e153050c50e07f7526c5c8c808cfc49d86cc2a39b234af",
+              "claude/changelog/0.4.47.json": "a786e73afb7ef135cb1574d7e8273c3e3b43e3cd45d65b70577a1e71fda43230",
+              "claude/changelog/0.4.48.json": "8b184d558c06bc11d61452c2522b7d10581a928839f5feaf2f8d0a2b14918e08",
+              "claude/changelog/0.4.49.json": "9e375d9c420815e2d241ed78f69e0cd82c6d7d0a17572a569c55dd2b027e4661",
+              "claude/changelog/0.4.50.json": "f7798e7d0b89c38fa804b262ccec8c84abb3415cff1d657f75f875fa94ac267f",
+              "claude/changelog/0.4.51.json": "545b2e2aa3308e10bfe40249f57e384bbed3e830104a15d360ed00594e88eef0",
+              "claude/changelog/0.4.52.json": "ab7a0700655913c1ef6925a09f8d8c6ad46e40d1f0caa52c894e71c30e8ea571",
+              "claude/changelog/0.4.53.json": "18442b8a5421d3bac8ee23043ba0ab593fa34fff5563b74768d12ee82ca06671",
+              "claude/changelog/0.4.54.json": "ae3a6311a635ad506adcbb924ec61e106945122e10612fa4654c0202dd3d66ad",
+              "claude/context/bale-internals.md": "cb0476f7749a2296fd9183d9288b2316e983795b42eaeef11ccd56ebf2cc664f"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The pack side is exactly the post_pack hook: every pack-side caller the brief lists fires post_pack and nothing else does, so run_hook can identify the side by hook name without a new parameter.",
+            "A piped `bale apply` without --no-interact is apply-side and keeps offering post_apply_pass's prompt; the brief's 'apply path (no_interact) is byte-identical' was read as covering apply as a whole, not only its no_interact branch.",
+            "bin/bale must stay executable after the files/ overlay, so apply.sh restores the bit."
+          ],
+          "judgment_calls": [
+            "Gated the decline on name in PACK_SIDE_HOOKS rather than on no_interact being False, which would also have changed piped apply's post_apply_pass.",
+            "Kept the fixed line beside HOOK_DECLINE_LINES as HOOK_DECLINE_LINE_NOT_A_TERMINAL, since that mapping is keyed by branches of a prompt that was offered.",
+            "Treated a closed stdin (isatty raising ValueError) like None and a non-TTY: not a terminal, never an error.",
+            "Edited the config init wizard's post_pack wording in bin/bale_config.py (a forecast departure), since the brief lists that surface and it promised a prompt unconditionally.",
+            "Ran the whole suite in validation.sh as the brief asks, despite its runtime past the two-minute target, with the fast hook suites first."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through \u00a711.2 (and \u00a711.3-\u00a711.7, read in the same pass)",
+            "README.md",
+            "TARBALL.md sections 1, 2, 5.1-5.5, 7, 10.1",
+            "schemas/response-manifest.schema.json (field summary)",
+            "schemas/changelog-record.schema.json",
+            "BALE.md \u00a75.4 and \u00a77.8's post_pack paragraph",
+            "claude/context/bale-internals.md \u00a73.2"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_config.py",
+              "why": "The brief names the config init wizard's hook wording as a surface to touch when it promises a prompt unconditionally; it did, and it lives in this file."
+            },
+            {
+              "path": "tests/test_hook_non_tty.py",
+              "why": "The new suite the brief asks for, pinning the decline on every pack-side path, the pty contract and the unchanged apply side."
+            },
+            {
+              "path": "tests/test_context_pack.py",
+              "why": "Its two piped context-pack hook cases asserted the EOF decline this session removes, so they had to move to the new line."
+            },
+            {
+              "path": "tests/test_hook_acceptance.py",
+              "why": "Its piped session-pack case asserted the EOF decline line this session removes, so it had to move to the new line."
+            }
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-13-hook-non-tty-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-13-hook-non-tty-006.sh",
+          "sha256": "1c6ea79b5c495a7f5d2a7daf2f0c320de1733052949edd8d1ce0e672cde58acc"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-13T22:53:14+00:00",
+  "outcome": "applied"
+}
