@@ -1,0 +1,453 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-13-contract-verb-003",
+  "created_at": "2026-10-13T16:48:37+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-13T16:48:37+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "claude/context/bale-internals.md",
+        "tests/test_cli_help.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-13-contract-verb-003.log",
+      "bundle": {
+        "stem": "2026-10-13-contract-verb",
+        "brief_sha256": "d7881463873887c216bd06545ae3db8666810812510031f576c5cdb565a9c12d",
+        "checkpoint_sha256": "8061cab25b939da56fe286dd6c87e9ba642cf3bf7e90ab3723ac3691a109e1f6",
+        "manifest_sha256": "4ca9df43b6acdc3f8e1fddc937d91b47f56d60b014a5c770408a92ceedb583a1"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-13T16:48:36+00:00"
+      }
+    },
+    {
+      "at": "2026-10-13T18:31:05+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-13-contract-verb-003.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "python3 -m unittest discover -s tests": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "validate.sh": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "python3 -m unittest discover -s tests": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python ast, json)",
+          "python3 -m unittest discover -s tests",
+          "validate.sh",
+          "contract verb from a non-repo cwd (exit 0 twice, byte-identical stdout, human mode exit 0, no writes)",
+          "contract line (one parseable line, outcome, bale_version, three required axes vs the staged schema, refusal sets, pack keys, no absolute paths)",
+          "bin/VERSION is 0.4.53",
+          "changelog record for bin/VERSION names bin/bale and bin/bale_report.py",
+          "lanes (no docs/ or tools/ change; only the created 0.4.53 changelog record)",
+          "bin/bale exec bit",
+          "bin/bale index header coherence"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "claude/context/bale-internals.md",
+        "tests/test_cli_help.py"
+      ],
+      "overridden_paths": [
+        "tests/test_contract_verb.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_contract_verb.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_report.py",
+        "claude/changelog/0.4.53.json",
+        "claude/context/bale-internals.md",
+        "tests/test_cli_help.py",
+        "tests/test_contract_verb.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.52",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "f41c405455a0f1eda48c48c6bf47a5bcd3cb08213ece2a1270c4799f479c65e7",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "22c4f52e73fde726b3ffab8256e2a957a18378093757f8882331315bbb2af82c"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-13-contract-verb-003.sh",
+              "sha256": "8061cab25b939da56fe286dd6c87e9ba642cf3bf7e90ab3723ac3691a109e1f6"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-13T16:48:36+00:00",
+            "base_files": {
+              "BALE.md": "19b36426fe8941e7b6925426ae1f6961eac12561baadb35327e954f28248c858",
+              "bin/VERSION": "f69d7dffecc2ea5cde949a65edc36980a07c092dbace9d10a414e64287feb7a2",
+              "bin/bale": "2827ab3b82730d4ad4ef62b431eacbb55b82efaf9e96ab4848d969ae6b57db37",
+              "bin/bale_report.py": "1f4f2c758fdc3b1f8f92e25dc1561dddbc4ffb11b335f86cdefab4a3e77b21e1",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "claude/changelog/0.4.42.json": "c0d26fe4b30cefa33612a497d8390c6e3eeec67df79434ac61ddbe46df660e46",
+              "claude/changelog/0.4.43.json": "90b4854fd11251bf9a6d02cc2516142d88c1dfa7d33f8d20c62bba5467576f36",
+              "claude/changelog/0.4.44.json": "62e71e58abf649a076c606c0c06097819980862e728824d48eeaaa14f553c570",
+              "claude/changelog/0.4.45.json": "2088ed72407753211e2ca185e5e5b9f91e206ef7a4db35a1934e7a98fa3aad20",
+              "claude/changelog/0.4.46.json": "9dc57d747790184a77e153050c50e07f7526c5c8c808cfc49d86cc2a39b234af",
+              "claude/changelog/0.4.47.json": "a786e73afb7ef135cb1574d7e8273c3e3b43e3cd45d65b70577a1e71fda43230",
+              "claude/changelog/0.4.48.json": "8b184d558c06bc11d61452c2522b7d10581a928839f5feaf2f8d0a2b14918e08",
+              "claude/changelog/0.4.49.json": "9e375d9c420815e2d241ed78f69e0cd82c6d7d0a17572a569c55dd2b027e4661",
+              "claude/changelog/0.4.50.json": "f7798e7d0b89c38fa804b262ccec8c84abb3415cff1d657f75f875fa94ac267f",
+              "claude/changelog/0.4.51.json": "545b2e2aa3308e10bfe40249f57e384bbed3e830104a15d360ed00594e88eef0",
+              "claude/changelog/0.4.52.json": "ab7a0700655913c1ef6925a09f8d8c6ad46e40d1f0caa52c894e71c30e8ea571",
+              "claude/context/bale-internals.md": "5de7c6e5e95ce7f45a6834299dfbb48a3a7431f15aa0e763c87ca70087a29934",
+              "tests/test_cli_help.py": "28bbd7fd91f85d9e4d46070baf579f9b5fe13066b2b08d1092e52e910b9d9128"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "An additive sixth key (json_key_homes) is acceptable under the brief's own rule that the line's keys are additive later; it carries the home and pointer the goal asks for on the key sets without changing json_keys' pinned list shape.",
+            "`bale retry --json` reports through format_apply_json (every bin/bale_apply.py emission site does), so 'retry' is published as its own surface sharing APPLY_REPORT_KEYS.",
+            "A renderer raising ValueError on a key set or outcome outside its tuple is the module's existing off-contract posture (format_open_json already refuses a pack line whose keys are not PACK_REPORT_KEYS), not a new failure mode for any real call site."
+          ],
+          "judgment_calls": [
+            "Added json_key_homes ({surface: {home, pointer}}) as a sixth key after json_keys: the manifest goal says the key sets come each with home and pointer, while the brief pins json_keys' values as plain lists; the extra key satisfies both.",
+            "Vocabulary names beyond the three required: pack-outcome, context-pack-outcome, open-outcome, open-rehearsal, relay-outcome, unlock-outcome, revert-outcome, status-outcome, stats-outcome, stats-dossier-outcome, contract-outcome, pack-sweep-event, include-group-state, sandbox-off-source, scope-admission-source.",
+            "Surface names beyond the required twelve: context-pack, retry, stats-dossier, stats-dossier-miss (the `bale stats --sid --json` line's two key sets), config-hooks, contract.",
+            "sandbox-off-source and scope-admission-source are homed at the telemetry schema, not at their bale_report writer-side mirror tuples, the same posture as closure-reason; CLOSURE_REASONS itself is not published twice.",
+            "CONFIRM_DECLINE_BRANCHES is not published: it is an internal prompt-branch mirror that reaches no --json line.",
+            "Lifted tuples are read by their renderers through one helper, _keyed_line, which emits in tuple order and raises on any key-set mismatch; format_pack_json now reads PACK_REPORT_KEYS too (it had the tuple but built its dict inline).",
+            "format_apply_json and format_unlock_json now raise on an outcome outside APPLY_OUTCOMES / UNLOCK_OUTCOMES, so the tuples are read by the renderers, not only by the verb.",
+            "Human mode is three listings (name, home, pointer, wrapped values) then the module's summary block last.",
+            "Corrected bale-internals.md's stale 'twelve top-level commands' list to the parser's seventeen while adding contract to it."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through section 11.2",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5, 7 and 10.1",
+            "BALE.md META, INDEX and section 5 (5.1, 5.4, 5.5, 5.8)",
+            "claude/context/bale-internals.md section 1 (clusters 16-20, the bale_report paragraph, the subparsing paragraph)",
+            "schemas/changelog-record.schema.json",
+            "schemas/response-manifest.schema.json (feedback block)",
+            "tools/craft_response.py (docstring, CLI, epilogue and doc-assertion emitters)",
+            "tools/response_lint.py (docstring, CLI)"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/test_contract_verb.py",
+              "why": "The brief asks for a new suite pinning the verb under tests/ and predicts it travels ship-enumerate-admit; no forecast entry can name a file that did not exist at pack time."
+            }
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-13-contract-verb-003.log",
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-13-contract-verb-003.sh",
+          "sha256": "8061cab25b939da56fe286dd6c87e9ba642cf3bf7e90ab3723ac3691a109e1f6"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    },
+    {
+      "at": "2026-10-13T19:04:25+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-10-13-contract-verb-003 (1).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python3 -m unittest discover -s tests": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "validate.sh": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "python3 -m unittest discover -s tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python ast, json)",
+          "python3 -m unittest discover -s tests",
+          "probe-bound diagnostics (INFO only: timeout rc and SECONDS delta replica, three 2-second scaffold runs)",
+          "validate.sh",
+          "contract verb from a non-repo cwd (exit 0 twice, byte-identical stdout, human mode exit 0, no writes)",
+          "contract line (one parseable line, outcome, bale_version, three required axes vs the staged schema, refusal sets, pack keys, no absolute paths)",
+          "bin/VERSION is 0.4.53",
+          "changelog record for bin/VERSION names bin/bale and bin/bale_report.py",
+          "lanes (no docs/ or tools/ change; only the created 0.4.53 changelog record)",
+          "bin/bale exec bit",
+          "bin/bale index header coherence"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "claude/context/bale-internals.md",
+        "tests/test_cli_help.py"
+      ],
+      "overridden_paths": [
+        "tests/test_contract_verb.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_contract_verb.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_report.py",
+        "claude/changelog/0.4.53.json",
+        "claude/context/bale-internals.md",
+        "tests/test_cli_help.py",
+        "tests/test_contract_verb.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.52",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "f41c405455a0f1eda48c48c6bf47a5bcd3cb08213ece2a1270c4799f479c65e7",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "22c4f52e73fde726b3ffab8256e2a957a18378093757f8882331315bbb2af82c"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-13-contract-verb-003.sh",
+              "sha256": "8061cab25b939da56fe286dd6c87e9ba642cf3bf7e90ab3723ac3691a109e1f6"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-13T16:48:36+00:00",
+            "base_files": {
+              "BALE.md": "19b36426fe8941e7b6925426ae1f6961eac12561baadb35327e954f28248c858",
+              "bin/VERSION": "f69d7dffecc2ea5cde949a65edc36980a07c092dbace9d10a414e64287feb7a2",
+              "bin/bale": "2827ab3b82730d4ad4ef62b431eacbb55b82efaf9e96ab4848d969ae6b57db37",
+              "bin/bale_report.py": "1f4f2c758fdc3b1f8f92e25dc1561dddbc4ffb11b335f86cdefab4a3e77b21e1",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "claude/changelog/0.4.42.json": "c0d26fe4b30cefa33612a497d8390c6e3eeec67df79434ac61ddbe46df660e46",
+              "claude/changelog/0.4.43.json": "90b4854fd11251bf9a6d02cc2516142d88c1dfa7d33f8d20c62bba5467576f36",
+              "claude/changelog/0.4.44.json": "62e71e58abf649a076c606c0c06097819980862e728824d48eeaaa14f553c570",
+              "claude/changelog/0.4.45.json": "2088ed72407753211e2ca185e5e5b9f91e206ef7a4db35a1934e7a98fa3aad20",
+              "claude/changelog/0.4.46.json": "9dc57d747790184a77e153050c50e07f7526c5c8c808cfc49d86cc2a39b234af",
+              "claude/changelog/0.4.47.json": "a786e73afb7ef135cb1574d7e8273c3e3b43e3cd45d65b70577a1e71fda43230",
+              "claude/changelog/0.4.48.json": "8b184d558c06bc11d61452c2522b7d10581a928839f5feaf2f8d0a2b14918e08",
+              "claude/changelog/0.4.49.json": "9e375d9c420815e2d241ed78f69e0cd82c6d7d0a17572a569c55dd2b027e4661",
+              "claude/changelog/0.4.50.json": "f7798e7d0b89c38fa804b262ccec8c84abb3415cff1d657f75f875fa94ac267f",
+              "claude/changelog/0.4.51.json": "545b2e2aa3308e10bfe40249f57e384bbed3e830104a15d360ed00594e88eef0",
+              "claude/changelog/0.4.52.json": "ab7a0700655913c1ef6925a09f8d8c6ad46e40d1f0caa52c894e71c30e8ea571",
+              "claude/context/bale-internals.md": "5de7c6e5e95ce7f45a6834299dfbb48a3a7431f15aa0e763c87ca70087a29934",
+              "tests/test_cli_help.py": "28bbd7fd91f85d9e4d46070baf579f9b5fe13066b2b08d1092e52e910b9d9128"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "An additive sixth key (json_key_homes) is acceptable under the brief's own rule that the line's keys are additive later; it carries the home and pointer the goal asks for on the key sets without changing json_keys' pinned list shape.",
+            "`bale retry --json` reports through format_apply_json (every bin/bale_apply.py emission site does), so 'retry' is published as its own surface sharing APPLY_REPORT_KEYS.",
+            "A renderer raising ValueError on a key set or outcome outside its tuple is the module's existing off-contract posture (format_open_json already refuses a pack line whose keys are not PACK_REPORT_KEYS), not a new failure mode for any real call site."
+          ],
+          "judgment_calls": [
+            "Added json_key_homes ({surface: {home, pointer}}) as a sixth key after json_keys: the manifest goal says the key sets come each with home and pointer, while the brief pins json_keys' values as plain lists; the extra key satisfies both.",
+            "Vocabulary names beyond the three required: pack-outcome, context-pack-outcome, open-outcome, open-rehearsal, relay-outcome, unlock-outcome, revert-outcome, status-outcome, stats-outcome, stats-dossier-outcome, contract-outcome, pack-sweep-event, include-group-state, sandbox-off-source, scope-admission-source.",
+            "Surface names beyond the required twelve: context-pack, retry, stats-dossier, stats-dossier-miss (the `bale stats --sid --json` line's two key sets), config-hooks, contract.",
+            "sandbox-off-source and scope-admission-source are homed at the telemetry schema, not at their bale_report writer-side mirror tuples, the same posture as closure-reason; CLOSURE_REASONS itself is not published twice.",
+            "CONFIRM_DECLINE_BRANCHES is not published: it is an internal prompt-branch mirror that reaches no --json line.",
+            "Lifted tuples are read by their renderers through one helper, _keyed_line, which emits in tuple order and raises on any key-set mismatch; format_pack_json now reads PACK_REPORT_KEYS too (it had the tuple but built its dict inline).",
+            "format_apply_json and format_unlock_json now raise on an outcome outside APPLY_OUTCOMES / UNLOCK_OUTCOMES, so the tuples are read by the renderers, not only by the verb.",
+            "Human mode is three listings (name, home, pointer, wrapped values) then the module's summary block last.",
+            "Corrected bale-internals.md's stale 'twelve top-level commands' list to the parser's seventeen while adding contract to it.",
+            "Re-attempt: the HOLD was a test of the out-of-scope tools/craft_response.py probe bound, not of this change. Rather than edit tools/ or that test, validation.sh tolerates exactly test_craft_response.CraftProbeBound failures in the full run, only when changes[] leaves tools/ and tests/test_craft_response.py alone and every such test passes on an isolated re-run. It names them with a [WARN] and prints INFO diagnostics of the cut detection's inputs for the planner."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through section 11.2",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5, 7 and 10.1",
+            "BALE.md META, INDEX and section 5 (5.1, 5.4, 5.5, 5.8)",
+            "claude/context/bale-internals.md section 1 (clusters 16-20, the bale_report paragraph, the subparsing paragraph)",
+            "schemas/changelog-record.schema.json",
+            "schemas/response-manifest.schema.json (feedback block)",
+            "tools/craft_response.py (docstring, CLI, epilogue and doc-assertion emitters)",
+            "tools/response_lint.py (docstring, CLI)"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/test_contract_verb.py",
+              "why": "The brief asks for a new suite pinning the verb under tests/ and predicts it travels ship-enumerate-admit; no forecast entry can name a file that did not exist at pack time."
+            }
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-13-contract-verb-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": "2026-10-13-contract-verb-003",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-13-contract-verb-003.sh",
+          "sha256": "8061cab25b939da56fe286dd6c87e9ba642cf3bf7e90ab3723ac3691a109e1f6"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-13T19:04:25+00:00",
+  "outcome": "applied"
+}
