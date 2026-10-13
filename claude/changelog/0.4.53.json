@@ -1,0 +1,37 @@
+{
+  "record_version": 1,
+  "version": "0.4.53",
+  "session_id": "2026-10-13-contract-verb-003",
+  "at": "2026-10-13T17:12:00+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.52 -> 0.4.53"
+    },
+    {
+      "path": "bin/bale",
+      "change": "new verb `bale contract [--json]` (cmd_contract, banner section 31): repo-free, reads only bin/VERSION and the schema files bale_report.contract_schema_homes() names under the install root; no lock, prompts, writes, session or telemetry; exit 0, or exit 1 through fail() with nothing on stdout when a schema cannot be read; --json under the shared stream discipline emits format_contract_json's one line, human mode format_contract_report's listing; the verb joins `bale help`'s listing, `bale completion bash` and the request-carried CLI reference through the one parser"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "new format_contract_json (`bale contract --json`): keys outcome, bale_version, vocabularies, refusal_reasons, json_keys, json_key_homes (CONTRACT_REPORT_KEYS; the docstring owns the contract); deterministic, no timestamps or absolute paths; vocabularies are CONTRACT_VOCABULARIES — telemetry-outcome, closure-reason, apply-outcome, pack-outcome, context-pack-outcome, open-outcome, open-rehearsal, relay-outcome, unlock-outcome, revert-outcome, status-outcome, stats-outcome, stats-dossier-outcome, contract-outcome, pack-sweep-event, include-group-state, sandbox-off-source, scope-admission-source — each {home, pointer, values}, a schema enum published without its null; refusal_reasons open/relay/unlock/revert from the four *_REFUSAL_REASONS tuples; json_keys for 18 surfaces (pack, context-pack, open, open-refused, relay, relay-refused, apply, retry, unlock, unlock-refused, revert, revert-refused, status, stats, stats-dossier, stats-dossier-miss, config-hooks, contract)"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "new module-level tuples: APPLY_OUTCOMES (the nine apply outcome words, format_apply_json's docstring cites it), UNLOCK_OUTCOMES, PACK_OUTCOMES, CONTEXT_PACK_OUTCOMES, STATUS_OUTCOMES, STATS_OUTCOMES, STATS_DOSSIER_OUTCOMES, CONTRACT_OUTCOMES, INCLUDE_GROUP_STATES, and the key tuples OPEN_REPORT_KEYS, RELAY_REPORT_KEYS, APPLY_REPORT_KEYS, UNLOCK_REPORT_KEYS, REVERT_REPORT_KEYS, STATUS_REPORT_KEYS, STATS_REPORT_KEYS, STATS_DOSSIER_REPORT_KEYS, STATS_DOSSIER_MISS_REPORT_KEYS, CONTEXT_PACK_REPORT_KEYS, CONFIG_HOOKS_REPORT_KEYS; every format_*_json line renderer (format_pack_json included) now emits through _keyed_line in its tuple's order and raises ValueError on a value set that is not exactly the tuple; every line's bytes are unchanged from 0.4.52"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "format_apply_json raises ValueError on an outcome outside APPLY_OUTCOMES, and format_unlock_json on one outside UNLOCK_OUTCOMES (every bale call site already passes a listed word); format_stats_json raises on a compute_stats key set other than STATS_REPORT_KEYS minus outcome"
+    },
+    {
+      "path": "tests/test_contract_verb.py",
+      "change": "new suite: the verb from a non-repo cwd (one line, keys, outcome, bale_version, determinism across runs and cwds, no absolute paths, no writes, human mode exit 0, help/completion listing, unreadable schema exits 1), every value against its home (schema enums read from the schema file), each json_keys entry against a rendered line per surface, renderer coverage, and the _keyed_line seam"
+    },
+    {
+      "path": "tests/test_cli_help.py",
+      "change": "SubcommandHelpLayoutTest.COMMANDS gains (\"contract\",)"
+    }
+  ],
+  "notes": "For twine: `bale contract --json` is the read that replaces the manifest copies — its vocabularies member names telemetry-outcome, closure-reason and apply-outcome exactly as twine's [[vocabulary]] axes do, with the same homes and pointers (apply-outcome's pointer is now the tuple APPLY_OUTCOMES rather than a docstring line), and refusal_reasons carries OPEN_REFUSAL_REASONS (fifteen codes, fallback last) beside the relay, unlock and revert sets. No existing --json line changed a byte."
+}

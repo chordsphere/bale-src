@@ -78,7 +78,12 @@ The json renderers (`format_pack_json`, `format_apply_json`,
 `bale config hooks --json` line, moved beside its siblings from
 bale_config.py — and since v0.4.48 `format_open_json` and
 `format_relay_json`, the `bale open --json` and `bale relay --json`
-lines, each docstring the one home of its key contract) sit outside
+lines, each docstring the one home of its key contract; since v0.4.53
+each emits through `_keyed_line` in the order of a module-level key
+tuple — PACK_REPORT_KEYS, APPLY_REPORT_KEYS, ... — and
+`format_contract_json`, the repo-free `bale contract --json` line,
+publishes every such tuple, outcome vocabulary and refusal-reason set
+with its home and pointer, in one read) sit outside
 that rule because for a machine consumer the verdict is the whole report:
 each renders its command's outcome as ONE line of JSON whose keys are a
 stable contract for downstream tooling (see their docstrings). Since v0.2.8
@@ -2564,6 +2569,31 @@ def describe_clipboard_state(command: Optional[str], source: Optional[str],
             "sets one for this machine")
 
 
+def _keyed_line(keys: tuple, values: dict, *, surface: str,
+                **dumps_kwargs) -> str:
+    """Dump `values` as one JSON line whose top-level keys are exactly
+    `keys`, in `keys`' order (v0.4.53, session contract-verb).
+
+    The seam that makes each `--json` line's module-level key tuple
+    (PACK_REPORT_KEYS, APPLY_REPORT_KEYS, ... — the tuples `bale
+    contract` publishes as `json_keys`) the one spelling of that line's
+    key order: the renderer gathers its values under their key names and
+    this helper emits them in tuple order, so the tuple and the line
+    cannot disagree without a loud failure. A value dict missing a tuple
+    key, or carrying a key the tuple lacks, raises ValueError naming the
+    surface and the difference — the off-contract-line posture every
+    renderer here already takes for a bad outcome or reason. Extra
+    keyword arguments pass to json.dumps unchanged (the context pack's
+    compact separators). Pure."""
+    missing = [k for k in keys if k not in values]
+    extra = [k for k in values if k not in keys]
+    if missing or extra:
+        raise ValueError(
+            f"the {surface} --json line's keys must be exactly its key "
+            f"tuple; missing {missing}, unexpected {extra}")
+    return json.dumps({k: values[k] for k in keys}, **dumps_kwargs)
+
+
 def format_pack_json(
     *,
     sid: str,
@@ -2614,7 +2644,18 @@ def format_pack_json(
                      (OPEN_REFUSAL_REASONS, RELAY_REFUSAL_REASONS,
                      REVERT_REFUSAL_REASONS, UNLOCK_REFUSAL_REASONS) —
                      so new outcomes extend an enum in one place rather
-                     than scattering literals across callers.
+                     than scattering literals across callers. Since
+                     v0.4.53 every verb's outcome words are a tuple
+                     here — PACK_OUTCOMES, APPLY_OUTCOMES,
+                     STATUS_OUTCOMES, UNLOCK_OUTCOMES, REVERT_OUTCOMES,
+                     CONTEXT_PACK_OUTCOMES, OPEN_OUTCOMES,
+                     RELAY_OUTCOMES, STATS_OUTCOMES,
+                     STATS_DOSSIER_OUTCOMES — and "contract" joins in
+                     format_contract_json (CONTRACT_OUTCOMES), whose
+                     line publishes every one of those tuples (`bale
+                     contract --json`). (config hooks' "listed" and
+                     "forgotten" are bale_config's
+                     CONFIG_HOOKS_OUTCOME_* constants, as ever.)
       sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
       tarball        absolute path to the request tarball in .bale/outbox/.
       log            absolute path to the session log in .bale/logs/.
@@ -2713,7 +2754,10 @@ def format_pack_json(
                      carries this key.
 
     The key order is PACK_REPORT_KEYS (below), which `bale open --json`
-    (format_open_json) reuses to fold this line into its own.
+    (format_open_json) reuses to fold this line into its own; since
+    v0.4.53 this renderer emits through _keyed_line in that tuple's
+    order, so the tuple `bale contract --json` publishes as
+    json_keys["pack"] is the line's key order by construction.
 
     Emitted as a single compact line (no indent) so the consumer contract
     stays line-oriented. Since v0.2.8 json mode carries stream discipline
@@ -2728,7 +2772,7 @@ def format_pack_json(
     nothing; the caller emits it, which supplies the trailing newline.
     """
     payload = {
-        "outcome": "packed",
+        "outcome": PACK_OUTCOME_PACKED,
         "sid": sid,
         "tarball": str(tarball),
         "log": str(log_path),
@@ -2747,14 +2791,22 @@ def format_pack_json(
         # v0.4.48, additive: the opener's paste text (docstring above).
         "opener": opener,
     }
-    return json.dumps(payload)
+    return _keyed_line(PACK_REPORT_KEYS, payload, surface="pack")
 
+
+# The pack report's one outcome word (format_pack_json's docstring), as a
+# tuple like every other verb's so `bale contract` publishes it the same
+# way (v0.4.53).
+PACK_OUTCOME_PACKED = "packed"
+PACK_OUTCOMES = (PACK_OUTCOME_PACKED,)
 
 # The pack report line's keys, in emission order (format_pack_json's
 # docstring owns what each means). Declared once so `bale open --json`
 # can carry every pack key without a second copy of the list drifting:
 # format_open_json folds the replayed pack's line in key by key and
-# refuses (ValueError) a line whose keys are not exactly these.
+# refuses (ValueError) a line whose keys are not exactly these. Since
+# v0.4.53 format_pack_json emits in this order (_keyed_line) and `bale
+# contract --json` publishes it as json_keys["pack"].
 PACK_REPORT_KEYS = (
     "outcome", "sid", "tarball", "log", "session_dir", "context_files",
     "readme_path", "readme_heading", "readme_sha256",
@@ -2776,6 +2828,18 @@ OPEN_OUTCOMES = (OPEN_OUTCOME_OPENED, OPEN_OUTCOME_SECOND_DESK,
 
 # The `rehearsal` key's values (null on a real open or a second desk).
 OPEN_REHEARSALS = ("check", "dry-run")
+
+# The `bale open --json` line's keys, in emission order (v0.4.53; what each
+# means is format_open_json's docstring). Every pack report key, `outcome`
+# first and then the fifteen pack facts folded in at top level, followed by
+# open's own seven. Spelled from PACK_REPORT_KEYS rather than beside it, so
+# a key pack gains is a key open carries; format_open_json emits in this
+# order (_keyed_line) and `bale contract --json` publishes it as
+# json_keys["open"] and json_keys["open-refused"] — the refused line is the
+# same renderer, so the same keys.
+OPEN_OWN_REPORT_KEYS = ("bundle", "members", "rehearsal", "checkpoint_dry_run",
+                        "desk", "reason", "cause")
+OPEN_REPORT_KEYS = PACK_REPORT_KEYS + OPEN_OWN_REPORT_KEYS
 
 # --- Refusal reason codes (v0.4.50) -----------------------------------------
 #
@@ -2862,7 +2926,8 @@ def format_open_json(
     second stdout line. A usage error argparse raises (exit 2) prints no
     line. Exit codes are those of the human verb.
 
-    Every line carries the same keys in the same order:
+    Every line carries the same keys in the same order — OPEN_REPORT_KEYS
+    (v0.4.53; the order `bale contract --json` publishes):
 
       outcome  which path produced the line — one of OPEN_OUTCOMES:
                "opened"       a real open: the bundle verified, its gates
@@ -3061,7 +3126,7 @@ def format_open_json(
         "reason": reason,
         "cause": cause,
     })
-    return json.dumps(payload)
+    return _keyed_line(OPEN_REPORT_KEYS, payload, surface="open")
 
 
 def format_open_refusal_json(*, reason: str, cause: str,
@@ -3118,6 +3183,15 @@ RELAY_REFUSAL_REASONS = (
     REFUSAL_REASON_FALLBACK,  # a refusal that carried no code (fallback)
 )
 
+# The `bale relay --json` line's thirteen keys, in emission order (v0.4.53;
+# what each means is format_relay_json's docstring). format_relay_json
+# emits in this order (_keyed_line) and `bale contract --json` publishes it
+# as json_keys["relay"] and json_keys["relay-refused"].
+RELAY_REPORT_KEYS = (
+    "outcome", "sid", "round", "from", "awaiting", "kind", "preserved",
+    "block", "log", "clipboard", "cause", "telemetry", "reason",
+)
+
 
 def format_relay_json(
     *,
@@ -3151,7 +3225,9 @@ def format_relay_json(
     An argparse usage error (exit 2) never reaches the verb and prints no
     line.
 
-    Every line carries the same thirteen keys in the same order:
+    Every line carries the same thirteen keys in the same order —
+    RELAY_REPORT_KEYS (v0.4.53; the order `bale contract --json`
+    publishes):
 
       outcome    one of RELAY_OUTCOMES:
                  "relayed"        a round was recorded and its block
@@ -3263,7 +3339,7 @@ def format_relay_json(
     elif reason is not None:
         raise ValueError(f"reason belongs to the {RELAY_OUTCOME_REFUSED!r} "
                          f"outcome only; got outcome {outcome!r}")
-    return json.dumps({
+    return _keyed_line(RELAY_REPORT_KEYS, {
         "outcome": outcome,
         "sid": sid,
         "round": round_no,
@@ -3277,7 +3353,7 @@ def format_relay_json(
         "cause": cause,
         "telemetry": telemetry,
         "reason": reason,
-    })
+    }, surface="relay")
 
 
 def format_relay_refusal_json(*, sid: str, reason: str, cause: str,
@@ -3334,16 +3410,23 @@ def format_pack_sweep_entry(sid: str, event: str,
     return {"sid": sid, "event": event, **normalized}
 
 
+# The `state` vocabulary of pack's --json `include_group` object (v0.4.40;
+# lifted from format_include_group_json's inline check into a tuple at
+# v0.4.53 so `bale contract --json` publishes it beside the others).
+INCLUDE_GROUP_STATES = ("engaged", "opt-out")
+
+
 def format_include_group_json(*, name: str, state: str,
                               triggers: list, pulled: list,
                               row: str) -> dict:
     """The non-null `include_group` object of pack's --json report
-    (v0.4.40, board 104b). `state` is "engaged" or "opt-out" (the two
-    cases in which the human report prints an "include group" row);
-    `row` is that row's string verbatim, so a consumer holding the
-    object can render exactly what the human saw. Pure.
+    (v0.4.40, board 104b). `state` is "engaged" or "opt-out"
+    (INCLUDE_GROUP_STATES — the two cases in which the human report
+    prints an "include group" row); `row` is that row's string verbatim,
+    so a consumer holding the object can render exactly what the human
+    saw. Pure.
     """
-    if state not in ("engaged", "opt-out"):
+    if state not in INCLUDE_GROUP_STATES:
         raise ValueError(f"unknown include group state {state!r}")
     return {
         "name": name,
@@ -3352,6 +3435,19 @@ def format_include_group_json(*, name: str, state: str,
         "pulled": list(pulled),
         "row": row,
     }
+
+
+# The context pack report's one outcome word and its line's seven keys in
+# emission order (v0.4.53; meanings in format_context_pack_json's
+# docstring). The renderer emits in this order (_keyed_line) and `bale
+# contract --json` publishes both: the word under vocabularies
+# ["context-pack-outcome"], the keys as json_keys["context-pack"].
+CONTEXT_PACK_OUTCOME = "context-packed"
+CONTEXT_PACK_OUTCOMES = (CONTEXT_PACK_OUTCOME,)
+CONTEXT_PACK_REPORT_KEYS = (
+    "outcome", "tarball", "directory", "tree_name", "context_files",
+    "total_bytes", "git",
+)
 
 
 def format_context_pack_json(*, tarball: Path, directory: Path,
@@ -3383,17 +3479,20 @@ def format_context_pack_json(*, tarball: Path, directory: Path,
     behavior-free: the same keys, the same compact separators, byte for
     byte; cmd_pack_context imports it from here.
 
+    Key order: CONTEXT_PACK_REPORT_KEYS (v0.4.53), the order `bale
+    contract --json` publishes.
+
     Pure; the caller emits it via emit_json_line.
     """
-    return json.dumps({
-        "outcome": "context-packed",
+    return _keyed_line(CONTEXT_PACK_REPORT_KEYS, {
+        "outcome": CONTEXT_PACK_OUTCOME,
         "tarball": str(tarball),
         "directory": str(directory),
         "tree_name": tree_name,
         "context_files": context_files,
         "total_bytes": total_bytes,
         "git": in_git,
-    }, separators=(",", ":"))
+    }, surface="context-pack", separators=(",", ":"))
 
 
 def format_sweep_json(sweep_result: Optional[dict]) -> Optional[dict]:
@@ -3421,6 +3520,35 @@ def format_sweep_json(sweep_result: Optional[dict]) -> Optional[dict]:
         "sha": sweep_result.get("sha"),
         "files": list(sweep_result.get("files") or []),
     }
+
+
+# The outcome words of `bale apply --json` / `bale retry --json`, in the
+# order format_apply_json's docstring lists them (lifted into a tuple at
+# v0.4.53, beside OPEN_OUTCOMES; the docstring keeps one line per word and
+# cites this tuple). format_apply_json raises ValueError on any other word,
+# and `bale contract --json` publishes the tuple as
+# vocabularies["apply-outcome"].
+APPLY_OUTCOMES = (
+    "applied",                 # PASS walkthrough ended in merge
+    "held",                    # HOLD walkthrough ended in inspect
+    "reverted",                # walkthrough ended in revert
+    "bailout",                 # response_kind=bailout
+    "clarification",           # response_kind=clarification
+    "dry-run",                 # the --dry-run plan report
+    "scope-drift-refused",     # the own-scope drift gate refused
+    "required-check-refused",  # the required-check superset gate refused
+    "base-drift-refused",      # the base-drift gate refused
+)
+
+# The apply line's twelve keys, in emission order (v0.4.53; meanings in
+# format_apply_json's docstring). format_apply_json emits in this order
+# (_keyed_line) and `bale contract --json` publishes it as
+# json_keys["apply"] and json_keys["retry"] — retry runs the same pipeline
+# and reports through the same renderer.
+APPLY_REPORT_KEYS = (
+    "outcome", "sid", "log", "verdict", "merge", "telemetry", "drift",
+    "checkpoint", "required_checks", "base_drift", "archive", "sweep",
+)
 
 
 def format_apply_json(
@@ -3453,7 +3581,9 @@ def format_apply_json(
     key set reuses the pack vocabulary where concepts overlap (outcome,
     sid, log) and adds the two apply-specific fields, verdict and merge:
 
-      outcome  which terminal reporting point produced this line —
+      outcome  which terminal reporting point produced this line — one
+               of APPLY_OUTCOMES (v0.4.53: the tuple, in this order, is
+               the vocabulary's declaration; this list is its meaning):
                "applied"   the PASS walkthrough ended in merge (exit 0)
                "held"      the HOLD walkthrough ended in inspect (exit 1)
                "reverted"  the walkthrough ended in revert, from either
@@ -3489,7 +3619,10 @@ def format_apply_json(
                            posture as the drift refusal). Emitted under
                            --dry-run too when the plan would refuse.
                Together with pack's "packed" these are the whole outcome
-               vocabulary; extend it here, never with caller-side literals.
+               vocabulary; extend it here, never with caller-side literals
+               — the word in APPLY_OUTCOMES and its line in this list
+               together. An outcome outside APPLY_OUTCOMES raises
+               ValueError (v0.4.53).
       sid      the session id the response was applied against.
       log      absolute path to the session log — where validation.sh's
                full output and the claim/verdict reconciliation live.
@@ -3615,8 +3748,12 @@ def format_apply_json(
     consumer needs the refusal and HOLD
     reports as much as the PASS one; error paths exit through fail()
     (stderr, non-zero) with nothing on stdout. Pure: builds a string,
-    prints nothing.
+    prints nothing. Key order: APPLY_REPORT_KEYS (v0.4.53), the order
+    `bale contract --json` publishes.
     """
+    if outcome not in APPLY_OUTCOMES:
+        raise ValueError(f"unknown apply outcome {outcome!r}; expected one "
+                         f"of {', '.join(APPLY_OUTCOMES)}")
     verdict: Optional[dict] = None
     if state is not None:
         verdict = {
@@ -3672,7 +3809,20 @@ def format_apply_json(
         # (semantics in the docstring above, the sub-object's one home).
         "sweep": format_sweep_json(sweep),
     }
-    return json.dumps(payload)
+    return _keyed_line(APPLY_REPORT_KEYS, payload, surface="apply")
+
+
+# The status report's one outcome word and its line's thirteen keys in
+# emission order (v0.4.53; meanings in format_status_json's docstring).
+# The renderer emits in this order (_keyed_line) and `bale contract
+# --json` publishes both.
+STATUS_OUTCOME = "status"
+STATUS_OUTCOMES = (STATUS_OUTCOME,)
+STATUS_REPORT_KEYS = (
+    "outcome", "version", "sid", "repo", "session", "staging", "outbox",
+    "applied", "sessions", "scopes", "integration_lock", "config",
+    "clipboard",
+)
 
 
 def format_status_json(report) -> str:
@@ -3695,7 +3845,9 @@ def format_status_json(report) -> str:
 
     Keys reuse the pack/apply vocabulary where concepts overlap (outcome,
     sid) and follow format_apply_json's nullable-object pattern for facts
-    that may not apply. The set:
+    that may not apply. The line's top-level key order is
+    STATUS_REPORT_KEYS (v0.4.53; the order `bale contract --json`
+    publishes). The set:
 
       outcome  "status" — always. Status has no failure outcome of its
                own: a successful read exits 0 in both modes, and error
@@ -4020,7 +4172,7 @@ def format_status_json(report) -> str:
                 "path": report.integration_lock.get("path"),
             }
     payload = {
-        "outcome": "status",
+        "outcome": STATUS_OUTCOME,
         "version": report.version,
         "sid": report.session_sid,
         "repo": repo_obj,
@@ -4051,7 +4203,17 @@ def format_status_json(report) -> str:
             "problem": report.clipboard_problem,
         },
     }
-    return json.dumps(payload)
+    return _keyed_line(STATUS_REPORT_KEYS, payload, surface="status")
+
+
+# The `bale config hooks --json` line's six keys, in emission order
+# (v0.4.53; meanings in format_config_hooks_json's docstring). The renderer
+# emits in this order (_keyed_line) and `bale contract --json` publishes it
+# as json_keys["config-hooks"]. Its outcome words stay bale_config's
+# CONFIG_HOOKS_OUTCOME_* constants, their home.
+CONFIG_HOOKS_REPORT_KEYS = (
+    "outcome", "version", "store", "exists", "entries", "forgotten",
+)
 
 
 def format_config_hooks_json(*, outcome: str, version: str, store: Path,
@@ -4083,6 +4245,9 @@ def format_config_hooks_json(*, outcome: str, version: str, store: Path,
                  when the field is absent), malformed (bool).
       forgotten  null on a list; on a forget, the removed entry in the
                  same object shape.
+
+    Key order: CONFIG_HOOKS_REPORT_KEYS (v0.4.53), the order `bale
+    contract --json` publishes.
     """
     payload = {
         "outcome": outcome,
@@ -4092,7 +4257,8 @@ def format_config_hooks_json(*, outcome: str, version: str, store: Path,
         "entries": entries,
         "forgotten": forgotten,
     }
-    return json.dumps(payload)
+    return _keyed_line(CONFIG_HOOKS_REPORT_KEYS, payload,
+                       surface="config-hooks")
 
 
 # The `reason` vocabulary of `bale unlock --json`'s "unlock-refused" line
@@ -4114,6 +4280,25 @@ UNLOCK_REFUSAL_REASONS = (
 # rather than spelled at the call site; format_unlock_refusal_json is the
 # renderer that uses it.
 UNLOCK_REFUSED_OUTCOME = "unlock-refused"
+
+# The outcome words of `bale unlock --json` (v0.3.18; "unlock-refused"
+# v0.4.47), lifted into a tuple at v0.4.53 beside the other verbs': the
+# renderer raises ValueError on any other word and `bale contract --json`
+# publishes the tuple as vocabularies["unlock-outcome"].
+UNLOCK_OUTCOME_UNLOCKED = "unlocked"
+UNLOCK_OUTCOME_NOOP = "no-op"
+UNLOCK_OUTCOMES = (UNLOCK_OUTCOME_UNLOCKED, UNLOCK_OUTCOME_NOOP,
+                   UNLOCK_REFUSED_OUTCOME)
+
+# The unlock line's twelve keys, in emission order (v0.4.53; meanings in
+# format_unlock_json's docstring). format_unlock_json emits in this order
+# (_keyed_line) and `bale contract --json` publishes it as
+# json_keys["unlock"] and json_keys["unlock-refused"].
+UNLOCK_REPORT_KEYS = (
+    "outcome", "sid", "log", "closure_reason", "session_dir_wiped",
+    "branch_preserved", "telemetry", "debris", "sweep", "reason",
+    "message", "open_sessions",
+)
 
 
 def format_unlock_json(
@@ -4232,8 +4417,9 @@ def format_unlock_json(
                null when the registry could not be read (not-a-repo has
                no registry; an unreadable one is logged).
 
-    Every line carries the same twelve keys in the same order: the nine
-    above `reason`, then the three v0.4.47 keys — additive, so the
+    Every line carries the same twelve keys in the same order —
+    UNLOCK_REPORT_KEYS (v0.4.53; the order `bale contract --json`
+    publishes): the nine above `reason`, then the three v0.4.47 keys — additive, so the
     "unlocked" and "no-op" lines keep every earlier key and value and
     gain three nulls (format_apply_json's one-key-set posture). On
     "unlock-refused" the nine earlier keys are null, except
@@ -4241,11 +4427,15 @@ def format_unlock_json(
 
     Raises ValueError when `outcome` and `reason` disagree — a refused
     outcome without a vocabulary code, or a code on any other outcome —
-    since either would put an off-contract line on stdout.
+    since either would put an off-contract line on stdout; and (v0.4.53)
+    on an outcome outside UNLOCK_OUTCOMES, for the same reason.
 
     Pure: builds a string, prints nothing; the caller emits it, which
     supplies the trailing newline.
     """
+    if outcome not in UNLOCK_OUTCOMES:
+        raise ValueError(f"unknown unlock outcome {outcome!r}; expected one "
+                         f"of {', '.join(UNLOCK_OUTCOMES)}")
     if outcome == UNLOCK_REFUSED_OUTCOME:
         if reason not in UNLOCK_REFUSAL_REASONS:
             raise ValueError(
@@ -4287,7 +4477,7 @@ def format_unlock_json(
         "open_sessions": (list(open_sessions)
                           if open_sessions is not None else None),
     }
-    return json.dumps(payload)
+    return _keyed_line(UNLOCK_REPORT_KEYS, payload, surface="unlock")
 
 
 def format_unlock_refusal_json(
@@ -4338,6 +4528,16 @@ REVERT_REFUSAL_REASONS = (
     "system-dir",        # run at a system directory or at $HOME
     "no-git",            # git is not on PATH
     REFUSAL_REASON_FALLBACK,  # a refusal that carried no code (fallback)
+)
+
+# The revert line's thirteen keys, in emission order (v0.4.53; meanings in
+# format_revert_json's docstring). format_revert_json emits in this order
+# (_keyed_line) and `bale contract --json` publishes it as
+# json_keys["revert"] and json_keys["revert-refused"].
+REVERT_REPORT_KEYS = (
+    "outcome", "sid", "log", "closure_reason", "origin_branch",
+    "branch_deleted", "lock_cleared", "staging_state", "staging_path",
+    "telemetry", "sweep", "reason", "cause",
 )
 
 
@@ -4449,8 +4649,9 @@ def format_revert_json(
                `[bale] error: ` prefix dropped; null on "reverted". For
                reading, not dispatch: its wording is stderr's.
 
-    On "revert-refused" every key but outcome, sid, reason and cause is
-    null — lock_cleared false. Raises ValueError on an outcome outside
+    Key order: REVERT_REPORT_KEYS (v0.4.53), the order `bale contract
+    --json` publishes. On "revert-refused" every key but outcome, sid,
+    reason and cause is null — lock_cleared false. Raises ValueError on an outcome outside
     REVERT_OUTCOMES, on "revert-refused" a reason outside
     REVERT_REFUSAL_REASONS, an empty cause or a discard fact, and a
     reason or cause on "reverted".
@@ -4497,7 +4698,7 @@ def format_revert_json(
         "reason": reason,
         "cause": cause,
     }
-    return json.dumps(payload)
+    return _keyed_line(REVERT_REPORT_KEYS, payload, surface="revert")
 
 
 def format_revert_refusal_json(*, reason: str, cause: str,
@@ -5763,6 +5964,21 @@ def _pct(rate) -> str:
     return f"{rate * 100:.0f}%"
 
 
+# The stats report's one outcome word and its line's twelve keys in
+# emission order (v0.4.53; meanings in format_stats_json's docstring, the
+# values computed by bale_stats.compute_stats). format_stats_json emits in
+# this order (_keyed_line) — a compute_stats key this tuple lacks, or one
+# it drops, raises rather than reaching stdout off-contract — and `bale
+# contract --json` publishes it as json_keys["stats"].
+STATS_OUTCOME = "stats"
+STATS_OUTCOMES = (STATS_OUTCOME,)
+STATS_REPORT_KEYS = (
+    "outcome", "epoch", "coverage", "filters", "corpus", "classes",
+    "closure_mix", "churn", "cross_checks", "packers", "doc_epochs",
+    "members",
+)
+
+
 def format_stats_json(stats: dict) -> str:
     """Render the `bale stats --json` report as ONE line of JSON.
 
@@ -5773,7 +5989,9 @@ def format_stats_json(stats: dict) -> str:
     same emission path (the caller emits via emit_json_line under json
     mode's stream discipline — module docstring). THIS DOCSTRING OWNS
     THE KEY CONTRACT (the one-home rule); BALE.md §5.6 and the CLI help
-    name the owner, never a second copy of the list. Unit and rate
+    name the owner, never a second copy of the list. The top-level key
+    order is STATS_REPORT_KEYS (v0.4.53; the order `bale contract
+    --json` publishes). Unit and rate
     definitions are brief-D2 semantics, implemented and documented in
     bin/bale_stats.py; this list is the wire shape. The set:
 
@@ -6075,8 +6293,8 @@ def format_stats_json(stats: dict) -> str:
     one-owner-per-surface rule every format_*_json carries — this list
     never duplicates it.
     """
-    payload = {"outcome": "stats", **stats}
-    return json.dumps(payload)
+    payload = {"outcome": STATS_OUTCOME, **stats}
+    return _keyed_line(STATS_REPORT_KEYS, payload, surface="stats")
 
 
 def format_stats_report(stats: dict, *,
@@ -6399,6 +6617,26 @@ def format_stats_report(stats: dict, *,
     return body + format_summary_block(rows)
 
 
+# The dossier line's outcome word and its two key sets, in emission order
+# (v0.4.53; meanings in format_session_dossier_json's docstring, the values
+# computed by bale_stats.compute_session_dossier). A found sid renders
+# STATS_DOSSIER_REPORT_KEYS; the honest miss (`found: false`) renders
+# STATS_DOSSIER_MISS_REPORT_KEYS and no other keys. The renderer emits in
+# the matching tuple's order (_keyed_line) and `bale contract --json`
+# publishes them as json_keys["stats-dossier"] and
+# json_keys["stats-dossier-miss"] — the `bale stats --sid --json` line's
+# two shapes, named for the verb that prints them.
+STATS_DOSSIER_OUTCOME = "dossier"
+STATS_DOSSIER_OUTCOMES = (STATS_DOSSIER_OUTCOME,)
+STATS_DOSSIER_REPORT_KEYS = (
+    "outcome", "session_id", "found", "record", "attempts", "lineage",
+)
+STATS_DOSSIER_MISS_REPORT_KEYS = (
+    "outcome", "session_id", "found", "parse_failure",
+    "filtered_record_version",
+)
+
+
 def format_session_dossier_json(dossier: dict) -> str:
     """Render the board 44 session dossier as ONE line of JSON.
 
@@ -6457,11 +6695,19 @@ def format_session_dossier_json(dossier: dict) -> str:
                   not promoted into telemetry — an honest unrecorded,
                   never a known "no correction").
 
+    Key order (v0.4.53): STATS_DOSSIER_REPORT_KEYS when `found` is true,
+    STATS_DOSSIER_MISS_REPORT_KEYS when it is not — the two orders `bale
+    contract --json` publishes.
+
     Emitted as a single compact line (no indent). Pure: builds a
     string, prints nothing; the caller emits it via emit_json_line.
     """
-    payload = {"outcome": "dossier", **dossier}
-    return json.dumps(payload)
+    payload = {"outcome": STATS_DOSSIER_OUTCOME, **dossier}
+    if dossier.get("found"):
+        return _keyed_line(STATS_DOSSIER_REPORT_KEYS, payload,
+                           surface="stats-dossier")
+    return _keyed_line(STATS_DOSSIER_MISS_REPORT_KEYS, payload,
+                       surface="stats-dossier-miss")
 
 
 def format_session_dossier_report(
@@ -6639,3 +6885,311 @@ def format_session_dossier_report(
         ("updated", str(record["updated_at"])),
     ]
     return "\n".join(lines) + format_summary_block(rows)
+
+
+# --- bale contract (v0.4.53, session contract-verb) ---------------------------
+#
+# `bale contract [--json]` publishes, in one read, the closed vocabularies,
+# the refusal-reason sets and the key order of every --json line bale
+# emits — each with its home (a repo-relative file in the install) and its
+# pointer (a JSON pointer into a schema home, or the constant's name in a
+# code home) — so a consumer reads the contract from the install instead of
+# copying it from source. The three declaration tuples below are the verb's
+# whole surface: each entry names where its values live, and the renderer
+# reads the values from there (the schema bytes cmd_contract loads, or the
+# module constant by that name), never from a second list. Repo-free: the
+# only inputs are the install's own files.
+
+# The code home every non-schema entry below points into: this module.
+CONTRACT_CODE_HOME = "bin/bale_report.py"
+CONTRACT_TELEMETRY_SCHEMA = "schemas/telemetry-record.schema.json"
+
+# The `bale contract` line's one outcome word, part of the one-place outcome
+# vocabulary (format_pack_json's docstring).
+CONTRACT_OUTCOME = "contract"
+CONTRACT_OUTCOMES = (CONTRACT_OUTCOME,)
+
+# The closed vocabularies, (name, home, pointer), in publication order. A
+# pointer starting "/" is a JSON pointer into the schema `home`, whose node
+# carries an `enum` (published without its null: null is a field's
+# absence, never a word); any other pointer names a tuple constant of this
+# module. The first three names are fixed by the session that added the
+# verb (they are twine's axis names); the rest are every closed word list
+# this module owns, named `<surface>-outcome` for a line's outcome words.
+# The two `*-source` entries are writer-side mirrors here (the tuples of
+# the same values, SANDBOX_OFF_SOURCES and SCOPE_ADMISSION_SOURCES) whose
+# one home is the telemetry schema, exactly as closure-reason's is.
+CONTRACT_VOCABULARIES = (
+    ("telemetry-outcome", CONTRACT_TELEMETRY_SCHEMA, "/properties/outcome"),
+    ("closure-reason", CONTRACT_TELEMETRY_SCHEMA,
+     "/properties/attempts/items/properties/closure_reason"),
+    ("apply-outcome", CONTRACT_CODE_HOME, "APPLY_OUTCOMES"),
+    ("pack-outcome", CONTRACT_CODE_HOME, "PACK_OUTCOMES"),
+    ("context-pack-outcome", CONTRACT_CODE_HOME, "CONTEXT_PACK_OUTCOMES"),
+    ("open-outcome", CONTRACT_CODE_HOME, "OPEN_OUTCOMES"),
+    ("open-rehearsal", CONTRACT_CODE_HOME, "OPEN_REHEARSALS"),
+    ("relay-outcome", CONTRACT_CODE_HOME, "RELAY_OUTCOMES"),
+    ("unlock-outcome", CONTRACT_CODE_HOME, "UNLOCK_OUTCOMES"),
+    ("revert-outcome", CONTRACT_CODE_HOME, "REVERT_OUTCOMES"),
+    ("status-outcome", CONTRACT_CODE_HOME, "STATUS_OUTCOMES"),
+    ("stats-outcome", CONTRACT_CODE_HOME, "STATS_OUTCOMES"),
+    ("stats-dossier-outcome", CONTRACT_CODE_HOME, "STATS_DOSSIER_OUTCOMES"),
+    ("contract-outcome", CONTRACT_CODE_HOME, "CONTRACT_OUTCOMES"),
+    ("pack-sweep-event", CONTRACT_CODE_HOME, "PACK_SWEEP_EVENTS"),
+    ("include-group-state", CONTRACT_CODE_HOME, "INCLUDE_GROUP_STATES"),
+    ("sandbox-off-source", CONTRACT_TELEMETRY_SCHEMA,
+     "/properties/attempts/items/properties/sandbox_off_source"),
+    ("scope-admission-source", CONTRACT_TELEMETRY_SCHEMA,
+     "/properties/attempts/items/properties/overridden_path_sources"
+     "/additionalProperties"),
+)
+
+# The refusal-reason sets, (verb, tuple constant), in publication order —
+# each published in tuple order, the `unclassified` fallback included where
+# the tuple carries it (unlock's does not: its refusals are all named).
+CONTRACT_REFUSAL_REASONS = (
+    ("open", "OPEN_REFUSAL_REASONS"),
+    ("relay", "RELAY_REFUSAL_REASONS"),
+    ("unlock", "UNLOCK_REFUSAL_REASONS"),
+    ("revert", "REVERT_REFUSAL_REASONS"),
+)
+
+# Every --json line bale emits, (surface, key tuple constant), in
+# publication order. A refused line shares its verb's renderer and so its
+# key tuple; `retry` reports through format_apply_json; the stats dossier
+# has two shapes (found, and the honest miss). The sub-object renderers
+# (format_sweep_json, format_include_group_json, format_pack_sweep_entry)
+# build values inside a line, not lines, and are not surfaces.
+CONTRACT_JSON_SURFACES = (
+    ("pack", "PACK_REPORT_KEYS"),
+    ("context-pack", "CONTEXT_PACK_REPORT_KEYS"),
+    ("open", "OPEN_REPORT_KEYS"),
+    ("open-refused", "OPEN_REPORT_KEYS"),
+    ("relay", "RELAY_REPORT_KEYS"),
+    ("relay-refused", "RELAY_REPORT_KEYS"),
+    ("apply", "APPLY_REPORT_KEYS"),
+    ("retry", "APPLY_REPORT_KEYS"),
+    ("unlock", "UNLOCK_REPORT_KEYS"),
+    ("unlock-refused", "UNLOCK_REPORT_KEYS"),
+    ("revert", "REVERT_REPORT_KEYS"),
+    ("revert-refused", "REVERT_REPORT_KEYS"),
+    ("status", "STATUS_REPORT_KEYS"),
+    ("stats", "STATS_REPORT_KEYS"),
+    ("stats-dossier", "STATS_DOSSIER_REPORT_KEYS"),
+    ("stats-dossier-miss", "STATS_DOSSIER_MISS_REPORT_KEYS"),
+    ("config-hooks", "CONFIG_HOOKS_REPORT_KEYS"),
+    ("contract", "CONTRACT_REPORT_KEYS"),
+)
+
+# The `bale contract --json` line's keys, in emission order — this verb's
+# own entry in the table above (format_contract_json's docstring owns what
+# each means).
+CONTRACT_REPORT_KEYS = (
+    "outcome", "bale_version", "vocabularies", "refusal_reasons",
+    "json_keys", "json_key_homes",
+)
+
+
+def contract_schema_homes() -> tuple:
+    """The schema homes CONTRACT_VOCABULARIES points into, first-seen
+    order, each once — the files cmd_contract reads (relative to the
+    install root) and hands to build_contract_payload. Pure."""
+    homes: list = []
+    for _name, home, pointer in CONTRACT_VOCABULARIES:
+        if pointer.startswith("/") and home not in homes:
+            homes.append(home)
+    return tuple(homes)
+
+
+def resolve_json_pointer(document, pointer: str):
+    """The node RFC 6901 `pointer` names inside `document` ("" is the
+    whole document; `~1` and `~0` unescape to "/" and "~"). Raises
+    ValueError naming the first token that resolves to nothing. Pure."""
+    if pointer == "":
+        return document
+    if not pointer.startswith("/"):
+        raise ValueError(f"JSON pointer {pointer!r} does not start with '/'")
+    node = document
+    for raw in pointer[1:].split("/"):
+        token = raw.replace("~1", "/").replace("~0", "~")
+        if isinstance(node, dict) and token in node:
+            node = node[token]
+        elif (isinstance(node, list) and token.isdigit()
+              and int(token) < len(node)):
+            node = node[int(token)]
+        else:
+            raise ValueError(f"JSON pointer {pointer!r}: no member "
+                             f"{token!r}")
+    return node
+
+
+def _contract_code_tuple(pointer: str) -> list:
+    """The values of this module's tuple constant named `pointer`, as a
+    list — ValueError when the name is not a module-level tuple of
+    strings, so a renamed constant fails the verb loudly rather than
+    publishing a stale pointer."""
+    value = globals().get(pointer)
+    if not isinstance(value, tuple) or not all(
+            isinstance(v, str) for v in value):
+        raise ValueError(f"{CONTRACT_CODE_HOME} has no tuple of strings "
+                         f"named {pointer!r}")
+    return list(value)
+
+
+def _contract_schema_enum(schemas: dict, home: str, pointer: str) -> list:
+    """The `enum` at `pointer` in the loaded schema `home`, without its
+    null, in schema order. ValueError when the schema was not loaded, the
+    pointer resolves to nothing, or the node carries no enum of strings."""
+    if home not in schemas:
+        raise ValueError(f"schema {home} was not loaded")
+    node = resolve_json_pointer(schemas[home], pointer)
+    enum = node.get("enum") if isinstance(node, dict) else None
+    if not isinstance(enum, list):
+        raise ValueError(f"{home} {pointer} carries no enum")
+    values = [v for v in enum if v is not None]
+    if not all(isinstance(v, str) for v in values):
+        raise ValueError(f"{home} {pointer}: enum values are not all "
+                         f"strings")
+    return values
+
+
+def build_contract_payload(*, version: str, schemas: dict) -> dict:
+    """Assemble the `bale contract` report as a dict in
+    CONTRACT_REPORT_KEYS order — the one source both renderings read
+    (format_contract_json's line, format_contract_report's listing).
+
+    `version` is bin/VERSION's content, stripped; `schemas` maps each
+    contract_schema_homes() path to its parsed JSON. Every value is read
+    from the home its entry names — the schema's enum, or this module's
+    tuple — so the published contract is the code's, by construction.
+    Every dict is built by iterating a declaration tuple, so the key order
+    is fixed and the dump is byte-stable across runs. Raises ValueError
+    on a pointer that resolves to nothing. Pure.
+    """
+    vocabularies = {}
+    for name, home, pointer in CONTRACT_VOCABULARIES:
+        values = (_contract_schema_enum(schemas, home, pointer)
+                  if pointer.startswith("/")
+                  else _contract_code_tuple(pointer))
+        vocabularies[name] = {"home": home, "pointer": pointer,
+                              "values": values}
+    refusal_reasons = {
+        verb: {"home": CONTRACT_CODE_HOME, "pointer": pointer,
+               "values": _contract_code_tuple(pointer)}
+        for verb, pointer in CONTRACT_REFUSAL_REASONS
+    }
+    json_keys = {surface: _contract_code_tuple(pointer)
+                 for surface, pointer in CONTRACT_JSON_SURFACES}
+    json_key_homes = {surface: {"home": CONTRACT_CODE_HOME,
+                                "pointer": pointer}
+                      for surface, pointer in CONTRACT_JSON_SURFACES}
+    return {
+        "outcome": CONTRACT_OUTCOME,
+        "bale_version": version,
+        "vocabularies": vocabularies,
+        "refusal_reasons": refusal_reasons,
+        "json_keys": json_keys,
+        "json_key_homes": json_key_homes,
+    }
+
+
+def format_contract_json(*, version: str, schemas: dict) -> str:
+    """Render the `bale contract --json` report as ONE line of JSON.
+
+    The contract sibling of the other json renderers (v0.4.53, session
+    contract-verb): same stability rules (existing keys are never renamed
+    or removed; new keys may be added), same one-compact-line shape, same
+    emission path (cmd_contract emits it via emit_json_line under json
+    mode's stream discipline — module docstring). THIS DOCSTRING OWNS THE
+    KEY CONTRACT; BALE.md §5.9 and the CLI help name the owner. The line
+    is deterministic — no timestamps, no absolute paths, every object's
+    key order fixed by a declaration tuple — so two releases' lines diff
+    cleanly. Keys, in CONTRACT_REPORT_KEYS order:
+
+      outcome         "contract" — the only state that reaches the report
+                      (exit 0); a schema the install cannot read exits
+                      through fail() (stderr, exit 1, nothing on stdout).
+                      Part of the one-place outcome vocabulary this module
+                      owns (format_pack_json; CONTRACT_OUTCOMES).
+      bale_version    bin/VERSION's content, stripped.
+      vocabularies    {name: {"home", "pointer", "values"}}, one member
+                      per closed vocabulary, CONTRACT_VOCABULARIES order.
+                      `home` is a repo-relative file of the install;
+                      `pointer` is a JSON pointer when `home` is a schema
+                      and the constant's name when it is code; `values`
+                      the words in their home's order (a schema enum
+                      without its null).
+      refusal_reasons {verb: {"home", "pointer", "values"}} for open,
+                      relay, unlock and revert — the `reason` codes each
+                      verb's refused line may carry, in tuple order, the
+                      `unclassified` fallback included where the tuple
+                      carries it.
+      json_keys       {surface: [key, ...]} — every top-level key the
+                      surface's --json line carries, in emission order:
+                      the full key set a consumer may rely on being
+                      present (a key a given outcome nulls is still a key
+                      of the line). Surfaces: CONTRACT_JSON_SURFACES —
+                      pack, context-pack, open, open-refused, relay,
+                      relay-refused, apply, retry, unlock, unlock-refused,
+                      revert, revert-refused, status, stats, stats-dossier
+                      (`bale stats --sid --json`, a found sid),
+                      stats-dossier-miss (the same line's honest miss),
+                      config-hooks, and contract itself.
+      json_key_homes  {surface: {"home", "pointer"}} — where each
+                      json_keys list lives: this module and the key
+                      tuple's name, which the surface's renderer emits
+                      through (_keyed_line), so the list is the line's
+                      order by construction.
+
+    Raises ValueError on a declaration whose pointer resolves to nothing
+    (build_contract_payload). Pure: builds a string, prints nothing.
+    """
+    payload = build_contract_payload(version=version, schemas=schemas)
+    return _keyed_line(CONTRACT_REPORT_KEYS, payload, surface="contract")
+
+
+def _contract_wrapped(words: list, indent: str = "      ",
+                      width: int = 78) -> list:
+    """`words` comma-joined and wrapped at `width` under `indent`, never
+    splitting a word — the value lines of format_contract_report."""
+    text = ", ".join(words) if words else "(none)"
+    return textwrap.wrap(text, width=width, initial_indent=indent,
+                         subsequent_indent=indent, break_long_words=False,
+                         break_on_hyphens=False)
+
+
+def format_contract_report(*, version: str, schemas: dict) -> str:
+    """Render `bale contract` (no --json) for a human: the same payload
+    format_contract_json dumps, as three listings — vocabularies, refusal
+    reasons, json keys — each entry headed by its name, home and pointer
+    with its values wrapped beneath, then the module's crisp summary
+    block last (the human-renderer rule in the module docstring). Pure.
+    """
+    payload = build_contract_payload(version=version, schemas=schemas)
+    lines = [f"bale contract — bale {version}", ""]
+
+    def _section(title: str, entries: dict, valued: bool) -> None:
+        lines.append(f"{title} ({len(entries)})")
+        for name, entry in entries.items():
+            if valued:
+                lines.append(f"  {name}  {entry['home']} "
+                             f"{entry['pointer']}")
+                lines.extend(_contract_wrapped(entry["values"]))
+            else:
+                home = payload["json_key_homes"][name]
+                lines.append(f"  {name}  {home['home']} {home['pointer']}")
+                lines.extend(_contract_wrapped(entry))
+        lines.append("")
+
+    _section("vocabularies", payload["vocabularies"], True)
+    _section("refusal reasons", payload["refusal_reasons"], True)
+    _section("json keys", payload["json_keys"], False)
+    rows = [
+        ("version", version),
+        ("vocabularies", str(len(payload["vocabularies"]))),
+        ("refusal sets", str(len(payload["refusal_reasons"]))),
+        ("json surfaces", str(len(payload["json_keys"]))),
+        ("machine form", "bale contract --json (format_contract_json "
+                         "owns the keys)"),
+    ]
+    return "\n".join(lines).rstrip("\n") + "\n" + format_summary_block(rows)

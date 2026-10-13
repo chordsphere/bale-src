@@ -500,6 +500,7 @@ forward-looking entry.
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 | `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
 | `bale stats` | Read-only aggregation of the tracked `claude/telemetry/` corpus into the trust ledger's rates: per-work-class claim/verdict agreement, HOLD, checkpoint-HOLD, drift-refusal, bailout, and clarification rates, the required-check refusal/override counts, closure mix, epoch and coverage rows, and the dual-stream cross-checks. `--work-class`, `--since`, `--json`. See §5.6. | v0.3.24 |
+| `bale contract` | Print bale's machine contract in one read: every closed vocabulary (the verbs' outcome words, the telemetry schema's `outcome` and `closure_reason` enums, and the rest), the `reason` codes of the open, relay, unlock and revert refusal lines, and the ordered top-level keys of every `--json` line — each with its home in the install and a pointer into it. Repo-free like `bale help`: reads only the install, works in any directory, writes nothing, exits 0. `--json` per §5.9. | v0.4.53 |
 
 No `log`, no `blame`, no `diag`. Inspection beyond `bale status`'s
 read-only dashboard (§5.5) and `bale stats`'s corpus aggregation
@@ -511,6 +512,8 @@ commands.
 - `bale help` — top-level usage with one-line summaries.
 - `bale help <cmd>` — detail for one command.
 - `bale --version` — print the bale version.
+- `bale contract` — the machine contract a `--json` consumer reads
+  (v0.4.53, §5.9): repo-free, like `bale help` and `bale completion`.
 
 ### 5.2 Interactive default
 
@@ -678,11 +681,16 @@ The following flags apply across multiple commands:
   dispatches on, `cause` being stderr's wording. Landed
   per command: pack (v0.2.7), apply (v0.2.8), status (v0.2.9), retry
   (v0.3.14), unlock (v0.3.18), revert (v0.3.19), open and relay
-  (v0.4.48); `bale unlock
+  (v0.4.48), contract (v0.4.53, §5.9); `bale unlock
   --integration --json` is refused, that report being
   session-shaped (§9.3). Each report's key contract is owned by its
   `format_*_json` docstring in `bin/bale_report.py` — stable keys,
-  additions only — never by a copy in this doc.
+  additions only — never by a copy in this doc; since v0.4.53 each
+  line's key order is also a module-level key tuple there, the one its
+  renderer emits through, and `bale contract --json` publishes every
+  such tuple beside the closed vocabularies and the refusal-reason
+  sets, so a consumer reads the whole machine contract from the
+  install.
 - `--reason <choice>` — on `bale unlock` and `bale revert`
   (v0.3.16): stamp why the session closed into its telemetry record
   as `closure_reason` (§8.9 owns the vocabulary and the inference
@@ -1102,6 +1110,47 @@ A refusal (§11 row 34) preserves nothing, names the failing rule,
 exits 1, and leaves the session exactly as it was; relay has no
 `--force` and no override flag — a record that does not fit the
 thread is corrected at its source and relayed again.
+
+### 5.9 `bale contract`
+
+The machine contract in one read (v0.4.53). A consumer of bale's
+`--json` lines — an orchestrator, a harness — dispatches on closed
+word lists and relies on key sets; until this verb it re-read them from
+source, one release at a time. `bale contract` prints them from the
+install it runs from:
+
+```
+bale contract [--json]
+```
+
+- **Closed vocabularies** — every outcome word list a `--json` line can
+  carry (pack, context pack, open, relay, apply and retry, unlock,
+  revert, status, stats and its dossier, contract itself), the other
+  closed word lists `bin/bale_report.py` owns (open's rehearsals, pack's
+  sweep events, the include group's states), and the telemetry schema's
+  enums a consumer dispatches on (`outcome`, `closure_reason`, and the
+  two admission-source enums). Each names its **home** — a
+  repo-relative file of the install — and a **pointer**: a JSON pointer
+  into a schema home, or the constant's name in a code home.
+- **Refusal reasons** — the `reason` codes of the open, relay, unlock
+  and revert refused lines, in their tuples' order.
+- **Key sets** — the ordered top-level keys of every `--json` line, per
+  surface (a refused line is its verb's line, so the same keys), each
+  pointing at the key tuple its renderer emits through.
+
+Repo-free, like `bale help` and `bale completion`: it reads `bin/VERSION`
+and the schema files it points into, never the working directory, a
+repository, `.bale/` or a config; it takes no lock, prompts for
+nothing, writes nothing, records no telemetry, and exits 0. A schema
+the install cannot read is a broken install and fails loud (exit 1,
+nothing on stdout). Without `--json` it prints a readable listing of
+the same content. With `--json`, stdout carries exactly one line under
+the §5.4 stream discipline, and the line is deterministic — no
+timestamps, no absolute paths, every object's key order fixed — so two
+releases' lines diff cleanly. **The `format_contract_json` docstring
+in `bin/bale_report.py` owns the key contract**; this doc does not
+duplicate the key list, and the values are read from their homes at
+run time, never from a list kept beside them.
 
 ---
 
