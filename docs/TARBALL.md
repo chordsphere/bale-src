@@ -365,8 +365,9 @@ content is the worker's: `linkage`, present when the session went
 through a probe or clarification round, and `provenance`, the
 request's provenance block echoed verbatim plus `model_identity`,
 spelled `<vendor>:<model>` with `unknown` as the model token when
-the surface does not show the string (`AGENT.md` §11.7's table says
-which do). **`self_reported`** holds the worker's judgment, which
+the surface does not show the string, and as the vendor token too
+when the surface withholds the provider (`AGENT.md` §11.7's table
+says which do). **`self_reported`** holds the worker's judgment, which
 the lint checks for shape only, never content. Honest empties there
 are meaningful — `[]` asserts *none arose* — with one exception:
 `docs_read` is seeded `[]` by the crafter for scaffold presence, so
@@ -950,6 +951,15 @@ directories beside the sources it imports. Suppress the cache —
 reconciliation of step 4 has already run by the time the script
 does, so nothing mechanical catches a write the script did not
 announce; the printed list is the whole of the check.
+
+**The scripts run in a PID namespace.** Under the sandbox,
+`validation.sh` and the checkpoint each run in a PID namespace of
+their own: the runner can be pid 1, and a process's inherited
+process-group id reads as 0 there. A script that registers *itself*
+by process group — to reap what it started, say — makes itself a
+session leader first (`os.setsid()`), or registers a child spawned
+for the purpose. `unshare -rpf --mount-proc` reproduces the namespace
+for a rehearsal.
 
 **A tree walk excludes the validation base path.** Reads have a
 boundary too: a `validation.sh` that walks the staged tree — a sweep
