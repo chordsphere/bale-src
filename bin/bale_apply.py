@@ -702,7 +702,8 @@ def resolve_no_interact(repo: Path, cfg: dict, flag: bool) -> tuple[bool, str]:
 
 def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
                    tarball_basename: str, *,
-                   invoked_by: str = "apply") -> int:
+                   invoked_by: str = "apply",
+                   cost: Optional[dict] = None) -> int:
     """Apply-time handler for `response_kind: "bailout"` per TARBALL.md §5.6.3.
 
     This is the branch apply_pipeline takes when the manifest declares a
@@ -732,6 +733,10 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
     to chase. (`bale revert` against a bailout sid will fall through the
     `no branch` guard, which is correct: a bailout has nothing to
     revert.)
+
+    `cost` (v0.4.54) is the validated --cost-file block apply_pipeline
+    threads through; the bailout's closing attempt stamps it (None →
+    the all-null block).
     """
     from __main__ import (  # lazy — see module docstring
         close_session,
@@ -815,6 +820,7 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
             log_path=f".bale/logs/{sid}.log",
             diagnostics=diagnostics,
             clarification=read_clarification_summary(repo, sid),
+            cost=cost,
         ))
     if telemetry_rel:
         log(f"telemetry: recorded {telemetry_rel}")
@@ -1525,6 +1531,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     accept_checkpoint_change: bool = False,
                     accept_base_drift: Optional[list[str]] = None,
                     no_sandbox: bool = False,
+                    cost: Optional[dict] = None,
                     ) -> int:
     """The apply pipeline proper: extract, validate, stage, run
     validation.sh, commit-or-hold. Shared between cmd_apply (after lock
@@ -1696,6 +1703,19 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     format_apply_json's additive `telemetry` key. Dry-run and clarification
     write no record: a dry-run has no outcome, and a clarification suspends
     rather than closes its session — the eventual normal response records.
+
+    `cost` (v0.4.54, session cost-mirror; cmd_apply/cmd_retry
+    --cost-file) is the harness's spend block, already read and
+    validated by the caller (bale_report.read_cost_file, before any
+    state change). It rides into whichever attempt this invocation
+    writes — applied, held, reverted, bailout, or one of the three gate
+    refusals — through build_telemetry_attempt's `cost`; the caller's
+    rejected-attempt wrapper stamps it on a rejection the same way. Per
+    invocation, like every flag here: a retry stamps the spend of the
+    run behind its own tarball, never a prior attempt's. The two exits
+    that write no attempt (dry-run, clarification) log that the
+    validated block was not stamped — loud, never a silent drop. None
+    stamps the all-null block.
 
     Returns the apply exit code: 0 on PASS (or a clean dry-run), 1 on HOLD.
     """
@@ -2106,6 +2126,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                         overridden_paths=overridden_paths,
                         overridden_path_sources=overridden_path_sources,
                         log_path=f".bale/logs/{locked_sid}.log",
+                        cost=cost,
                     ))
             print(format_scope_drift_refusal(
                 sid=locked_sid,
@@ -2257,6 +2278,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                             required_check_overrides=(
                                 required_check_overridden),
                             log_path=f".bale/logs/{locked_sid}.log",
+                            cost=cost,
                         ))
                 # The composed re-run this refusal prints (v0.4.29,
                 # board 81): the verb used, the real filename, every
@@ -2387,7 +2409,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 return 0
             return _apply_bailout(
                 repo, response_dir, manifest, locked_sid, tarball_path.name,
-                invoked_by=invoked_by,
+                invoked_by=invoked_by, cost=cost,
             )
 
         # Clarification fork — TARBALL.md §5.9.3, the bailout fork's sibling.
@@ -2416,6 +2438,12 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                         log_path=session_log,
                     ))
                 return 0
+            if cost is not None:
+                # A clarification suspends its session and writes no
+                # attempt (docstring above), so there is nowhere to stamp
+                # this run's spend; say so rather than drop it silently.
+                log("cost file: valid, not stamped — a clarification "
+                    "writes no attempt (the session stays open)")
             return _apply_clarification(repo, manifest, locked_sid)
 
         # 8.1 steps 8, 9, 10: file presence, sha256, path safety (incl.
@@ -2527,6 +2555,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                                 required_check_overridden),
                             base_drift_overrides=base_drift_overridden,
                             log_path=f".bale/logs/{locked_sid}.log",
+                            cost=cost,
                         ))
                 # The composed re-run this refusal prints (v0.4.29,
                 # board 81) — the step-15 line's twin: drift admissions
@@ -3399,6 +3428,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     sandbox_confined=sandbox_on,
                     sandbox_off_source=sandbox_off_source,
                     log_path=f".bale/logs/{locked_sid}.log",
+                    cost=cost,
                     clarification=read_clarification_summary(
                         repo, locked_sid),
                 ))
@@ -3633,6 +3663,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     sandbox_confined=sandbox_on,
                     sandbox_off_source=sandbox_off_source,
                     log_path=f".bale/logs/{locked_sid}.log",
+                    cost=cost,
                 ))
             # The closing card (board 47a, BALE.md §8.8): judge line,
             # failed probe labels, ruling-forked composed successors —
@@ -3799,6 +3830,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 sandbox_confined=sandbox_on,
                 sandbox_off_source=sandbox_off_source,
                 log_path=f".bale/logs/{locked_sid}.log",
+                cost=cost,
                 clarification=read_clarification_summary(repo, locked_sid),
             ))
         # Auto-sweep (v0.3.32; BALE.md §8.8): the walkthrough revert is
@@ -3911,7 +3943,8 @@ def _read_response_notes(response_dir: Path) -> tuple:
 
 
 def record_rejected_attempt(repo: Path, sid: str, command: str,
-                             tarball_basename: str, exc: SystemExit) -> None:
+                             tarball_basename: str, exc: SystemExit, *,
+                             cost: Optional[dict] = None) -> None:
     """Record a rejected apply/retry in the telemetry record (BALE.md §8.9).
 
     Called from cmd_apply/cmd_retry's SystemExit wrapper around
@@ -3929,6 +3962,11 @@ def record_rejected_attempt(repo: Path, sid: str, command: str,
     in bin/bale). Always a non-empty string on a rejected attempt
     written from 0.4.41 on — the close desk's reconstruction reads it
     to say which gate refused without the session log.
+
+    `cost` (v0.4.54) is the invocation's validated --cost-file block:
+    the worker run behind a rejected tarball still spent what it spent,
+    and the rejected attempt is the one this invocation writes, so the
+    spend rides it (None → the all-null block).
     """
     from __main__ import (  # lazy — see module docstring
         exit_cause,
@@ -3947,6 +3985,7 @@ def record_rejected_attempt(repo: Path, sid: str, command: str,
             scope=read_session_scope(repo, sid),
             log_path=f".bale/logs/{sid}.log",
             cause=exit_cause(exc),
+            cost=cost,
         ))
 
 
@@ -4034,7 +4073,9 @@ def inspect_response_scripts(tarball_path: Path, *, show_apply: bool,
 
 def cmd_apply(args: argparse.Namespace) -> int:
     from __main__ import (  # lazy — see module docstring
+        describe_cost_block,
         fail,
+        load_cost_file,
         log,
         open_sessions,
         refuse_system_dir,
@@ -4107,6 +4148,17 @@ def cmd_apply(args: argparse.Namespace) -> int:
     if args.json:
         enable_json_mode()
 
+    # --cost-file (v0.4.54, session cost-mirror): the harness's record of
+    # what the worker run behind this tarball spent, stamped into the
+    # attempt this invocation writes. Read and validated here — after the
+    # inspection branch (which writes nothing, so it has nothing to
+    # stamp) and before the bare form's y/N, the session resolution, and
+    # the rejected-attempt wrapper below — so a bad file is a plain
+    # pre-pipeline fail() like its neighbours: the session's state is as
+    # it was and no attempt is appended. Resolved like the tarball
+    # argument (cwd, then apply.search_paths; absolute bypasses).
+    cost, cost_path = load_cost_file(args.cost_file, cwd, search_paths)
+
     # Bare form: resolve the newest response tarball answering any open
     # session (board 87), echo its identity — the resolved session
     # included — and take the y/N. Every refusal inside is a fail() with
@@ -4162,6 +4214,18 @@ def cmd_apply(args: argparse.Namespace) -> int:
     if no_interact:
         log(f"non-interactive apply mode active ({no_interact_source})")
 
+    if cost is not None:
+        if args.dry_run:
+            # A dry-run writes no attempt, so the validated block has
+            # nowhere to go; logged rather than dropped silently.
+            log(f"cost file {cost_path}: valid, not stamped — a dry-run "
+                f"writes no attempt")
+        else:
+            # "accepted", not "stamped": a clarification writes no
+            # attempt either, and the pipeline says so at that fork.
+            log(f"cost file {cost_path} accepted: "
+                f"{describe_cost_block(cost)}")
+
     # `--dry-run`: run the read-only front half of the pipeline (validate,
     # report the plan) and stop before any git or worktree side effect. It
     # touches neither the working tree nor `.bale/`, so the clean-tree guard
@@ -4204,8 +4268,9 @@ def cmd_apply(args: argparse.Namespace) -> int:
             accept_checkpoint_change=args.accept_checkpoint_change,
             accept_base_drift=args.accept_base_drift,
             no_sandbox=args.no_sandbox,
+            cost=cost,
         )
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "apply",
-                                 tarball_path.name, e)
+                                 tarball_path.name, e, cost=cost)
         raise

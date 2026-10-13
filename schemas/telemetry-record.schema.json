@@ -253,24 +253,37 @@
           },
           "cost": {
             "type": ["object", "null"],
-            "additionalProperties": true,
-            "description": "What this attempt's worker session spent (v0.4.6; PLANNER.md section 17's cost-governance doctrine). MECHANICAL STREAM ONLY: the harness writes these, humans never do — spend is never a worker self-estimate. Stamped unconditionally by build_telemetry_attempt on every post-v0.4.6 attempt of every command as the all-null block — key presence is epoch membership (the sandbox_escaped posture: uniform shape, absent only on pre-v0.4.6 records), and all-null is the expected steady state until the harness era populates real values. The epoch boundary is the point: records born from v0.4.6 forward carry the shape, so no second backfill era, and cost records cover every session exit — the apply-only corpus lesson applied in advance. Every field nullable; the block itself admits null for symmetry with the other nullable promoted surfaces. Not in required: pre-v0.4.6 records keep validating. Write-only per the ratified deferral — the `bale stats` read side lands when data accrues.",
+            "additionalProperties": false,
+            "description": "What this attempt's worker session spent (v0.4.6; PLANNER.md section 17's cost-governance doctrine). MECHANICAL STREAM ONLY: the harness writes these, humans never do — spend is never a worker self-estimate. Stamped unconditionally by build_telemetry_attempt on every post-v0.4.6 attempt of every command — key presence is epoch membership (the sandbox_escaped posture: uniform shape, absent only on pre-v0.4.6 records), and all-null is the steady state of every attempt no harness reported on. Since v0.4.54 the block has its input and six keys: `--cost-file PATH` on bale apply, bale retry and bale unlock hands bale one JSON object over these keys (any subset, each nullable), validated before the verb changes anything and stamped into the attempt that invocation writes, an omitted key recorded null; `calls` and `models` joined the four v0.4.6 keys, so a v0.4.54+ block carries all six (all-null without the flag) and a v0.4.6–v0.4.53 block the first four, both valid. The arithmetic from a harness's own token classes to these fields is the harness's, by this definition: tokens_in is every token the model read as prompt, cache hits and cache writes included; tokens_out is every token the model generated, thinking included; usd is the run's cost in dollars; calls is the number of model calls; models is the exact model strings the run used, sorted and unique; model_tier is an effort-policy allocation, not a model id, and a harness that has none leaves it null. additionalProperties is false since v0.4.54: the shape is pinned, so a typo'd key is loud rather than stored. The epoch boundary is the point: records born from v0.4.6 forward carry the shape, so no second backfill era, and cost records cover every session exit — the apply-only corpus lesson applied in advance. The block itself admits null for symmetry with the other nullable promoted surfaces. Not in required: pre-v0.4.6 records keep validating. Write-only per the ratified deferral — the `bale stats` read side lands when data accrues.",
             "properties": {
               "tokens_in": {
                 "type": ["integer", "null"],
-                "description": "Input tokens the worker session consumed, or null when unmeasured (every pre-harness session)."
+                "minimum": 0,
+                "description": "Every token the model read as prompt across the run — cache hits and cache writes included — or null when unmeasured (every pre-harness session)."
               },
               "tokens_out": {
                 "type": ["integer", "null"],
-                "description": "Output tokens the worker session produced, or null when unmeasured."
+                "minimum": 0,
+                "description": "Every token the model generated across the run — thinking included — or null when unmeasured."
               },
               "usd": {
                 "type": ["number", "null"],
-                "description": "Dollar cost of the worker session, or null when unmeasured."
+                "minimum": 0,
+                "description": "The run's cost in dollars, or null when unmeasured."
               },
               "model_tier": {
                 "type": ["string", "null"],
-                "description": "The model tier the spawn ran on (PLANNER.md section 17: tier is an effort-policy allocation), or null when unrecorded."
+                "description": "The model tier the spawn ran on (PLANNER.md section 17: tier is an effort-policy allocation, not a model id), or null when unrecorded — a harness that allocates no tier leaves it null."
+              },
+              "calls": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "description": "The number of model calls the run made (v0.4.54), or null when unmeasured."
+              },
+              "models": {
+                "type": ["array", "null"],
+                "items": { "type": "string", "minLength": 1 },
+                "description": "The exact model strings the run used, sorted and unique (v0.4.54) — the mechanical home for the model identity a worker hosted by a harness cannot see from inside it — or null when unrecorded."
               }
             }
           },

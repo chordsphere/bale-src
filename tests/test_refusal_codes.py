@@ -852,7 +852,7 @@ class SeamTest(unittest.TestCase):
     def test_unlock_vocabulary_unmoved(self) -> None:
         self.assertEqual(self.report.UNLOCK_REFUSAL_REASONS, (
             "hold-branch", "not-open", "several-open", "not-a-repo",
-            "integration-json"))
+            "integration-json", "cost-file"))
 
     def test_exchange_sentinels_have_one_home(self) -> None:
         relay = _load_module("bale_relay")

@@ -226,6 +226,13 @@ clipboard_command` still read): `describe_clipboard_state` renders the
 when it is the legacy one or when a file sets both, and
 `format_status_json` carries them as the additive `clipboard` object.
 
+Session cost-mirror (v0.4.54) gives the telemetry cost block its input:
+`read_cost_file` is the one reader/validator `bale apply`, `bale retry`
+and `bale unlock` call for `--cost-file PATH` (a harness's JSON object
+over COST_KEYS, any subset, each nullable), `empty_cost_block` the
+six-key all-null default `build_telemetry_attempt` stamps when no file
+was given, and `cost-file` the unlock refusal code a bad file earns.
+
 See claude/context/bale-internals.md for how this module sits next to
 `bin/bale` and the other siblings.
 """
@@ -4273,6 +4280,8 @@ UNLOCK_REFUSAL_REASONS = (
     "several-open",      # no sid given and several sessions open
     "not-a-repo",        # the working directory is not in a git repository
     "integration-json",  # --integration beside --json (any contradiction)
+    "cost-file",         # --cost-file unreadable, not a JSON object, or
+                         # off-shape (v0.4.54; read_cost_file)
 )
 
 # The outcome word of a refused unlock's line — the one literal, kept
@@ -4405,6 +4414,13 @@ def format_unlock_json(
                                    under --json (with a sid, with
                                    --reason, with --json), since the
                                    integration form has no json line
+                 cost-file         (v0.4.54) the --cost-file PATH the
+                                   harness handed is missing, unreadable,
+                                   empty, not a JSON object, or carries
+                                   an unknown key or a wrong-typed value
+                                   (read_cost_file); refused before any
+                                   registry change, so the session is
+                                   still open and no attempt was written
       message  (v0.4.47, additive) null on "unlocked" and "no-op"; on
                "unlock-refused", the refusal's first line — the string
                failure_cause (bin/bale) gives telemetry, without the
@@ -5295,6 +5311,205 @@ def parse_claim_verdict_block(output: str) -> tuple[dict, bool]:
     return claim_verdict, bool(claim_verdict)
 
 
+# --- the cost block's input (v0.4.54, session cost-mirror) ---
+#
+# attempts[].cost is MECHANICAL-STREAM data: a harness that hosted the
+# worker run writes it, humans never do (telemetry-record.schema.json).
+# Its input is `--cost-file PATH` on the three verbs that write a closing
+# attempt — `bale apply`, `bale retry`, `bale unlock` — and the file is
+# bale's shape, not the harness's: one JSON object over COST_KEYS, any
+# subset, each nullable. The arithmetic from a harness's own token
+# classes to these fields is the harness's, by the definitions the
+# schema's cost description carries. read_cost_file is the one reader
+# and validator all three verbs call, before their first state change;
+# empty_cost_block is the default build_telemetry_attempt stamps when no
+# file was handed over.
+
+# The cost block's keys, in stamping order. The schema's
+# attempts[].cost.properties is the shape's home and carries exactly
+# these six (additionalProperties: false since v0.4.54); the suite pins
+# the two together so neither moves alone.
+COST_KEYS = ("tokens_in", "tokens_out", "usd", "model_tier", "calls",
+             "models")
+
+# The non-negative-integer-or-null keys; `usd` is a non-negative number,
+# `model_tier` a string, `models` an array of non-empty strings — each
+# also nullable.
+_COST_COUNT_KEYS = ("tokens_in", "tokens_out", "calls")
+
+
+class CostFileError(ValueError):
+    """A `--cost-file` that cannot be stamped: missing, unreadable,
+    empty, not one JSON object, or off-shape. The message's first line
+    names the path and every problem found, so the verb's refusal (a
+    fail() of str(exc)) is complete on one line — the line telemetry and
+    unlock's --json refusal carry as their cause/message."""
+
+
+def empty_cost_block() -> dict:
+    """The all-null cost block: every COST_KEYS member present and null.
+
+    The steady state of every attempt written without `--cost-file`
+    (and of every attempt no harness ran — pack, rollback, the registry's
+    crash-debris and read-only closures). Uniform shape: key presence is
+    epoch membership, so a v0.4.54+ attempt carries all six keys and a
+    v0.4.6–v0.4.53 attempt the first four. A fresh dict per call — a
+    caller may mutate what it is handed."""
+    return {key: None for key in COST_KEYS}
+
+
+def _describe_cost_value(value) -> str:
+    """Name a JSON value's type the way a refusal reads it."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _cost_value_problem(key: str, value) -> Optional[str]:
+    """One key's type check; None when the value is acceptable.
+
+    bool is excluded from the integer and number checks explicitly:
+    Python's bool subclasses int, JSON's true/false never mean a count."""
+    if value is None:
+        return None
+    is_int = isinstance(value, int) and not isinstance(value, bool)
+    if key in _COST_COUNT_KEYS:
+        if is_int and value >= 0:
+            return None
+        if is_int:
+            return f"{key!r} must be a non-negative integer or null, got {value}"
+        return (f"{key!r} must be a non-negative integer or null, got "
+                f"{_describe_cost_value(value)}")
+    if key == "usd":
+        if (is_int or isinstance(value, float)) and value >= 0:
+            return None
+        if is_int or isinstance(value, float):
+            return f"'usd' must be a non-negative number or null, got {value}"
+        return (f"'usd' must be a non-negative number or null, got "
+                f"{_describe_cost_value(value)}")
+    if key == "model_tier":
+        if isinstance(value, str):
+            return None
+        return (f"'model_tier' must be a string or null, got "
+                f"{_describe_cost_value(value)}")
+    if key == "models":
+        if not isinstance(value, list):
+            return (f"'models' must be an array of non-empty strings or "
+                    f"null, got {_describe_cost_value(value)}")
+        for i, item in enumerate(value):
+            if not isinstance(item, str):
+                return (f"'models'[{i}] must be a non-empty string, got "
+                        f"{_describe_cost_value(item)}")
+            if not item.strip():
+                return f"'models'[{i}] must be a non-empty string, got {item!r}"
+        return None
+    # Unreachable for a COST_KEYS member; an unknown key is reported by
+    # the caller before any type check runs.
+    return f"{key!r} is not a cost key"
+
+
+def read_cost_file(path: Path) -> dict:
+    """Read and validate a `--cost-file`; return the six-key cost block.
+
+    The one reader `bale apply`, `bale retry` and `bale unlock` share
+    (v0.4.54). `path` is already resolved by the caller (the tarball
+    argument's rule: cwd, then each apply.search_paths directory; an
+    absolute path bypasses the search). The file is one UTF-8 JSON
+    object (a leading byte-order mark is tolerated) whose keys are
+    COST_KEYS members — any subset, each nullable:
+
+      tokens_in, tokens_out, calls  non-negative integer or null
+      usd                           non-negative number or null
+      model_tier                    string or null
+      models                        array of non-empty strings or null
+
+    The returned block carries all six keys in COST_KEYS order, a key
+    the file omits as null, so a subset file and the all-null default
+    share one shape. Values are recorded as handed: `models` sorted and
+    unique is the harness's arithmetic by the schema's definition, and
+    bale does not reorder it.
+
+    Raises CostFileError — never returns a partial block — when the file
+    is missing or not a regular file, unreadable, not UTF-8, empty (or
+    whitespace only), not valid JSON (NaN and Infinity included, which
+    JSON does not have), a JSON value other than an object, an object
+    with a repeated key, or one carrying an unknown key or a wrong-typed
+    value. Every problem found is named on the message's one line, with
+    the path, so the caller's refusal says everything at once. Pure:
+    reads one file, writes nothing, logs nothing — the caller refuses.
+    """
+    label = f"cost file {path}"
+    if not path.exists():
+        raise CostFileError(f"cost file not found: {path}")
+    if not path.is_file():
+        raise CostFileError(f"{label} is not a regular file")
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise CostFileError(f"{label} could not be read: {exc}") from exc
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise CostFileError(f"{label} is not UTF-8: {exc}") from exc
+    if not text.strip():
+        raise CostFileError(
+            f"{label} is empty; it must hold one JSON object over the cost "
+            f"keys ({', '.join(COST_KEYS)})")
+
+    def _no_constants(token: str):
+        raise ValueError(f"{token} is not a JSON number")
+
+    def _no_repeats(pairs: list) -> dict:
+        seen: dict = {}
+        for key, value in pairs:
+            if key in seen:
+                raise ValueError(f"key {key!r} appears more than once")
+            seen[key] = value
+        return seen
+
+    try:
+        data = json.loads(text, parse_constant=_no_constants,
+                          object_pairs_hook=_no_repeats)
+    except ValueError as exc:  # json.JSONDecodeError is a ValueError
+        raise CostFileError(f"{label} is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise CostFileError(
+            f"{label} must hold one JSON object over the cost keys, got "
+            f"{_describe_cost_value(data)}")
+
+    problems: list[str] = []
+    unknown = sorted(k for k in data if k not in COST_KEYS)
+    for key in unknown:
+        problems.append(f"unknown key {key!r}")
+    if unknown:
+        problems[-1] += f" (the cost keys are {', '.join(COST_KEYS)})"
+    for key in COST_KEYS:
+        if key in data:
+            problem = _cost_value_problem(key, data[key])
+            if problem is not None:
+                problems.append(problem)
+    if problems:
+        raise CostFileError(f"{label} refused: {'; '.join(problems)}")
+
+    block = empty_cost_block()
+    for key in COST_KEYS:
+        if key in data:
+            block[key] = data[key]
+    return block
+
+
 def build_telemetry_attempt(
     *,
     outcome: str,
@@ -5499,6 +5714,15 @@ def build_telemetry_attempt(
     applied in advance — cost coverage must span every exit or the
     aggregate computes rates over a numerator-only dataset. Write-only
     at S5 per the ratified deferral: no `bale stats` read side.
+    Since v0.4.54 (session cost-mirror) the block has six keys —
+    `calls` and `models` joined, COST_KEYS — and a real block has a
+    producer: `--cost-file PATH` on apply, retry and unlock, read and
+    validated by read_cost_file before the verb mutates anything, then
+    handed here by the closing call site of that invocation. A caller's
+    block is overlaid on empty_cost_block(), so a subset still stamps
+    all six keys; the registry closures no harness ran (crash-debris,
+    the read-only sweep, a supersession close, revert) pass none and
+    keep the all-null block.
 
     `cause` and `bundle` (v0.4.41, wave 10's rider micro) use the
     key-presence semantics of `diagnostics`: omitted when None, never
@@ -5566,12 +5790,11 @@ def build_telemetry_attempt(
         # semantics) — unconditional, the sandbox-stamps posture: all-null
         # until a harness passes real values, key presence = epoch
         # membership.
-        "cost": (cost if cost is not None else {
-            "tokens_in": None,
-            "tokens_out": None,
-            "usd": None,
-            "model_tier": None,
-        }),
+        # v0.4.54: six keys (calls, models joined), and a caller's block
+        # is overlaid on the all-null one so every post-v0.4.54 attempt
+        # carries the same six keys whatever subset it was handed.
+        "cost": {**empty_cost_block(), **cost} if cost is not None
+                else empty_cost_block(),
         "change_paths": [c.get("path") for c in
                          (manifest or {}).get("changes", []) or []],
         "feedback": (manifest or {}).get("feedback"),

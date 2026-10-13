@@ -148,6 +148,8 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     CLIPBOARD_COPIED,
     CLOSURE_REASONS,
+    COST_KEYS,
+    CostFileError,
     HOLD_JUDGE_CHECKPOINT,
     RULING_FIXTURE_DEFECT,
     awaiting_side,
@@ -159,6 +161,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     numbered_sibling_counter,
     numbered_sibling_parts,
     read_clarification_summary,
+    read_cost_file,
     emit_json_line,
     enable_json_mode,
     exchange_record_view,
@@ -1357,6 +1360,7 @@ def close_session_with_record(
     command: str,
     scope: Optional[list] = None,
     log_path: Optional[str] = None,
+    cost: Optional[dict] = None,
 ) -> tuple[Optional[str], str]:
     """Close `sid` in the registry, wipe its session dir, and write the
     closure telemetry record — the one implementation of the
@@ -1390,6 +1394,11 @@ def close_session_with_record(
        closure_reason. A no-op producing no output when [apply].sweep
        is unset/false; loud and never fatal when enabled.
 
+    `cost` (v0.4.54) is the validated `--cost-file` block cmd_unlock
+    hands through to the closing attempt's cost stamp; None — every
+    other caller (pack's supersession close and read-only sweep close
+    sessions no harness ran) — stamps the all-null block.
+
     Returns (telemetry_rel, session_status, sweep_result): the record's
     repo-relative path (None on write failure), the human summary of the
     session-dir wipe, and the step-5 sweep_commit return (None when
@@ -1416,6 +1425,7 @@ def close_session_with_record(
             closure_reason=closure_reason,
             log_path=log_path,
             clarification=read_clarification_summary(repo, sid),
+            cost=cost,
         ))
     # 5. Auto-sweep (v0.3.32; BALE.md §8.8): config-gated, after the
     #    record exists on disk. No git mutation preceded this in the
@@ -1868,6 +1878,46 @@ def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
         # reaches them without the caller's module changing.
         fail_not_found(kind, resolved, verb, cwd=cwd)
     return resolved
+
+
+def load_cost_file(arg: Optional[str], cwd: Path,
+                   search_paths: list[str]) -> tuple[Optional[dict],
+                                                     Optional[Path]]:
+    """Resolve and validate a `--cost-file PATH` (v0.4.54, session
+    cost-mirror); return (cost block, resolved path), or (None, None)
+    when the flag was not given.
+
+    The one front door `bale apply`, `bale retry` and `bale unlock` use,
+    each calling it before its first state change so a refusal leaves
+    the session exactly as it was. Resolution is the tarball argument's
+    (resolve_inbound_path, kind "cost file"): a relative PATH tries cwd
+    first, then each apply.search_paths directory; an absolute PATH
+    bypasses the search. No verb is passed — the near-name listing is
+    for response tarballs, and a harness names its own file exactly.
+    The read and the shape check are bale_report.read_cost_file's; this
+    wrapper turns its CostFileError into fail(), so the refusal is the
+    verb's ordinary `[bale] error:` line (inside unlock's
+    _unlock_refusal under --json, which gives it the `cost-file` code).
+
+    Logs nothing: the callers log the accepted file once their session
+    log is wired, so the journal carries it."""
+    if arg is None:
+        return None, None
+    path = resolve_inbound_path(arg, cwd, search_paths, kind="cost file")
+    try:
+        return read_cost_file(path), path
+    except CostFileError as exc:
+        fail(str(exc))
+    raise AssertionError("unreachable: fail() exits")  # pragma: no cover
+
+
+def describe_cost_block(cost: dict) -> str:
+    """One log phrase for an accepted cost block: which of the six keys
+    the harness set (non-null), e.g. `3 of 6 keys set (tokens_in,
+    tokens_out, usd)`. Rendering only; the record carries the values."""
+    set_keys = [k for k in COST_KEYS if cost.get(k) is not None]
+    listed = f" ({', '.join(set_keys)})" if set_keys else ""
+    return f"{len(set_keys)} of {len(COST_KEYS)} keys set{listed}"
 
 
 def fail_not_found(kind: str, path, verb: Optional[str] = None, *,
@@ -2956,6 +3006,14 @@ def cmd_retry(args: argparse.Namespace) -> int:
     if sibling_note is not None:
         log(sibling_note)
 
+    # --cost-file (v0.4.54, session cost-mirror): the harness's record of
+    # what the worker run behind this tarball spent. Validated here, ahead
+    # of the session resolution and the HOLD discard below — the first
+    # state change — so a bad file refuses with the held state intact and
+    # no attempt appended. A plain fail(), like every refusal before the
+    # pipeline (resolution as the tarball argument's: load_cost_file).
+    cost, cost_path = load_cost_file(args.cost_file, cwd, search_paths)
+
     # Retry requires an open session, same as apply — and, since board 71,
     # resolves WHICH one from the tarball's own responds_to (the board-51
     # machinery bare apply already uses), with --sid vetting rather than
@@ -2966,6 +3024,10 @@ def cmd_retry(args: argparse.Namespace) -> int:
     # Wire logging to the same session log apply/revert use.
     set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
     log(f"retrying session {locked_sid} with {tarball_path.name}")
+    if cost is not None:
+        # "accepted", not "stamped": a clarification writes no attempt,
+        # and the pipeline says so at that fork.
+        log(f"cost file {cost_path} accepted: {describe_cost_block(cost)}")
 
     # Non-interactive mode: same resolution and logging contract as
     # cmd_apply — retry reruns the same pipeline with the same two prompt
@@ -3095,10 +3157,11 @@ def cmd_retry(args: argparse.Namespace) -> int:
                               accept_checkpoint_change=(
                                   args.accept_checkpoint_change),
                               accept_base_drift=args.accept_base_drift,
-                              no_sandbox=args.no_sandbox)
+                              no_sandbox=args.no_sandbox,
+                              cost=cost)
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "retry",
-                                tarball_path.name, e)
+                                tarball_path.name, e, cost=cost)
         raise
 
 
@@ -3773,8 +3836,32 @@ def cmd_unlock(args: argparse.Namespace) -> int:
                  "telemetry) and the integration lock is repo-level state "
                  "with none of those facts. Run `bale unlock "
                  "--integration` without --json.")
+    # --cost-file (v0.4.54) is a closing attempt's spend; the integration
+    # lock closes no session and writes no attempt, the --reason
+    # contradiction's twin. Under --json the check above already refused
+    # with integration-json, so only human mode reaches this one.
+    if args.integration and args.cost_file is not None:
+        fail("`bale unlock --integration` clears the repo-level "
+             "integration lock; it closes no session and writes no "
+             "attempt, so there is nothing for --cost-file to stamp.")
     if args.integration:
         return _unlock_integration(repo)
+
+    # --cost-file (v0.4.54, session cost-mirror): the harness's record of
+    # what the stopped or abandoned run spent, stamped into the closing
+    # attempt's cost block. Read and validated HERE — before the registry
+    # read, the stale-pointer sweep and the close below, the first places
+    # this verb mutates anything — so a refusal leaves the session open
+    # and no attempt appended. Resolved like apply's tarball argument
+    # (load_cost_file). Under --json the refusal line carries `cost-file`.
+    cost: Optional[dict] = None
+    cost_path: Optional[Path] = None
+    if args.cost_file is not None:
+        with _unlock_refusal(args, "cost-file", sid=args.sid, repo=repo):
+            cost, cost_path = load_cost_file(
+                args.cost_file, cwd,
+                bale_config.get_apply_search_paths(
+                    bale_config.merged_config(repo)))
 
     # BALE.md §9.3 step 1: read the registry (ADR-0006 threading).
     opens = open_sessions(repo)
@@ -3834,6 +3921,13 @@ def cmd_unlock(args: argparse.Namespace) -> int:
                                         [debris_rel] if debris_rel else [])
             debris = {"sid": stale, "telemetry": debris_rel,
                       "sweep": debris_sweep}
+        if cost is not None:
+            # Validated above, but there is no closing attempt of a
+            # harness-run session to stamp: the no-op closes nothing, and
+            # a crash-debris record (if any) closes a session no harness
+            # ran. Said out loud rather than dropped silently.
+            log(f"cost file {cost_path}: valid, not stamped — no open "
+                f"session, so this unlock writes no closing attempt")
         print()
         print("  no open session; nothing to unlock.")
         if args.json:
@@ -3934,12 +4028,19 @@ def cmd_unlock(args: argparse.Namespace) -> int:
     # the helper wipes — a machine key derived from the filesystem, not
     # parsed back out of the human session_status wording.
     session_dir_existed = (repo / ".bale" / "sessions" / sid).exists()
+    if cost is not None:
+        # Logged here, past every refusal, so the journal never claims a
+        # stamp a later refusal prevented.
+        log(f"cost file {cost_path}: {describe_cost_block(cost)}; stamped "
+            f"into the closing attempt")
     telemetry_rel, session_status, sweep_result = close_session_with_record(
         repo, sid,
         closure_reason=closure_reason,
         command="unlock",
         scope=unlock_scope,
         log_path=f".bale/logs/{sid}.log",
+        # v0.4.54: the validated --cost-file block, or None (all-null).
+        cost=cost,
     )
 
     # End-of-run summary through the shared formatter, same [STATUS] sid
@@ -6878,6 +6979,28 @@ class StatsHelpFormatter(SubcommandHelpFormatter):
         return super()._fill_text(text, width, indent)
 
 
+# The one `--cost-file` help text (v0.4.54, session cost-mirror), shared
+# by apply, retry and unlock so the three cannot drift; `{verb}` and
+# `{exits}` are each verb's own name and which attempt it stamps. No
+# literal percent sign: argparse %-formats help strings.
+COST_FILE_HELP = (
+    "Stamp a harness's record of what the worker run spent into the "
+    "telemetry cost block (attempts[].cost; BALE.md §8.9) of {exits}. "
+    "PATH is one UTF-8 JSON object over the cost keys — tokens_in, "
+    "tokens_out, calls (non-negative integers), usd (a non-negative "
+    "number), model_tier (a string), models (an array of non-empty "
+    "model strings) — any subset, each nullable; an omitted key is "
+    "recorded null. Written by the harness that hosted the worker, "
+    "never by hand: cost is mechanical-stream data "
+    "(telemetry-record.schema.json). Resolved like `bale apply`'s "
+    "tarball argument — cwd first, then each apply.search_paths "
+    "directory; an absolute PATH bypasses the search. A missing, "
+    "unreadable, empty or non-object file, an unknown key, or a "
+    "wrong-typed value refuses before `bale {verb}` changes anything. "
+    "Without the flag the block is all-null."
+)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
@@ -7463,6 +7586,15 @@ def build_parser() -> argparse.ArgumentParser:
              "with --show-validator/--show-apply-script, whose whole "
              "output is a script body on stdout.",
     )
+    p_apply.add_argument(
+        "--cost-file", default=None, metavar="PATH", dest="cost_file",
+        help=COST_FILE_HELP.format(
+            verb="apply",
+            exits="the attempt this apply writes (applied, held, "
+                  "reverted, bailout, a gate refusal, or rejected); a "
+                  "clarification or a --dry-run writes no attempt, so "
+                  "the file is validated and logged as not stamped"),
+    )
     p_apply.set_defaults(func=cmd_apply)
 
     # retry
@@ -7630,6 +7762,17 @@ def build_parser() -> argparse.ArgumentParser:
              "prompts, and the human banners go to stderr; stdout carries "
              "exactly the JSON line on the reporting paths. Pair with "
              "--no-interact for scripted retries.",
+    )
+    p_retry.add_argument(
+        "--cost-file", default=None, metavar="PATH", dest="cost_file",
+        help=COST_FILE_HELP.format(
+            verb="retry",
+            exits="the attempt this retry writes — the spend of the run "
+                  "behind THIS tarball, never carried from a prior "
+                  "attempt (a clarification writes no attempt, so the "
+                  "file is validated and logged as not stamped); "
+                  "`bale revert` takes no such flag: the held attempt's "
+                  "spend already rode its apply"),
     )
     p_retry.set_defaults(func=cmd_retry)
 
@@ -7945,6 +8088,15 @@ def build_parser() -> argparse.ArgumentParser:
              "(.bale/integration.lock) instead of a session — the "
              "stale-lock recovery for an interrupted apply. Only safe "
              "while no `bale apply` is running. Takes no sid.",
+    )
+    p_unlock.add_argument(
+        "--cost-file", default=None, metavar="PATH", dest="cost_file",
+        help=COST_FILE_HELP.format(
+            verb="unlock",
+            exits="the closing attempt of the session this unlock closes "
+                  "(a run that stopped or was abandoned before any "
+                  "response); refused beside --integration, which closes "
+                  "no session"),
     )
     p_unlock.set_defaults(func=cmd_unlock)
 

@@ -18,6 +18,10 @@ Four surfaces, one additive session (BALE.md §8.9):
   sandbox-stamps epoch posture: key presence is epoch membership,
   all-null is the pre-harness steady state, a caller's real block is
   recorded verbatim). Not in ``required`` — legacy records validate.
+  Since v0.4.54 the block has six keys (``calls`` and ``models``
+  joined) under ``additionalProperties: false``; four-key records
+  keep validating. The ``--cost-file`` input is
+  tests/test_cost_file_flag.py's.
 - **closure reasons** — ``no_response`` and ``malformed_response`` as
   additive enum values, in the schema and in the one-home
   ``CLOSURE_REASONS`` tuple both ``--reason`` flags import; unknown
@@ -209,13 +213,19 @@ class CostBlockTest(unittest.TestCase):
         cls.br = _load_module("bale_report")
         cls.schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 
+    # v0.4.54 (session cost-mirror): six keys — calls and models joined
+    # the v0.4.6 four; the all-null default carries all six.
     ALL_NULL = {"tokens_in": None, "tokens_out": None,
-                "usd": None, "model_tier": None}
+                "usd": None, "model_tier": None,
+                "calls": None, "models": None}
+    LEGACY_FOUR = {"tokens_in": None, "tokens_out": None,
+                   "usd": None, "model_tier": None}
 
     def test_schema_carries_the_pinned_names_additively(self) -> None:
         items = self.schema["properties"]["attempts"]["items"]
         cost = items["properties"]["cost"]
-        for name in ("tokens_in", "tokens_out", "usd", "model_tier"):
+        for name in ("tokens_in", "tokens_out", "usd", "model_tier",
+                     "calls", "models"):
             self.assertIn(name, cost["properties"])
             self.assertIn("null", cost["properties"][name]["type"],
                           msg=f"{name} must be nullable")
@@ -229,8 +239,30 @@ class CostBlockTest(unittest.TestCase):
         rec = _minimal_record(cost=dict(self.ALL_NULL))
         self.assertEqual(self.bv.validate_telemetry_record(rec), [])
         rec = _minimal_record(cost={"tokens_in": 12000, "tokens_out": 3400,
+                                    "usd": 0.87, "model_tier": "sonnet",
+                                    "calls": 7,
+                                    "models": ["claude-opus-5-5"]})
+        self.assertEqual(self.bv.validate_telemetry_record(rec), [])
+
+    def test_four_key_epoch_blocks_keep_validating(self) -> None:
+        """v0.4.6–v0.4.53 attempts carry the four-key block; the
+        v0.4.54 additions are additive, so those records still
+        validate (populated or all-null)."""
+        rec = _minimal_record(cost=dict(self.LEGACY_FOUR))
+        self.assertEqual(self.bv.validate_telemetry_record(rec), [])
+        rec = _minimal_record(cost={"tokens_in": 12000, "tokens_out": 3400,
                                     "usd": 0.87, "model_tier": "sonnet"})
         self.assertEqual(self.bv.validate_telemetry_record(rec), [])
+
+    def test_unknown_cost_key_rejects(self) -> None:
+        """v0.4.54: additionalProperties is false on the block — a
+        typo'd key is loud, not stored."""
+        cost = self.schema["properties"]["attempts"]["items"][
+            "properties"]["cost"]
+        self.assertIs(cost["additionalProperties"], False)
+        rec = _minimal_record(cost=dict(self.ALL_NULL, tokenz_in=5))
+        errors = self.bv.validate_telemetry_record(rec)
+        self.assertTrue(any("tokenz_in" in e for e in errors), msg=errors)
 
     def test_builder_stamps_all_null_unconditionally(self) -> None:
         """The epoch stamp: every post-S5 attempt of every command
@@ -244,11 +276,18 @@ class CostBlockTest(unittest.TestCase):
                              msg=f"{command}: all-null stamp expected")
 
     def test_builder_records_a_real_block_verbatim(self) -> None:
+        """A caller's values land verbatim; since v0.4.54 they are
+        overlaid on the all-null block, so a four-key caller still
+        stamps the uniform six-key shape."""
         real = {"tokens_in": 10, "tokens_out": 5,
                 "usd": 0.01, "model_tier": "opus"}
         attempt = self.br.build_telemetry_attempt(
             outcome="applied", command="apply", cost=dict(real))
-        self.assertEqual(attempt["cost"], real)
+        self.assertEqual(attempt["cost"], dict(self.ALL_NULL, **real))
+        full = dict(real, calls=3, models=["m-a", "m-b"])
+        attempt = self.br.build_telemetry_attempt(
+            outcome="applied", command="apply", cost=dict(full))
+        self.assertEqual(attempt["cost"], full)
 
     def test_stamped_attempt_validates(self) -> None:
         attempt = self.br.build_telemetry_attempt(

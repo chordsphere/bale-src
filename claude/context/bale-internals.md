@@ -213,7 +213,12 @@ is *for* — and stays stable as the per-section line numbers drift:
     `_unlock_refusal`, which lets `fail()` print and raise as usual
     and then emits `format_unlock_refusal_json`'s `unlock-refused`
     line, its `reason` code chosen by the caller from which check
-    refused, before re-raising the same exit.
+    refused, before re-raising the same exit. Since v0.4.54
+    `--cost-file` is read through `load_cost_file` (beside
+    `resolve_inbound_path`; `bale apply` and `bale retry` call the
+    same function) before the registry is touched, refusing as
+    `cost-file`, and the block rides `close_session_with_record`'s
+    `cost` into the closing attempt.
 14. **`cmd_handoff`.** Repackages a bailout response (TARBALL.md
     §5.6) into a fresh request that inherits the bailed-on session's
     goal verbatim, pre-packs source files extracted from
@@ -609,7 +614,12 @@ pointer, and `build_contract_payload` reads each value from there),
 plus the json-mode stream-discipline state the three
 share (`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8: every
 human-facing line goes to stderr under a --json run, so stdout carries
-exactly the report line). Its paste-block copy section (session
+exactly the report line). Its telemetry cluster gained the cost block's
+input in v0.4.54: `COST_KEYS` (the six keys the schema's
+`attempts[].cost` pins), `empty_cost_block` (the all-null default
+`build_telemetry_attempt` stamps) and `read_cost_file` (the one
+reader/validator of `--cost-file`, raising `CostFileError` for the
+verb to refuse with). Its paste-block copy section (session
 clipboard-paste-blocks) is the one place bale runs the clipboard
 command: `copy_paste_block` is the entry every paste point calls (pack's
 and `bale open`'s session opener, `bale relay`'s exchange block, apply's

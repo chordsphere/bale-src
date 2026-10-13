@@ -1,0 +1,49 @@
+{
+  "record_version": 1,
+  "version": "0.4.54",
+  "session_id": "2026-10-13-cost-mirror-005",
+  "at": "2026-10-13T19:32:00+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.53 -> 0.4.54"
+    },
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "attempts[].cost gains `calls` (integer >= 0 or null) and `models` (array of non-empty strings or null), additive; tokens_in, tokens_out and usd gain minimum 0; additionalProperties on the block becomes false, so an unknown cost key now rejects; the description carries the harness definitions of the six fields; four-key (v0.4.6-v0.4.53) records and pre-v0.4.6 records without the block keep validating"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "build_telemetry_attempt stamps a six-key cost block on every attempt (all-null without --cost-file; a caller's block overlaid on the all-null one, so a subset still stamps six keys); new COST_KEYS, empty_cost_block, read_cost_file and CostFileError — the one reader/validator of --cost-file"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "UNLOCK_REFUSAL_REASONS gains `cost-file` (sixth code, appended; format_unlock_json's docstring lists it): an unreadable, empty, non-object or off-shape --cost-file, refused before any registry change"
+    },
+    {
+      "path": "bin/bale",
+      "change": "`bale apply`, `bale retry` and `bale unlock` gain `--cost-file PATH` (one shared help text): the file is resolved like apply's tarball argument (cwd, then apply.search_paths; absolute bypasses), validated before the verb's first state change, and stamped into the attempt the invocation writes — apply/retry: applied, held, reverted, bailout, a gate refusal, or rejected; unlock: the closing `unlocked` attempt; a clarification, a --dry-run and the no-op unlock write no attempt and log the valid file as not stamped; refused beside `unlock --integration`; a bad file refuses with exit 1 (unlock --json: reason cost-file); new load_cost_file / describe_cost_block; close_session_with_record gains `cost`"
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "apply_pipeline, _apply_bailout and record_rejected_attempt gain `cost`, threaded to every attempt the pipeline writes; cmd_apply reads --cost-file after the inspection branch and before the bare-form y/N and the rejected-attempt wrapper"
+    },
+    {
+      "path": "tests/test_cost_file_flag.py",
+      "change": "new suite: read_cost_file acceptance and every refusal shape, COST_KEYS against the schema, unlock end to end (full and subset files read back, four refusals leaving the session open with no attempt appended, all-null without the flag, search-path and cwd resolution, --integration refusal, the --json cost-file line), apply and retry each through the staging pipeline with a file, a bad file refusing before the pipeline, the clarification not-stamped line, and the three help pages naming the flag"
+    },
+    {
+      "path": "tests/test_telemetry_extensions.py",
+      "change": "CostBlockTest pins the six-key all-null block, the six schema properties, four-key blocks still validating, an unknown cost key rejecting, and the overlay of a caller's block"
+    },
+    {
+      "path": "tests/test_unlock_json.py",
+      "change": "REFUSAL_REASONS gains cost-file; new test_cost_file_refusal_line covers it through the CLI"
+    },
+    {
+      "path": "tests/test_refusal_codes.py",
+      "change": "test_unlock_vocabulary_unmoved pins the six codes, cost-file last"
+    }
+  ],
+  "notes": "For twine: hand bale `--cost-file PATH` on the verb that closes the run's attempt (apply or retry for a response, unlock for a stopped or abandoned run). The file is one JSON object over tokens_in, tokens_out, usd, model_tier, calls, models — any subset, each nullable — computed by the schema's definitions (tokens_in counts cache reads and writes; tokens_out counts thinking; models sorted and unique). An unknown key or a wrong type refuses the verb before it changes anything. A clarification round writes no attempt, so its spend is not stamped there; bale stats, bale status and the dossier do not read the block yet."
+}
