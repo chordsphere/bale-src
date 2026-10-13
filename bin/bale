@@ -4962,9 +4962,16 @@ def cmd_handoff(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 #
 # All hooks shell out to user-supplied scripts; bale never embeds install
-# or copy logic. Every invocation prompts: the script can write outside
-# the repo, install software, or perform any action its author chose, and
-# bale can't know which. A non-zero exit from the hook is logged but does
+# or copy logic. Every invocation asks before it runs: the script can write
+# outside the repo, install software, or perform any action its author
+# chose, and bale can't know which. Asking takes one of three shapes
+# (run_hook's docstring): the apply pipeline's non-interactive mode
+# resolves from config; otherwise a terminal stdin gets the prompt; and
+# on the pack side (PACK_SIDE_HOOKS) a non-terminal stdin is not offered
+# the prompt at all and declines with its own fixed line (v0.4.55,
+# session hook-non-tty) — a prompt offered to nobody is noise, and EOF's
+# "stdin closed" line names the symptom, not the situation.
+# A non-zero exit from the hook is logged but does
 # NOT fail the primary bale operation — by the time a hook runs, the
 # operation that triggered it has already succeeded. Decline is not an
 # error, but it is never silent about WHY (v0.4.29, board 83): the logged
@@ -4995,6 +5002,41 @@ HOOK_DECLINE_LINES = {
     CONFIRM_BRANCH_ANSWERED:
         "declined (answered '{answer}'); not invoking.",
 }
+
+# The pack side's fourth decline (v0.4.55, session hook-non-tty), VERBATIM
+# from that session's brief and kept on one physical line so a byte-exact
+# grep finds it. It sits beside HOOK_DECLINE_LINES rather than in it: that
+# mapping is keyed by the branches of a prompt that was offered
+# (ConfirmDecision.decline_branch), and this decline happens precisely
+# because no prompt was offered. run_hook prefixes `[hook <name>] `.
+HOOK_DECLINE_LINE_NOT_A_TERMINAL = (
+    "declined (stdin is not a terminal; the prompt was not offered); not invoking.")
+
+# Hooks fired on the pack side — the session pack (cmd_pack), `bale
+# handoff`, the context pack, and the pack `bale open` replays all fire
+# post_pack, and nothing else fires it. For these, run_hook does not
+# offer its prompt to a non-terminal stdin (v0.4.55). post_apply_pass is
+# the apply side's and keeps its contract: --no-interact's configured
+# decision, else the prompt.
+PACK_SIDE_HOOKS = frozenset({"post_pack"})
+
+
+def stdin_is_terminal() -> bool:
+    """True when sys.stdin exists and is a terminal.
+
+    The test run_hook's pack side applies before offering its prompt.
+    `sys.stdin` is None when the process was started with fd 0 closed,
+    and isatty() raises ValueError on a closed stream; both read as
+    "not a terminal", never as an error, since the answer only decides
+    whether a prompt is worth offering.
+    """
+    stream = sys.stdin
+    if stream is None:
+        return False
+    try:
+        return bool(stream.isatty())
+    except (ValueError, OSError):
+        return False
 
 
 @dataclass(frozen=True)
@@ -5121,19 +5163,35 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
     decides which layer the script came from (project vs global) for display
     purposes and runs it.
 
-    Prompts the user before invoking. The user's decline is respected silently
-    (no failure). A configured-but-missing or non-executable script is logged
-    and skipped rather than failing — bale's primary work has already
+    Asks before invoking, and a decline is respected (no failure) and logged
+    with its cause. A configured-but-missing or non-executable script is
+    logged and skipped rather than failing — bale's primary work has already
     succeeded by the time this runs, and a broken hook shouldn't unwind it.
 
-    `no_interact` (BALE.md §5.4 / §8.7) replaces the prompt with a configured
-    decision: apply.hook_auto_accept = true accepts; anything else declines,
-    matching the prompt's historical decline default. Either way the
-    bypassed prompt logs the decision taken and its source — the mode source
-    in `no_interact_source` plus where the hook_auto_accept value came from
-    (config layer, or the built-in default when unset). The apply pipeline is
-    the only caller that passes the mode; pack- and handoff-side post_pack
-    invocations keep the interactive contract unchanged.
+    The banner (hook, script, cwd, env, warning) always prints, so a
+    terminal or a CI capture carries what would have run. After it, the
+    decision takes one of three paths:
+
+    1. `no_interact` (BALE.md §5.4 / §8.7) replaces the prompt with a
+       configured decision: apply.hook_auto_accept = true accepts; anything
+       else declines, matching the prompt's historical decline default.
+       Either way the bypassed prompt logs the decision taken and its
+       source — the mode source in `no_interact_source` plus where the
+       hook_auto_accept value came from (config layer, or the built-in
+       default when unset). The apply pipeline is the only caller that
+       passes the mode.
+    2. A pack-side hook (PACK_SIDE_HOOKS: post_pack, from the session pack,
+       `bale handoff`, the context pack, and the pack `bale open` replays)
+       whose stdin is not a terminal (stdin_is_terminal) is not offered
+       the prompt (v0.4.55, session hook-non-tty): no `default:` line, no
+       `run this hook?`, no input() — it declines and logs
+       HOOK_DECLINE_LINE_NOT_A_TERMINAL. No configuration is consulted
+       (apply.hook_auto_accept is the apply pipeline's), `--json` alone
+       changes nothing (json mode only routes the banner and the line to
+       stderr), and nothing is recorded in the acceptance store — the same
+       as an EOF decline. The test lives here, so no caller changes.
+    3. Otherwise — a terminal stdin, or post_apply_pass outside
+       non-interactive mode — the prompt is offered exactly as before.
 
     The prompt's DEFAULT (v0.4.27, board 78) is trust by layer, then by
     bytes: a global-layer hook (the operator's own script under
@@ -5251,6 +5309,13 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
             log(f"[hook {name}] prompt skipped ({no_interact_source}): "
                 f"declined per {reason}; not invoking.")
             return
+    elif name in PACK_SIDE_HOOKS and not stdin_is_terminal():
+        # Path 2 of the docstring: a pack-side prompt with nobody at a
+        # terminal to answer it is not offered. The banner above already
+        # printed; this one fixed line says why nothing ran. Nothing is
+        # read from stdin and nothing is recorded.
+        log(f"[hook {name}] {HOOK_DECLINE_LINE_NOT_A_TERMINAL}")
+        return
     else:
         print(f"  default: {'accept' if default_accept else 'decline'} — "
               f"{default_basis}")
@@ -7082,7 +7147,10 @@ def build_parser() -> argparse.ArgumentParser:
              "--no-include-group) refuses beside it. A configured "
              "post_pack hook is offered after the tarball is written "
              "(v0.4.51), with the session pack's prompt: BALE_TARBALL "
-             "names the context tarball, BALE_SESSION_ID is empty.",
+             "names the context tarball, BALE_SESSION_ID is empty. As on "
+             "every pack-side path, the prompt is offered only when stdin "
+             "is a terminal; otherwise the hook is declined without it, "
+             "and the log line says so.",
     )
     p_pack.add_argument(
         "--slug", default=None,

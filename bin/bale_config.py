@@ -3316,7 +3316,7 @@ def walk_configurables(existing: dict, *, layer: str,
         kind="script path",
         summary=(
             "Script bale runs after `bale pack` writes a request tarball "
-            "(bale asks before running it)."
+            "(bale asks first on a terminal; piped, it declines)."
         ),
         current=current,
         inherited=inh,
@@ -3324,10 +3324,13 @@ def walk_configurables(existing: dict, *, layer: str,
             "Optional. Enter to skip; you can wire one up later.",
             "Script invoked after `bale pack` successfully writes the",
             "request tarball and acquires the session lock. Bale prompts",
-            "before running it. Use cases: copying the tarball path to",
-            "the clipboard, opening the outbox in a file manager,",
-            "uploading the tarball somewhere, pinging chat — anything",
-            "you'd run on a fresh request landing on disk.",
+            "before running it when stdin is a terminal; with stdin not",
+            "a terminal (piped, CI, `bale open` under automation) it",
+            "declines without prompting and logs why. Use cases: copying",
+            "the tarball path to the clipboard, opening the outbox in a",
+            "file manager, uploading the tarball somewhere, pinging",
+            "chat — anything you'd run on a fresh request landing on",
+            "disk.",
             path_hint,
         ],
     )
