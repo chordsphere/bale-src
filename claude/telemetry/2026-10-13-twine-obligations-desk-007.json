@@ -1,0 +1,82 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-13-twine-obligations-desk-007",
+  "created_at": "2026-10-13T22:15:02+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-13T22:15:02+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-13-twine-obligations-desk-007.log",
+      "bundle": {
+        "stem": "2026-10-13-bale-twine-obligations-desk",
+        "brief_sha256": "5871d79dafa48817dc2bb6c534be1ddc044d7086fdb9efcf71540068e9031349",
+        "checkpoint_sha256": null,
+        "manifest_sha256": "a2981ea4987313b8350ec877599b9e871daa046b0697ad561cf857103e1e22ea"
+      },
+      "provenance": {
+        "work_class": "meta",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-13T22:15:02+00:00"
+      }
+    },
+    {
+      "at": "2026-10-13T22:17:00+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "abandoned",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-13-twine-obligations-desk-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-13T22:17:00+00:00",
+  "outcome": "unlocked"
+}
