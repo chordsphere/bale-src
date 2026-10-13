@@ -1,0 +1,202 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-13-twine-surface-row-002",
+  "created_at": "2026-10-13T16:48:28+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-13T16:48:28+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/AGENT.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_selfcontainment.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_schema_embeds.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-13-twine-surface-row-002.log",
+      "bundle": {
+        "stem": "2026-10-13-twine-surface-row",
+        "brief_sha256": "c15beaefa06f2cced44d6ed06eaac7f54f758f45a79f22e2a8f8655e5083a5d9",
+        "checkpoint_sha256": "34f4f492a8855f0b6624a473449862de4fde4d7c6257cc51e221ee7f2bc422a8",
+        "manifest_sha256": "a8e57fdd2b9e3fc150d55acc0ea6f37d746e3b089a82f57751ee31a3c051090e"
+      },
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-13T16:48:27+00:00"
+      }
+    },
+    {
+      "at": "2026-10-13T17:19:32+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-13-twine-surface-row-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python3 -B -m unittest tests.test_doc_crossrefs tests.test_sanctioned_pairs tests.test_global_doc_selfcontainment tests.test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "python3 -B -m unittest tests.test_doc_crossrefs tests.test_sanctioned_pairs tests.test_global_doc_selfcontainment tests.test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "AGENT.md 11.7 twine run row verbatim as the table's second row",
+          "AGENT.md 11.7 claude.ai model-string cell verbatim (picker ruling)",
+          "AGENT.md 11.7 old claude.ai model-string cell absent",
+          "AGENT.md 11.7 lead ends on the vendor-token clause verbatim",
+          "TARBALL.md 5.2.2 vendor-token passage verbatim",
+          "TARBALL.md 7.1 PID-namespace paragraph verbatim between its neighbours",
+          "heading lines of docs/AGENT.md and docs/TARBALL.md unchanged",
+          "docs/DOCS.md, docs/CODE.md, docs/PLANNER.md and bin/VERSION byte-identical to the request",
+          "python3 -B -m unittest tests.test_doc_crossrefs tests.test_sanctioned_pairs tests.test_global_doc_selfcontainment tests.test_schema_embeds"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/AGENT.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_selfcontainment.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_schema_embeds.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/AGENT.md",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.52",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "f41c405455a0f1eda48c48c6bf47a5bcd3cb08213ece2a1270c4799f479c65e7",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "22c4f52e73fde726b3ffab8256e2a957a18378093757f8882331315bbb2af82c"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-13-twine-surface-row-002.sh",
+              "sha256": "34f4f492a8855f0b6624a473449862de4fde4d7c6257cc51e221ee7f2bc422a8"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-13T16:48:27+00:00",
+            "base_files": {
+              "docs/AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "docs/TARBALL.md": "f41c405455a0f1eda48c48c6bf47a5bcd3cb08213ece2a1270c4799f479c65e7",
+              "tests/test_doc_crossrefs.py": "500fbb3b648fe12bb2d5c27e690b64f711c946d0575fe32237ec401b28d8385f",
+              "tests/test_global_doc_selfcontainment.py": "ae978d27f7031ffbbea02bd6da13eccff54237d2d3be6b9aaa8f013309c7836c",
+              "tests/test_sanctioned_pairs.py": "4619483d955babf2a91246fbe8591898ede6dacf790a74e8491b71d4b143d32e",
+              "tests/test_schema_embeds.py": "f9b7afbd84345ade5bd771e17bbe5092eeb0d542f72289a1acb24123b618a39e"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The brief's 'one physical line' binds the two table rows; the three prose blocks (the \u00a711.7 lead clause, the \u00a75.2.2 passage, the \u00a77.1 paragraph) are re-wrapped at the files' 70-column width, which the brief permits.",
+            "A 'heading line' is any line matching `#+ ` (a run of #, then a space), fenced examples included; under that reading and the literal one alike, no heading line changed."
+          ],
+          "judgment_calls": [
+            "validation.sh pins bin/VERSION's bytes beside the three untouched docs, so 'no version bump' is a check rather than a promise.",
+            "The response-manifest schema's model_identity description (and its vendored copy in tools/response_lint.py) still names `unknown` as the model token only and gives a picker-spelled example; schemas/ and tools/ are out of scope, so this is a notes.md Proposal, not an edit.",
+            "model_identity is anthropic:claude-opus-5-5: this surface's system prompt carries a model line naming the API string, so the ruling this session landed gives the API spelling."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md (whole)",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5, 6, 7, 8, 9, 10",
+            "DOCS.md (whole)",
+            "tests/test_global_doc_selfcontainment.py (whole)",
+            "tests/test_doc_crossrefs.py (docstring, helpers, pinned constants, test index)",
+            "tests/test_global_doc_noun.py (docstring and deny table)",
+            "tools/craft_response.py (docstring, --write path)",
+            "tools/response_lint.py (docstring)"
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-13-twine-surface-row-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-13-twine-surface-row-002.sh",
+          "sha256": "34f4f492a8855f0b6624a473449862de4fde4d7c6257cc51e221ee7f2bc422a8"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-13T17:19:32+00:00",
+  "outcome": "applied"
+}
