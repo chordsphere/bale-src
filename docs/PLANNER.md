@@ -158,7 +158,7 @@ practice of exercising the planner's half well.
   the worker cannot decline, at context prices. Never state a claim
   about a file or the environment the authoring session hasn't
   verified this sitting; label pre-flight guesses about unread code
-  as guesses.
+  as guesses. A named unknown is not coverage for the unnamed check.
 - **Transported decisions ship verbatim.** A constraint or brief
   passage carrying a prior session's decision or proposal carries
   its text verbatim, never a paraphrase — a paraphrase once
@@ -181,6 +181,11 @@ practice of exercising the planner's half well.
   authored artifact that relies on a hook firing has delegated part
   of its contract to a surface no gate reads and no other
   environment runs.
+- **A directory forecast's width is not licence.** A forecast names
+  existing paths, and a new file is covered by the directory it
+  lands under; what may change under a directory entry is what the
+  brief says may change, and validation proves the rest of the
+  directory untouched.
 - **Open question, noted rather than engraved:** how much of
   `TARBALL.md` §3.4's planner-facing detail should migrate here — a
   charter-widening question deliberately left open for a future
@@ -269,6 +274,29 @@ not an afterthought to the flags. The practices:
 - **Counts name their unit.** A bare number could be tests, rows,
   lines or bytes; a pinned count carries its unit, so the worker and
   the oracle count the same thing.
+- **A brief never names a key it does not pin.** A line like "the
+  capabilities it implements" with no key named is a HOLD waiting to
+  happen: pin the key, or say that any key is accepted.
+- **Name the suite's runner in every brief that asks for the
+  suite.** A worker told to run the suite and not how guesses the
+  runner, and a guessed runner finds a different suite.
+- **Text the worker must carry verbatim rides as fences in the
+  brief.** An archived file shipped with an instruction to extract
+  from it is a paraphrase risk, and on some chat surfaces trips a
+  safeguard outright; the blocks ride in the brief byte-exact, and
+  the archive stays the checkpoint's to compare against.
+- **A brief that asks for a verbatim quote carries the text**, or
+  the request ships the file it is quoted from: a quotation the
+  worker cannot see is a quotation it cannot make.
+- **A brief says what a fixture is and why the operator is blind, in
+  plain words.** The reader may be the operator, who carries the
+  artifact without reading the oracle; a brief that explains its
+  fixtures only by their mechanics explains nothing to the one who
+  pastes it.
+- **Ledger lines carry their verifier.** Each line of a ledger a
+  brief carries names the desk or session id that verified it and a
+  `file:line`, and is re-tagged on re-verification; an untagged line
+  is a claim, not a verified fact.
 - **Unfilled scaffold slots are loud.** A worker-authored brief
   marks anything left for the planner with the sentinel form
   `TARBALL.md` §3.4 names, and fills or removes every such line
@@ -330,6 +358,24 @@ of it, the authoring craft:
   `bale open --dry-run <bundle>` (or `--check` when the oracle is
   slow) before delivery, and a desk with `bin/` in context can still
   dress-rehearse in a scratch repo.
+- **The brief is the contract the oracle grades.** When the two
+  disagree the brief wins and the oracle is amended; write the twin
+  table once, in the brief, and derive the oracle's expectations
+  from it, never beside it.
+- **Rehearse under the sandbox's PID namespace.** The apply sandbox
+  is a PID namespace — the runner can be pid 1, and an inherited
+  process-group id reads as 0 — so an oracle that registers *itself*
+  by process group becomes a session leader first (`os.setsid()`),
+  or registers a child spawned for the purpose;
+  `unshare -rpf --mount-proc` reproduces the fault at the desk.
+- **A gate's fixture builds its specimen off the forecast.** A
+  fixture that exercises a gate never builds its specimen through a
+  surface in the session's own forecast.
+- **A crash in the code under test is the work's failure.** An
+  oracle grades it exit 1, inside its own fixture steps included;
+  only failures of the oracle's own machinery — its controls, git,
+  file setup — exit 2. And no probe that matches a word may see text
+  the fixture itself authored.
 - **A blind checkpoint's dry-run runs before any session exists: no
   sid, no manifest, no own filename.** `bale open` dry-runs the
   oracle before it mints the session, so an oracle that reads its
@@ -472,6 +518,13 @@ traffic — is the contract:
 6. Every fixture defect is a ledger specimen, feeding the standing
    fixture-defect watch and the checkpoint-authoring practice (§4).
 
+A HOLD is ruled from bytes, and the relay block often carries them:
+the failed probes' labels beside the worker's own validation output
+settle many HOLDs — a pure oracle defect, a brief gap, a
+brief/oracle contradiction — without more, and a read-only probe
+over the staging tree settles the rest. Ruling from memory of what
+the oracle was meant to check is the fixture defect's second life.
+
 The rest of the retry follows the wire format: the failure context
 ships into the new request, and the response's `corrects` pointer
 preserves the lineage. HOLD *triage* — correctable versus escalate —
@@ -523,6 +576,10 @@ is orchestration doctrine, §14.
   proceeds, and the ledger records the question as "resolved by
   events" rather than sending it again. Re-asking spends the
   packer's attention on a question that no longer has two answers.
+- **A sitting's `context_included` is its reads.** A read-only pack
+  names what the desk will read and nothing it will not; a design
+  sitting's include set is the record of what its rulings were made
+  from.
 - **Authoring practice accretes into doctrine, or it evaporates.**
   Planner practice keeps living in ephemeral chats until a gate
   refuses. When a sitting resolves an authoring
