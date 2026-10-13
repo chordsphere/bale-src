@@ -488,12 +488,12 @@ forward-looking entry.
 | Command | Purpose | Phase |
 |---------|---------|-------|
 | `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. `--context` writes a session-less context tarball of the current directory's tree instead of a request — no sid, no session, no opener (v0.4.39, §7.8). `--dry-run` rehearses the line instead of packing it: every argv-only gate against the live tree, then stop — exit 0 or the refusing gate's own text — writing nothing (v0.4.45, §7.1's rehearsal paragraph). | v0.0.1 |
-| `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
-| `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The session resolves from the tarball's own `manifest.responds_to` — REQUIRED content of every response manifest — however many sessions are open (v0.4.25, board 71; the same board-51 machinery bare `bale apply` uses), and it must name an open session: a `responds_to` naming a closed session refuses naming the record's last outcome, an unknown sid refuses as unknown to this repo, and an unreadable tarball or manifest refuses naming the file — every resolution refusal fires before any HOLD state is touched, so the held branch and staging survive a wrong tarball. `--sid` is vetting, never required: absent, resolution is artifact-borne; present and equal to `responds_to`, proceed; present and different, refuse naming both sids and the tarball. Since v0.4.51 a tarball argument that does not exist and is named `response-<sid>.tar.gz` or `response-<sid> (N).tar.gz` — the shape the HOLD card's composed line names, the held tarball's next numbered sibling (§8.8) — resolves to the newest `response-<sid>[ (N)].tar.gz` that exists in that path's own directory, by `st_mtime_ns`, logging one line naming both the asked and the resolved file; every later gate then runs on the resolved file as if it had been typed. An exact mtime tie at the newest refuses naming every tied file; no sibling keeps today's not-found refusal byte for byte; a path that exists is always used as given; the search path is never consulted for the sibling (`resolve_retry_sibling`). Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
+| `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). `--cost-file` (v0.4.54) stamps a harness's spend into the attempt it writes, per §5.4. | v0.0.1 |
+| `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The session resolves from the tarball's own `manifest.responds_to` — REQUIRED content of every response manifest — however many sessions are open (v0.4.25, board 71; the same board-51 machinery bare `bale apply` uses), and it must name an open session: a `responds_to` naming a closed session refuses naming the record's last outcome, an unknown sid refuses as unknown to this repo, and an unreadable tarball or manifest refuses naming the file — every resolution refusal fires before any HOLD state is touched, so the held branch and staging survive a wrong tarball. `--sid` is vetting, never required: absent, resolution is artifact-borne; present and equal to `responds_to`, proceed; present and different, refuse naming both sids and the tarball. Since v0.4.51 a tarball argument that does not exist and is named `response-<sid>.tar.gz` or `response-<sid> (N).tar.gz` — the shape the HOLD card's composed line names, the held tarball's next numbered sibling (§8.8) — resolves to the newest `response-<sid>[ (N)].tar.gz` that exists in that path's own directory, by `st_mtime_ns`, logging one line naming both the asked and the resolved file; every later gate then runs on the resolved file as if it had been typed. An exact mtime tie at the newest refuses naming every tied file; no sibling keeps today's not-found refusal byte for byte; a path that exists is always used as given; the search path is never consulted for the sibling (`resolve_retry_sibling`). Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14), `--cost-file` (v0.4.54, §5.4) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
 | `bale amend-checkpoint <file> --sha256 <hex> [--sid]` | Commit a desk-published amendment over an open session's blind checkpoint — the operator half of the bad-oracle correction flow (PLANNER.md §5 steps 4–5) as one command (board 53). Resolves the sole open scoped session (`--sid` picks when several; read-only sessions are structurally invisible — empty forecast, checkpoint waived), reads the amendment LF-normalized (CRLF→LF at the ingest edge, board 50), verifies it against the mandatory published sha256, commits the bytes at the per-sid checkpoint path (pathspec-limited, `bale:`-prefixed subject), and ends its report with the paste-ready `bale retry <held-tarball's next numbered sibling> --accept-checkpoint-change --sid <sid>` line as its named successor (the sibling since v0.4.51, §8.8) — fully composed from the HOLD-time `held_tarball` stamp (§3.4; v0.4.25, board 71), zero placeholders, on both rungs, re-stating every admission the held apply exercised from the HOLD-time `held_admissions` stamp (v0.4.37, board 110); a session with no stamp degrades loudly to the placeholder form with one line saying why, never omitting the successor, and a session with no readable admissions stamp gets one line saying they could not be recovered. Identical committed bytes are the idempotent re-run; committed bytes matching neither the session's pack-time stamp nor the amendment refuse loudly unless `--accept-unaccounted-oracle` deliberately admits the replacement (per-invocation, FORCE-logged naming all three hashes). The verb mechanizes the transport, never the deliberateness: the provenance gate still refuses at retry, the accept stays per-invocation, and `stamp_matched: false` remains the truthful record. See §5.7. | v0.4.17 |
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
-| `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
+| `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16), `--json` (v0.3.18) and `--cost-file` (v0.4.54) per §5.4; flow in §9.3. | v0.0.5 |
 | `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags supplied from member presence and `pre_answered` intents on the in-process channel. bale open parses and gates the stored argv — every argv-only pack gate since v0.4.45 (the flag pairs, the brief and checkpoint reads, the pre-exchange pass with its include-naming checkpoint gate, the supersession guards, forecast existence and disjointness) — before the checkpoint dry-run, so an argv defect refuses without spending the oracle. Two rehearsals stop part-way and write nothing (v0.4.45, §6.7): `--check` stops after the gates, `--dry-run` after the checkpoint dry-run (exit 0 on an oracle exit 0 or 1, nonzero on 2). A second open of a bundle whose session is still open records a further desk on that session instead of opening a new one (v0.4.44, §6.7). `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). `--json` (v0.4.48) per §6.7. The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal verbatim and — since v0.4.28 (board 73, ADR-0015) — its recorded write forecast exactly, including a recorded `[]` (a read-only parent resumes read-only). The bailout's reading plan is the read set only: its files ship in `context/` and gate nothing. `--write` / `--read-only` override the inheritance with pack's grammar and refusals (the case where the bailing worker's `handoff.md` argues the ask changed); a missing or unreadable parent record falls back to the reading-plan file set — the whole tree when the plan cites nothing — as an *undeclared* forecast that takes the bare-pack rule (v0.4.9), and the summary's `inherited:` row names which branch fired beside the goal. Runs pack's gates, one implementation each, pre-sid so a refusal consumes nothing: the ADR-0015 forecast-disjointness gate (§7.1 step 5 — admitted beside open sessions whose forecasts are disjoint, which is what makes the command reachable under an always-open read-only master; refused on intersection with handoff's own remedies, never `--supersedes`), the checkpoint blindness gate (§7.1 step 4b, §11 row 30; `--allow-checkpoint-in-scope` admits, FORCE-logged and stamped), and for a `{sid}` base the resolved-existence gate, whose first-named remedy `--checkpoint-file` the command now accepts with pack's one-run install; an empty forecast waives it (§8.5). Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24). Until 0.4.27 handoff refused while any session was open, forecast its reading plan's file set, and lacked the flag family — ADR-0007's shape, which the ADR-0015 flip had not reached on this path. | v0.0.6 |
 | `bale relay <sid> [<file\|->]` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the positional surface is exactly `<sid> [<file\|->]` — the file argument is optional since v0.4.22 (board row 60; ADR-0017 Notes), and the no-file form re-emits the latest recorded round's block read-only. `--json` (v0.4.48) per §5.8. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
@@ -697,6 +697,33 @@ The following flags apply across multiple commands:
   that runs when the flag is absent). An explicit reason beats
   unlock's read-only inference; revert without the flag records
   null.
+- `--cost-file <path>` — on `bale apply`, `bale retry` and `bale
+  unlock` (v0.4.54, session cost-mirror): stamp a harness's record of
+  what the worker run spent into the telemetry cost block of the
+  attempt this invocation writes (§8.9). The file is bale's shape, not
+  the harness's: one UTF-8 JSON object over the cost keys —
+  `tokens_in`, `tokens_out`, `calls` (non-negative integers), `usd`
+  (a non-negative number), `model_tier` (a string), `models` (an
+  array of non-empty strings) — any subset, each nullable, an omitted
+  key recorded null. Written by the harness that hosted the worker,
+  never by hand. Resolved like apply's tarball argument (cwd, then
+  `apply.search_paths`; an absolute path bypasses the search). A
+  missing, unreadable, empty or non-object file, an unknown key or a
+  wrong-typed value refuses before the verb changes anything — no
+  attempt appended, the session as it was; under `--json` unlock's
+  refusal line carries reason `cost-file`, and apply and retry refuse
+  like their other pre-pipeline refusals (stderr, nothing on stdout).
+  Apply and retry stamp whichever attempt the invocation writes
+  (applied, held, reverted, bailout, a gate refusal, rejected); a
+  clarification or a `--dry-run` writes no attempt, so the validated
+  file is logged as not stamped. Unlock stamps the closing attempt of
+  the session it closes (a run that stopped or was abandoned before
+  any response); the flag is refused beside `--integration`, and the
+  no-op unlock logs it as not stamped. Per invocation, like every
+  apply flag: a retry stamps the spend of the run behind its own
+  tarball. `bale revert` takes no such flag — the held attempt's
+  spend already rode its apply — and there is no stamp-later verb:
+  records are additive and never edited after the fact.
 - `--staging-dir <path>` — override the default
   `<repo>/.bale/staging/<sid>/` location (section 8.3). The override
   is used verbatim — no `<sid>` suffix — and refused if it exists.
@@ -3818,7 +3845,28 @@ short-lived `.bale/sessions/<sid>/` directory:
   no second backfill era, and cost coverage spans every session
   exit — the apply-only corpus lesson applied in advance. Write-only
   at S5 per the ratified deferral: the `bale stats` read side lands
-  when data accrues;
+  when data accrues. v0.4.54 (session cost-mirror) gives the block
+  its input and two more keys: `--cost-file <path>` on `bale apply`,
+  `bale retry` and `bale unlock` (§5.4) hands bale one JSON object
+  over the cost keys, validated by `read_cost_file`
+  (`bin/bale_report.py`) before the verb changes anything and stamped
+  into the attempt that invocation writes, an omitted key null; the
+  block gains `calls` (integer or null) and `models` (array of
+  non-empty strings or null — the mechanical home for the exact model
+  string a harness-hosted worker cannot see), and the all-null
+  default carries all six keys. The arithmetic from a harness's token
+  classes to these fields is the harness's, by the schema's
+  definition: `tokens_in` is every token the model read as prompt,
+  cache hits and cache writes included; `tokens_out` every token it
+  generated, thinking included; `usd` the run's cost in dollars;
+  `calls` the number of model calls; `models` the exact model
+  strings used, sorted and unique; `model_tier` stays an
+  effort-policy allocation, null when the harness has none. The
+  schema pins the shape with `additionalProperties: false`, so a
+  typo'd key is loud; four-key records (v0.4.6–v0.4.53) and
+  pre-v0.4.6 records without the block keep validating. The read
+  side stays deferred: `bale stats`, `bale status` and the session
+  dossier do not read the block;
 - the **claim-basis rows** (v0.4.6, board 10 S5 — the claim-basis
   precedent's measurement gap, closed at the vocabulary level): a
   claim-bearing row anywhere in the record — a `claim_verdict` row,
@@ -4524,6 +4572,17 @@ outcome `unlock-refused`, with a `reason` code from the closed
 vocabulary that docstring owns, beside its unchanged `[bale] error:`
 line on stderr — exit 1 unchanged, no telemetry record, human mode
 byte-identical.
+
+`--cost-file <path>` (v0.4.54, §5.4) is the harness's record of what
+the stopped or abandoned run spent. It is read and validated before
+step 1 — ahead of the registry read, the step-2 pointer clear and the
+step-5 close, the first places unlock changes anything — so a bad file
+refuses (reason `cost-file` under `--json`) with the session still
+open and no attempt appended. On the step-5 path the block rides the
+closing `unlocked` attempt's `cost` (§8.9); the step-2 no-op closes no
+harness-run session, so a valid file is logged as not stamped, and the
+crash-debris record keeps the all-null block. Beside `--integration`
+the flag is refused: that form closes no session.
 
 **`bale unlock --integration`** is the second unlock surface: it
 clears the repo-level integration lock (§8.6) left stale by an

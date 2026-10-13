@@ -87,7 +87,7 @@ UNLOCK_LINE_KEYS = [
 # module so a silent widening or reorder in bin/bale_report.py fails.
 REFUSAL_REASONS = (
     "hold-branch", "not-open", "several-open", "not-a-repo",
-    "integration-json",
+    "integration-json", "cost-file",
 )
 
 ERROR_PREFIX = "[bale] error: "
@@ -368,6 +368,28 @@ class UnlockJsonTest(unittest.TestCase):
                 open_sessions=[sid],
                 error_starts="`bale unlock --integration --json`")
 
+    # -- pinned behavior 6b: a bad --cost-file refuses, with a line ------
+
+    def test_cost_file_refusal_line(self) -> None:
+        """v0.4.54 (session cost-mirror): a --cost-file that cannot be
+        stamped refuses before the registry changes, and under --json
+        the line carries reason cost-file, the sid as typed and the open
+        sids — the session is still open and no unlock attempt was
+        written. The shape cases live in tests/test_cost_file_flag.py;
+        this one pins the code's reachability through the CLI."""
+        sid = self.packed_sid(self.pack())
+        bad = self.tmp / "cost.json"
+        bad.write_text('{"tokens_in": "lots"}\n', encoding="utf-8")
+        result = self.unlock(sid, "--cost-file", str(bad), "--json")
+        self.assert_refusal_line(
+            result, reason="cost-file", sid=sid, open_sessions=[sid],
+            error_starts=f"cost file {bad} refused: 'tokens_in' must be "
+                         f"a non-negative integer or null")
+        self.assertEqual(self.open_sids(), [sid],
+                         msg="a refusal closes nothing")
+        self.assertEqual(self.unlock_attempts(sid), [],
+                         msg="a refusal appends no attempt")
+
     # -- pinned behavior 7: human mode emits no JSON ---------------------
 
     def test_human_mode_emits_no_json(self) -> None:
@@ -453,7 +475,7 @@ class UnlockJsonTest(unittest.TestCase):
 
     def test_every_reason_code_is_reached(self) -> None:
         """The vocabulary has no dead code: the cases above reach each
-        of the five through the CLI. Pinned as a list so adding a code
+        of the six (cost-file joined at v0.4.54) through the CLI. Pinned as a list so adding a code
         without its case fails here."""
         covered = {
             "hold-branch": "test_hold_branch_refusal_line",
@@ -461,6 +483,7 @@ class UnlockJsonTest(unittest.TestCase):
             "several-open": "test_several_open_refusal_line",
             "not-a-repo": "test_not_a_repo_refusal_line",
             "integration-json": "test_integration_json_refusal_line",
+            "cost-file": "test_cost_file_refusal_line",
         }
         br = _load_module("bale_report")
         self.assertEqual(tuple(covered), br.UNLOCK_REFUSAL_REASONS)
@@ -550,7 +573,8 @@ class UnlockRefusalVocabularyTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.br = _load_module("bale_report")
 
-    def test_vocabulary_is_the_closed_five(self) -> None:
+    def test_vocabulary_is_the_closed_six(self) -> None:
+        # Five at v0.4.47; cost-file joined at v0.4.54 (--cost-file).
         self.assertEqual(self.br.UNLOCK_REFUSAL_REASONS, REFUSAL_REASONS)
 
     def test_docstring_lists_every_code(self) -> None:
