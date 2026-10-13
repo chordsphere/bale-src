@@ -1,0 +1,220 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-13-planner-practices-004",
+  "created_at": "2026-10-13T19:07:14+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-13T19:07:14+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/PLANNER.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_selfcontainment.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_schema_embeds.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-13-planner-practices-004.log",
+      "bundle": {
+        "stem": "2026-10-13-planner-practices",
+        "brief_sha256": "642f96c9a7d8953ee7aafe8f1d43732cae09b70c5f2ccf3b45ec22de843a5a57",
+        "checkpoint_sha256": "a7556fe15280e40379828b062d851858a82a984decf9c729cbdb12d3b794c525",
+        "manifest_sha256": "29fb6d76e387cdbb26a3c9357d5fd0cd38e64f98b4bd0c626aab66039c2ea75b"
+      },
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-13T19:07:13+00:00"
+      }
+    },
+    {
+      "at": "2026-10-13T21:53:48+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-13-planner-practices-004.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "PLANNER.md: 14 VERBATIM blocks land byte-exact, in section, in order": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "PLANNER.md: heading list unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "docs/DOCS.md and docs/CODE.md unchanged (sha256)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "doc-pin suites (python3 -m unittest, 4 modules)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "PLANNER.md: 14 VERBATIM blocks land byte-exact, in section, in order": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "PLANNER.md: heading list unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "docs/DOCS.md and docs/CODE.md unchanged (sha256)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc-pin suites (python3 -m unittest, 4 modules)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "PLANNER.md: 14 VERBATIM blocks land byte-exact, in section, in order",
+          "PLANNER.md: heading list unchanged",
+          "docs/DOCS.md and docs/CODE.md unchanged (sha256)",
+          "doc-pin suites (python3 -m unittest, 4 modules)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/PLANNER.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_selfcontainment.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_schema_embeds.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [
+        "docs/PLANNER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.53",
+            "contract_docs": {
+              "AGENT.md": "31dcdded2a8fd175f7778c2bd1be09688e89e76b8fd4cd62b7646aacfa2782c4",
+              "TARBALL.md": "3037b905ee561af44f27cc83ec45d832feb7d429a98d4e07b4482a518cda6e94",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "22c4f52e73fde726b3ffab8256e2a957a18378093757f8882331315bbb2af82c"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-13-planner-practices-004.sh",
+              "sha256": "a7556fe15280e40379828b062d851858a82a984decf9c729cbdb12d3b794c525"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-13T19:07:13+00:00",
+            "base_files": {
+              "docs/PLANNER.md": "22c4f52e73fde726b3ffab8256e2a957a18378093757f8882331315bbb2af82c",
+              "tests/test_doc_crossrefs.py": "500fbb3b648fe12bb2d5c27e690b64f711c946d0575fe32237ec401b28d8385f",
+              "tests/test_global_doc_selfcontainment.py": "ae978d27f7031ffbbea02bd6da13eccff54237d2d3be6b9aaa8f013309c7836c",
+              "tests/test_sanctioned_pairs.py": "4619483d955babf2a91246fbe8591898ede6dacf790a74e8491b71d4b143d32e",
+              "tests/test_schema_embeds.py": "f9b7afbd84345ade5bd771e17bbe5092eeb0d542f72289a1acb24123b618a39e"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The twine-surface-row session has landed: the request's AGENT.md and TARBALL.md hashes equal the provenance contract_docs stamps, and TARBALL.md 7.1 already carries the PID-namespace worker paragraph the brief says that session lands."
+          ],
+          "judgment_calls": [
+            "Wrapped every landed block to 68 columns, the file's effective wrap width (only 7 of the core's 660 lines run past 68), breaking only at spaces outside backtick spans and never on hyphens, so whitespace folding restores each block byte-exact.",
+            "Block 1 rewraps nothing above it: the appended sentence fits on the bullet's former last line ('  as guesses. A named unknown ...' is exactly 68 columns).",
+            "Kept 'unshare -rpf --mount-proc' unbroken on its own continuation line in block 10 rather than split the code span across lines; the preceding line runs short as a result.",
+            "The heading-list and DOCS.md/CODE.md hash checks pass on the unmodified tree by design: they guard the brief's untouched-outcome constraints rather than test the change; only the block check is change-detecting."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through 11.2, and 11.7's surface table",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5 (5.1-5.4, 5.10), 7, 10.1 and 10.4",
+            "DOCS.md META, INDEX, 6.4, 9",
+            "PLANNER.md in full (the target)",
+            "tests/test_doc_crossrefs.py, test_sanctioned_pairs.py, test_global_doc_selfcontainment.py, test_schema_embeds.py: every PLANNER.md pin, by grep with context",
+            "tools/craft_response.py module docstring; tools/response_lint.py import surface",
+            "schemas/response-manifest.schema.json self_reported definition"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-10-13-planner-practices-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-13-planner-practices-004.sh",
+          "sha256": "a7556fe15280e40379828b062d851858a82a984decf9c729cbdb12d3b794c525"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-13T21:53:48+00:00",
+  "outcome": "applied"
+}
