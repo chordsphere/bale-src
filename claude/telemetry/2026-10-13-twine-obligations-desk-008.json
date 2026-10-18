@@ -74,7 +74,8 @@
       "clarification": {
         "rounds": 0,
         "records": []
-      }
+      },
+      "swept_by": "2026-10-18-generalize-ironwood-001"
     }
   ],
   "updated_at": "2026-10-18T02:45:00+00:00",
