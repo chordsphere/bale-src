@@ -385,8 +385,9 @@ pointer with no matching open marker (the benign half-state an
 interrupted pack can leave, §9.3).
 
 `.bale/` is gitignored. The git-init walkthrough adds it to
-`.gitignore` automatically. The tool offers to add it on any first
-invocation in a repo that doesn't have the entry.
+`.gitignore` automatically. On a first pack or handoff the tool asks
+git whether `.bale/` is already ignored from any source and adds the
+entry to `.gitignore` only when nothing ignores it (§7.1 step 6).
 
 There's also one piece of *per-install* user state, distinct from
 per-project: `<install>/user/`. It holds the global (install-wide)
@@ -460,8 +461,9 @@ Beyond git, bale assumes:
 
 - A writable `.bale/` at the repo root (bale creates it on first
   use).
-- Either `.gitignore` already has `.bale/`, or bale appends it (with
-  one-line user confirmation).
+- Either git already ignores `.bale/` — through `.gitignore`,
+  `.git/info/exclude`, or a `core.excludesFile` — or bale appends it
+  to `.gitignore` with a logged note.
 - A writable `.baleignore` (optional; user-managed) for project-
   specific exclusions during pack.
 
@@ -1720,10 +1722,22 @@ The configured checkpoint is auto-excluded from the shipped context of every pac
    session, `--read-only` or the wizard's read-only answer — §7.2,
    v0.3.15) intersects nothing: the gate admits any pack alongside
    it, and admits it alongside any open session.
-6. Ensure `.bale/` exists and is in `.gitignore`. If `.gitignore`
-   exists but doesn't list `.bale/`, bale appends `.bale/` to it with
-   a single-line user confirmation in interactive mode (or auto-
-   appends with a logged note in piped mode).
+6. Ensure git ignores `.bale/`. Bale asks git — `git check-ignore -v
+   -- .bale/`, the trailing slash because a directory-only pattern
+   does not match a bare `.bale` that does not exist yet — rather than
+   reading any ignore file. When `.bale/` is already ignored from any
+   source (a tracked `.gitignore`, `.git/info/exclude`, a
+   `core.excludesFile`) bale writes nothing and commits nothing, and
+   says so in one log line naming the source: a tracked `.gitignore`
+   belongs to the project's audience (0.4.56). Only when nothing
+   ignores it does bale append `.bale/` to `.gitignore` (creating the
+   file when absent) with a logged note — the single-line interactive
+   confirmation remains a later enhancement; when the tree is
+   otherwise clean the change is committed as
+   `bale: ignore .bale/`, and when it is dirty the change is left
+   uncommitted with a warning. When git cannot answer (exit 128, no
+   git on PATH) bale logs that and the `.gitignore` text decides, as
+   before 0.4.56.
 
 **Rehearsal (`bale pack --dry-run`, v0.4.45, board row 122).** With
 `--dry-run`, pack runs the steps above that only read — the path and

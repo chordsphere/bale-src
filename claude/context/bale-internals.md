@@ -124,8 +124,12 @@ is *for* — and stays stable as the per-section line numbers drift:
    helpers (`resolved_scope`, `scope_paths_intersect`,
    `scope_intersection`, `read_session_scope`) both disjointness
    gates read.
-7. **`.gitignore` for `.bale/`.** Bale auto-appends `.bale/` to
-   `.gitignore` on first `pack` if missing.
+7. **`.gitignore` for `.bale/`.** On a first `pack` or `handoff` bale
+   asks git whether `.bale/` is already ignored from any source
+   (`git check-ignore -v -- .bale/`, trailing slash on purpose) and
+   leaves `.gitignore` alone when it is; only when nothing ignores it
+   does bale append `.bale/` to `.gitignore` (0.4.56). When git cannot
+   answer, that is logged and the `.gitignore` text decides.
 8. **Path safety + inbound path resolution.** `refuse_system_dir()`,
    `is_path_safe()`, and — since v0.3.13, moved from the old
    apply-helpers section — `resolve_inbound_path()`, the shared

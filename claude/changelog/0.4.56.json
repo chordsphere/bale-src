@@ -1,0 +1,13 @@
+{
+  "record_version": 1,
+  "version": "0.4.56",
+  "session_id": "2026-10-28-gitignore-already-ignored-001",
+  "at": "2026-10-28T05:06:47+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale",
+      "change": "ensure_bale_gitignored asks git (git check-ignore -v -- .bale/) before touching .gitignore: a repo that already ignores .bale/ from any source gets no .gitignore write and no 'bale: ignore .bale/' auto-commit on its first pack or handoff, and the log line '.bale/ is already ignored (<source>); leaving .gitignore alone' names the source; when git cannot answer the log says so and the .gitignore text decides as before. New module-level helper git_check_ignore(repo, path) and constant BALE_DIR_IGNORE_QUERY (additive)."
+    }
+  ],
+  "notes": "Behavioral, not a schema change: consumers that prepare clones with .bale/ in .git/info/exclude (the office's projects add --prepare) no longer see a tracked .gitignore written by bale's first pack."
+}
