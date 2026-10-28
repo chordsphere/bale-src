@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
-# Blind checkpoint - session gitignore-already-ignored (bale-src), version 1.
+# Blind checkpoint - session gitignore-already-ignored (bale-src), version 2.
 # Authored 2026-10-28 by sitting 2026-10-28-bale-on-its-first-pack-in-a-clone-bale-sitting-001,
 # from the request, before any implementation existed.
+# Amended 2026-10-28 by the same sitting after the HOLD on response
+# 2026-10-28-gitignore-already-ignored-001: version 1's "tree clean" probe
+# read every untracked path as the work's, and bale pack also leaves
+# claude/telemetry/<sid>.json untracked in the repo it packs (it did so
+# under shipped 0.4.55 too, and failed in the unchanged-path scenario B).
+# Only that probe changed: it now asks whether .gitignore is left modified
+# or uncommitted. Every other line is byte-identical to version 1.
 #
 # Outcome contract only: what must be true of the applied tree. The cwd
 # is the staged tree. Exit 0 = every probe passed; 1 = at least one probe
@@ -18,7 +25,8 @@
 # and must come out with no new commit and their .gitignore untouched
 # (or still absent); the third ignores nothing and must come out with
 # .bale/ in .gitignore and the commit "bale: ignore .bale/" at HEAD, as
-# today. HOME is pointed at an empty directory for every git and bale
+# today. What else pack leaves untracked (.bale/, claude/telemetry/) is
+# bale's footprint and not graded here. HOME is pointed at an empty directory for every git and bale
 # call, so the operator's own global excludes cannot leak into a repo.
 set -u
 exec python3 -I -B - <<'ORACLE'
@@ -146,6 +154,14 @@ def porcelain(repo):
     return r.stdout
 
 
+def gitignore_status_lines(repo):
+    """The porcelain lines that name .gitignore: a modification left
+    uncommitted, or a new .gitignore not committed. Other untracked
+    paths (.bale/, claude/telemetry/) are pack's own footprint."""
+    return [ln for ln in porcelain(repo).splitlines()
+            if ln.split(None, 1)[-1].strip() == ".gitignore"]
+
+
 def run_pack(repo):
     argv = [sys.executable, str(BALE), "pack", "fixture goal for the oracle",
             "--slug", "ckpt-fixture", "--include", "README.md",
@@ -208,11 +224,11 @@ def expect_untouched(label, repo, before_gitignore):
                "subjects, newest first: " + " | ".join(subjects))
     else:
         passed(f"{label}: no commit made")
-    dirty = porcelain(repo)
-    if dirty.strip():
-        failed(f"{label}: the tree is not clean after pack", dirty)
+    stray = gitignore_status_lines(repo)
+    if stray:
+        failed(f"{label}: .gitignore is modified or uncommitted after pack", "\n".join(stray))
     else:
-        passed(f"{label}: tree clean")
+        passed(f"{label}: .gitignore not left modified or uncommitted")
 
 
 def expect_guard_fires(label, repo):
@@ -237,11 +253,11 @@ def expect_guard_fires(label, repo):
                "subjects, newest first: " + " | ".join(subjects))
     else:
         passed(f"{label}: auto-commit at HEAD")
-    dirty = porcelain(repo)
-    if dirty.strip():
-        failed(f"{label}: the tree is not clean after pack", dirty)
+    stray = gitignore_status_lines(repo)
+    if stray:
+        failed(f"{label}: .gitignore is modified or uncommitted after pack", "\n".join(stray))
     else:
-        passed(f"{label}: tree clean")
+        passed(f"{label}: .gitignore not left modified or uncommitted")
 
 
 def main():
