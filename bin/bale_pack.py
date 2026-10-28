@@ -6800,11 +6800,15 @@ def cmd_pack(args: argparse.Namespace) -> int:
         caps_kwargs["max_depth"] = args.max_depth
     caps = PackCaps(**caps_kwargs)
 
-    # Ensure .bale/ is in .gitignore before we start writing under it. If we
-    # had to modify .gitignore and the tree is otherwise clean, auto-commit
-    # the change so `bale apply` doesn't trip on the dirty tree later. If
-    # the tree is dirty for other reasons, just warn — the user is mid-WIP
-    # and we shouldn't entangle our setup commit with their work.
+    # Ensure git ignores .bale/ before we start writing under it. The guard
+    # asks git (0.4.56): a repo that already ignores .bale/ from any source
+    # (a tracked .gitignore, .git/info/exclude, a core.excludesFile) gets
+    # no .gitignore write and no commit. Only when nothing ignores it is
+    # .bale/ appended to .gitignore; if the tree is otherwise clean the
+    # change is auto-committed so `bale apply` doesn't trip on the dirty
+    # tree later, and if the tree is dirty for other reasons we just warn —
+    # the user is mid-WIP and we shouldn't entangle our setup commit with
+    # their work.
     gitignore_changed = ensure_bale_gitignored(repo)
     if gitignore_changed:
         r = git(["status", "--porcelain"], cwd=repo)

@@ -1722,21 +1722,108 @@ def release_integration_lock(repo: Path) -> None:
 # 7. .gitignore handling for the .bale/ directory
 # ---------------------------------------------------------------------------
 
+# The path the guard asks git about. The trailing slash is load-bearing:
+# a directory-only pattern such as `.bale/` (the line bale writes, and the
+# line the office's `projects add --prepare` puts in .git/info/exclude)
+# does not match a bare `.bale` that does not exist yet, and on a first
+# pack the directory does not exist. `git check-ignore .bale/` matches
+# either spelling of the pattern whether or not the directory is there
+# (verified against git 2.43.0 in the 0.4.56 session).
+BALE_DIR_IGNORE_QUERY = ".bale/"
+
+
+def git_check_ignore(repo: Path, path: str) -> tuple[Optional[bool], str]:
+    """Ask git whether `path` is ignored in `repo`, from any source.
+
+    Runs `git check-ignore -v -- <path>` and reads the exit code, never an
+    ignore file: 0 means ignored, 1 means not ignored, and anything else
+    means git could not answer (128 is git's own error exit; a missing git
+    binary raises FileNotFoundError, caught here). Returns a pair: the
+    verdict — True, False, or None when git could not answer — and a
+    detail string. For True the detail names the matching rule as `-v`
+    prints it (`<source>:<line>:<pattern>`, e.g.
+    `.git/info/exclude:7:.bale/`), so a caller's log line can say where
+    the ignore comes from; for None it says what went wrong, so the
+    caller can log that before it falls back. For False it is empty.
+
+    The source `-v` names is whichever file holds the deciding rule — a
+    .gitignore at any level, .git/info/exclude, or the core.excludesFile
+    (git's default `$XDG_CONFIG_HOME/git/ignore` included) — which is
+    exactly why the question goes to git rather than to a file read: no
+    single file knows the answer.
+    """
+    try:
+        r = run(["git", "check-ignore", "-v", "--", path],
+                cwd=repo, check=False)
+    except FileNotFoundError:
+        return None, "git not found on PATH"
+    if r.returncode == 0:
+        # `<source>:<linenum>:<pattern>\t<pathname>`; keep the rule, drop
+        # the echoed path. An exit 0 with no line should not happen, but a
+        # verdict with no source is still a verdict.
+        first = (r.stdout or "").splitlines()[:1]
+        rule = first[0].split("\t", 1)[0].strip() if first else ""
+        return True, rule or "an ignore rule git did not name"
+    if r.returncode == 1:
+        return False, ""
+    err = " ".join((r.stderr or "").split()) or "no message"
+    return None, f"git check-ignore exited {r.returncode}: {err}"
+
+
 def ensure_bale_gitignored(repo: Path) -> bool:
-    """Append .bale/ to repo's .gitignore if it isn't already there.
+    """Make sure git ignores .bale/; write .gitignore only when nothing does.
 
-    Returns True if the file was modified (so the caller can decide whether
-    to auto-commit), False if no change was needed.
+    Asks git (git_check_ignore) whether `.bale/` is already ignored from
+    any source — a tracked .gitignore, .git/info/exclude, a
+    core.excludesFile. When it is, nothing is written and one log line
+    says so, naming the source: a tracked .gitignore belongs to the
+    project's audience, and a clone whose owner already prepared
+    .git/info/exclude keeps it untouched (0.4.56; before that the guard
+    decided from the .gitignore text alone and so re-added `.bale/` to a
+    repo that ignored it elsewhere). When nothing ignores it, `.bale/` is
+    appended to .gitignore — created when absent — as before.
 
-    Per BALE.md section 7.1 step 6. v0.0.1 appends silently with a log line;
-    interactive confirmation is a later enhancement.
+    When git cannot answer (exit 128, no git on PATH) that is logged and
+    the pre-0.4.56 rule decides from the .gitignore text alone; never a
+    silent skip, never a silent "treat as ignored".
+
+    Returns True if .gitignore was modified (so the caller can decide
+    whether to auto-commit), False if no change was needed. Both callers,
+    `bale pack` (bale_pack.cmd_pack) and `bale handoff` (cmd_handoff),
+    run the same auto-commit block on True; the decision lives here once
+    so the two cannot drift apart.
+
+    Per BALE.md section 7.1 step 6. Appends with a log line; interactive
+    confirmation is a later enhancement.
     """
     gi = repo / ".gitignore"
     needle = ".bale/"
+    verdict, detail = git_check_ignore(repo, BALE_DIR_IGNORE_QUERY)
+    if verdict is True:
+        log(f"{needle} is already ignored ({detail}); leaving .gitignore "
+            f"alone")
+        return False
+    lines: list[str] = []
     if gi.exists():
         lines = [ln.rstrip("\n") for ln in gi.read_text().splitlines()]
-        if needle in lines or ".bale" in lines:
+    listed = needle in lines or ".bale" in lines
+    if verdict is None:
+        log(f"could not ask git whether {needle} is ignored ({detail}); "
+            f"deciding from the .gitignore text alone")
+        if listed:
+            log(f"{gi} already lists {needle}; leaving it alone")
             return False
+    elif listed:
+        # git says not ignored although .gitignore lists it: a later
+        # negation, most likely, and the project's own doing. Appending a
+        # duplicate line on every pack would be the one thing worse than
+        # saying so and leaving the file alone.
+        log(f"note: {gi} lists {needle} but git does not ignore it (a "
+            f"later negation?); leaving .gitignore alone")
+        return False
+    # Nothing ignores .bale/ (or git could not say and .gitignore does not
+    # list it): append the line, the pre-0.4.56 behavior.
+    if gi.exists():
         with gi.open("a", encoding="utf-8") as f:
             if lines and lines[-1] != "":
                 f.write("\n")
@@ -4463,8 +4550,9 @@ def cmd_handoff(args: argparse.Namespace) -> int:
 
     # Same .bale/ gitignore guard `bale pack` runs. handoff writes under
     # .bale/ before there's any session id, so the directory must already
-    # be excluded; otherwise our staging artifacts leak into the user's
-    # next commit.
+    # be ignored; otherwise our staging artifacts leak into the user's
+    # next commit. The guard asks git (0.4.56): a repo that already
+    # ignores .bale/ from any source is left alone, .gitignore included.
     gitignore_changed = ensure_bale_gitignored(repo)
     if gitignore_changed:
         r = git(["status", "--porcelain"], cwd=repo)
