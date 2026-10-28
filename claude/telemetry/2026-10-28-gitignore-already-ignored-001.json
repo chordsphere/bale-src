@@ -1,0 +1,851 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-28-gitignore-already-ignored-001",
+  "created_at": "2026-10-28T04:49:38+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-28T04:49:38+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/bale-internals.md",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-28-gitignore-already-ignored-001.log",
+      "bundle": {
+        "stem": "2026-10-28-gitignore-already-ignored",
+        "brief_sha256": "b882f14da2f3d8239c77605e24275e8437a8880aebcbccc94879920a84f0810e",
+        "checkpoint_sha256": "3a45c5c629ff94ba56502a2c342f49419d0904a33aa3f4f5c457d97e2ddc2843",
+        "manifest_sha256": "55ff0a8c908c099decf23615335a9e4d4b408f7e047f9aeb5ce8eeb0a18a5bbf"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-28T04:49:37+00:00"
+      }
+    },
+    {
+      "at": "2026-10-28T05:26:11+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-28-gitignore-already-ignored-001.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "bin/bale is executable": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "bin/VERSION reads 0.4.56": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "changelog record claude/changelog/0.4.56.json is well-formed": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "guard asks git: ensure_bale_gitignored calls git_check_ignore and bin/ has exactly two callers": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "docs state the new rule (bale-internals.md section 7 line, BALE.md 7.1 step 6)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "staged bale pack: already-ignored clone (.git/info/exclude) writes no .gitignore and no commit": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "staged bale pack: nothing ignores .bale/ appends it to .gitignore and commits bale: ignore .bale/": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "python3 -m unittest discover -s tests": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "bin/bale is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/VERSION reads 0.4.56": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "changelog record claude/changelog/0.4.56.json is well-formed": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "guard asks git: ensure_bale_gitignored calls git_check_ignore and bin/ has exactly two callers": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "docs state the new rule (bale-internals.md section 7 line, BALE.md 7.1 step 6)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bale pack: already-ignored clone (.git/info/exclude) writes no .gitignore and no commit": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bale pack: nothing ignores .bale/ appends it to .gitignore and commits bale: ignore .bale/": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 -m unittest discover -s tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (py, json, md)",
+          "bin/bale is executable",
+          "bin/VERSION reads 0.4.56",
+          "changelog record claude/changelog/0.4.56.json is well-formed",
+          "guard asks git: ensure_bale_gitignored calls git_check_ignore and bin/ has exactly two callers",
+          "docs state the new rule (bale-internals.md section 7 line, BALE.md 7.1 step 6)",
+          "staged bale pack: already-ignored clone (.git/info/exclude) writes no .gitignore and no commit",
+          "staged bale pack: nothing ignores .bale/ appends it to .gitignore and commits bale: ignore .bale/",
+          "python3 -m unittest discover -s tests"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/bale-internals.md",
+        "tests"
+      ],
+      "overridden_paths": [
+        "claude/changelog/0.4.56.json"
+      ],
+      "overridden_path_sources": {
+        "claude/changelog/0.4.56.json": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "claude/changelog/0.4.56.json",
+        "claude/context/bale-internals.md",
+        "tests/test_gitignore_guard.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.55",
+            "contract_docs": {
+              "AGENT.md": "31dcdded2a8fd175f7778c2bd1be09688e89e76b8fd4cd62b7646aacfa2782c4",
+              "TARBALL.md": "3037b905ee561af44f27cc83ec45d832feb7d429a98d4e07b4482a518cda6e94",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "a8e5714e51049768e52bb5bc0ede9338db1175e7095d9b2bdd0d314ab3e01078"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-28-gitignore-already-ignored-001.sh",
+              "sha256": "3a45c5c629ff94ba56502a2c342f49419d0904a33aa3f4f5c457d97e2ddc2843"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-28T04:49:37+00:00",
+            "base_files": {
+              "BALE.md": "c8b244ed75d180c2cba75df86cd0e46013952066f72896aed9072cb2117da3cc",
+              "bin/VERSION": "07d6c12306b34e5e81c44a255d4f31f8ee96be4fbcccee2789cc4c03b6a2db0b",
+              "bin/_bale_toml.py": "5c56a796187ff12d2e9a55fec2336b9634cbcb3478b907a1c1fc17ac22d7bdb3",
+              "bin/bale": "0bec41c9ea9afbaefa21fbc910d86de3e57087874cf5ac55bd13f6635a6f51a3",
+              "bin/bale_apply.py": "cdcea05d6264212dd2b6f5203df2424184ed7f405b35dfdc411d22d1709d498d",
+              "bin/bale_config.py": "68992ab036f8adf371ebf27a3c087b4436b3152b39eece5d1e8e37ecf1284d1e",
+              "bin/bale_open.py": "3d66f553811f065d44ccd84db2f7853fd588f6d514ef4823c79d306b1da3aaef",
+              "bin/bale_pack.py": "d8b85caf30c617b0155bb1cebc496a7123f65f21e33aed33b34e158a6e8f4c8c",
+              "bin/bale_relay.py": "c8d4e7dce763c6b0f8af69c271a0546acc97c74d17e22757d8c93798861bb0c1",
+              "bin/bale_report.py": "dc9fdc6971f4c8a32ecf0b72ef8fae3054e6b6124749fb8c27c9fc281f4e684a",
+              "bin/bale_rollback.py": "f34bb1b05c1f8e3b3899cd19161173c3cf53b18378e099a39e55b79c89094383",
+              "bin/bale_sandbox.py": "e2950ff6f736b02b564ef7d532c022279488da7703f5a339aebcd0109989b744",
+              "bin/bale_staging.py": "e0a1ea3897f20495c16f63cd37e71998922693753dcd162e88328e42a4103a89",
+              "bin/bale_stats.py": "72f4c9a6b267d313c803b9aa332e64b86ae4dd7e497258e108223f1e8c3d302e",
+              "bin/bale_validate.py": "c67ed5358eacaa2a698de081271bf00ab75b513ad2d52a17969a3988277dc8c4",
+              "bin/bale_wizard.py": "53c4641fc0f8a5d631009d09c652cab0e0cf5ef7ef67c4b8815ad4f310d2f053",
+              "claude/context/bale-internals.md": "4aea7162bb6f80b662a721dde7c9307561186f81ceadde18bc400b2b5fc80d84",
+              "tests/__init__.py": "0c44c07eb437099ccf549130ff801e000c31117eefaabca2ae20373f88606802",
+              "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json": "4317724352498ade052ad09c5ccf0b8b24e6f38a4e60b41ad1216ae0afee34a9",
+              "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json": "21bdafc2b26e0321ce28517c1100db942c528ea000d338f2704032192d06cc60",
+              "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json": "b91344cadfaf3b2d0e9846a7d2900096a0beb595b3e5feea01b6e2aaeacf9044",
+              "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json": "e63c78ba4988d0495c3e1312acd73fe2ef30cd78f4ca5ca17f5308c1219f4248",
+              "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json": "01e652a0c65d6d2682d56c045d9be8e1b58ab855ed33e6f50fb89af69d8e689d",
+              "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json": "885794e43cfeaad9b1167d428a3df206997ca8aba26bb59618f3d6001335e0b9",
+              "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json": "7015bbbd2cccb5de0115234d886c0365b440a270aeeb20c8295ce95734d8cc3b",
+              "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json": "eff576f01a3a04389b075f01f87785b85ef9cae0feabc0bd329a5a6eca42e5b3",
+              "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json": "0f6d8c0114e0ab61f067f72cdb2c3de45e31f41d05a71b698b5647a449f1e8e4",
+              "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json": "89b6b8b654d08f94634bbdc25dab5b7e39274875ec4ba2bdaed5664086a8acdc",
+              "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json": "11c4e47974cb6d72a6386303381f80b23f890e0fb7114c3426e8be52664fee45",
+              "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json": "cfc2d3243735b03fb0ef270d6ca662d5071cded88a864a9b7ab4349e734b3005",
+              "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json": "6bc97496e34d24aa944c9529d5ed7a2baf616f8f87cef5772a7aabea5600eb78",
+              "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json": "42664288d9a387c5d28667d17388b734211133cab36587d82e824272ef57239d",
+              "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json": "acff85466fea6b23e3ef4ecfdd2ea5cd824afeb7b8bf5fb644f0df4ebbcbad92",
+              "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json": "3181d4dc92910184725e2457845e3b0288bdab76df4ddfec6973c9800d5a1771",
+              "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json": "618224af3eef6f2ae4d0ea43097da46de3e318d2bda8ce1c718a0f739baf836c",
+              "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json": "cb46c8944b345533b8fea2a507623a710ef9e63ee73e3580e2f722bddc9a7691",
+              "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json": "06b770b2ada1f3a16fbc7db26000aea24ceafe5376d46a29003e138bcbd2a36a",
+              "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json": "3196136fdd9b06525a2209891cb2f9cdca0fd351cfcac975124f844f62aa4001",
+              "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json": "bf8004cc11324a7acbbb1edf209f31bdd3274c19c1f176dbebe9c3c6d55e42fe",
+              "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json": "68d42658ce69d884e705392d0f44ede04ee4dbbd9a368698692fcf30817c5c48",
+              "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json": "e1789ddf0921a01eedff7cbfce3385e728ff93495f4afebb7db6dac55c30af30",
+              "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json": "4f5ae47ea3d6941f982f8041fd3c839b214dd8509f63c25c87f256be47b5c6d4",
+              "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json": "35de4cfff3a04288b66743d66c31cbcae6128bf6404d86d78683b592808c3f5c",
+              "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json": "ad4f4a5e7d39ba584d6b0fcfea165358b1eb023f6074b7a5bed2237bea26a1a1",
+              "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json": "248676259e7ac3d2d9840c9dd6247371ff3b9147652c4f0c63884520125bfcab",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-docs-read-002.json": "0f2e4a0165fa4123aee88f0a88a6cbd68d4ce9ac376e28d96b3f85c1ae62ea19",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-handoff-origin-001.json": "7d1779afb4224f1aa1bc32410f85a370949b77521f69d7bc7a0a2711e23c2e32",
+              "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json": "1ad193e48c41da122f2f252fbe151d6dd19b65641c29ce9b3690d58ff2a6e458",
+              "tests/fixtures/stats_corpus/corrupt-record.json": "8e7d39b0534ad73130ea8a52903c20cf2851b5cbd76c49c124b81fc3d15027da",
+              "tests/harness.py": "4c2db6c2a599f5c5ae32cdd727d637a5e756dd0d35354fbb0d6f0c72d509638e",
+              "tests/test_admission_prompts.py": "683606ce60d21e555d7ddbe937b3b1bc3611318d7872579523e03153faea67f9",
+              "tests/test_admission_prompts_e2e.py": "d6b999b59bb4fa736a779b27a6b61ba85fc74130c48099411cc3b9e0e4dfaa2d",
+              "tests/test_amend_checkpoint.py": "d76176496f90e6fbb68ce88bbff0a624ed3b2b1b6f7343af8b95f06c7b4a9494",
+              "tests/test_apply_operations.py": "1fe89ee34ee9d9ada86041e1a8cee828c072d1ccb920eddf7761712022dab410",
+              "tests/test_apply_preflight.py": "1b89a0d40403dbdccf867d36bdd21c2d18089e5d1119f7b04ec8643912e2c220",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_base_drift.py": "1c2619900161d56dada5725ac8e760c25b68924c94ff0da5f154506cc17926b1",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_bundle_denylist.py": "ac8b3cf17be4794cadd7e5c2b84c84b6c2f331660ea815a2c5151fda8c6cd440",
+              "tests/test_bundle_manifest.py": "4d43e4edb9b513fb95eaf3496823cf8ea985dc948607e6efff1892e5162bd0a2",
+              "tests/test_changelog_record.py": "4c341a8b6d39d0a9b069096bb12e607a7cb8b005d72ba35b569a396bbf0d6ef5",
+              "tests/test_checkpoint_file_flag.py": "ba3af9027573055fc6a098ce9c499d8fc8025d4d763a80759c286273d630e2e6",
+              "tests/test_checkpoint_provenance.py": "3a5ec190d58ae465037d575539b65a3811f91ae89796099edba4358c43cfeda2",
+              "tests/test_clarification_status.py": "d63031badeba9e55c043381c0efe3c0cbc6807a0d1c9e0aff942faa3242c4464",
+              "tests/test_cli_help.py": "8b9e2413bae2cc903172b6600060e9d66780879c0023cde46680157296427d76",
+              "tests/test_cli_reference.py": "c99983171c671e83ac16eed985213f6e172ff60afc2f27fccb3d83a92cbb4ea6",
+              "tests/test_clipboard_key_rename.py": "3908bc98f62038ac1cf597754776af5be44fb2c4e4fde6a22484f372e972b177",
+              "tests/test_clipboard_paste_blocks.py": "cd34dd31107346dc7c8287c956a9f62051ec37645983f83f706ba17ebbc07331",
+              "tests/test_clock_discipline.py": "9d8ee645be9307f364596eb1f92f1b16acddd916c327a2c92df26d6492583165",
+              "tests/test_closure_telemetry.py": "40538646717a5ab860103a4abbb312db1c834056c9fb17f02953b7a994ef4411",
+              "tests/test_context_pack.py": "11355775ca5d1b85511f6d937c91cdfc47d1aeb62e532bb273b14267c754ba0a",
+              "tests/test_contract_verb.py": "ab404abde7aa8f52b29cbe7ca1290a2ceed1d35226aa301beca7b3345113fafe",
+              "tests/test_cost_file_flag.py": "1575fa455d69c432c6e2362192d32a0ff27862382aeaf773f84d556f8560f6b8",
+              "tests/test_craft_response.py": "6a3b2283d1f8624f4619221e4f5c47906c6021f08a7f1e21dd59e3c200c59ce6",
+              "tests/test_crlf_tolerance.py": "2ed4dbecbd928ca4de2cfacce55ebf6d35cd32dc6bf88f79adfa837a38cde94e",
+              "tests/test_doc_crossrefs.py": "500fbb3b648fe12bb2d5c27e690b64f711c946d0575fe32237ec401b28d8385f",
+              "tests/test_dotted_run_form.py": "ce5b7c303857d3ff61aba0b6d362961318f9b9068cba0dd9dd3952336f1a3a6c",
+              "tests/test_escalation_schemas.py": "513669f7bdcadef54415003f90b3f10ad1aadcf14817b9e930d5046b13555d04",
+              "tests/test_exchange_record.py": "a7a108ee4827067e1bfd5dfb2aaab342e2acd8efcf8d00adddfe2b2ac132e4ac",
+              "tests/test_forecast_ledger.py": "084b61d2a6643dc6710c02eb906ef2f050d7d771d4bb9c2a3804102ab0646e5a",
+              "tests/test_global_doc_noun.py": "199484749cfc804de5d8fff5347caea574ba46395a5755cbf2c38c9dfc063f26",
+              "tests/test_global_doc_selfcontainment.py": "ae978d27f7031ffbbea02bd6da13eccff54237d2d3be6b9aaa8f013309c7836c",
+              "tests/test_handoff_checkpoint_gates.py": "59e4e48abb28cc4dd79eb85441ea3c3d011dd41470658faa8b37cae55de6ceeb",
+              "tests/test_handoff_fixture.py": "ba6184dc8a5a654cd27b93eae9e7450f7318b5e0fae6176a44e4f18043979252",
+              "tests/test_handoff_forecast.py": "f7a4c926e103bccb30734480c67ecf128338c0a48bef982127180c7f0eb953cc",
+              "tests/test_handoff_happy.py": "c05e1a99fe840c373d69ece9286e943afb362f82fef9f7a5b1215ed661cfb652",
+              "tests/test_handoff_registry_gate.py": "b2fe8f31072bb89bb9c1ff3b69217fbd80ba086e0a4a28aa38e1f2898280de23",
+              "tests/test_harness_cli_loader.py": "649fadbc43c1690d87d62d862bc4cc1caacade1969a84c89e6792d473fef0110",
+              "tests/test_hold_retry_e2e.py": "9f44d514d68fb218945cea320f6872924ac6022ff309e27b2a3b328e9a2e1cc9",
+              "tests/test_hook_acceptance.py": "7c3b59342bac15d98f4478d6873aae2a7353e1625a88b8bab05382b5000fc101",
+              "tests/test_hook_non_tty.py": "0b0e64d8bd1e470d9328bb7a8eaa4af9f6d0b26c23fa5a4bb425f7d1e09da4dc",
+              "tests/test_include_group.py": "e6ef53519d2c3c28616d62bd00427e56af2d7aeceb6717e8071ada0eea665bec",
+              "tests/test_install_precheck.py": "f1efa65094b0081d04f97c4c51472aead85bfab9202cb35fe27a759a11712335",
+              "tests/test_layout_and_formats.py": "2e4811e1cd3d2055ff26e8d88ffb19fae6790d1286ff097af9064e0c34a65387",
+              "tests/test_lint_clock_and_prefix.py": "79d3a7484281d1c8ac9f541651aa9563524d6bc32cfb078714a3778f8448c8b4",
+              "tests/test_open_relay_json.py": "92170d3e4ec968918d83d64f4cda772b76da99eb5ae24e36c97ee4eb28ea2ada",
+              "tests/test_open_verb.py": "5ef26ea4ad88d341d1400a0a48893064b12218fed1722f424172ede556184b64",
+              "tests/test_pack_guards.py": "1ecc5570a040ffa0bd0ff78dead4c4c580166063627012752d95a4d434f1096a",
+              "tests/test_pack_opener.py": "2862c2b34cfc0bae7813ca9fb57355b15576284aacf5e9515299c9194c0432d5",
+              "tests/test_pack_telemetry_104b.py": "fd406074a46bcc83bc9f87d09fd3b183fedbbbd4766cfd514f22235d9b9e759b",
+              "tests/test_pack_wizard_ui.py": "bb4ce24e2ba6dcc7fab511c04e192f1ccc6383feddec60bfca662d7fccc6d8e2",
+              "tests/test_per_sid_checkpoint.py": "bcbc077906e7e8b524bfdb450d799ba04ee5407ad34c685c99e4d03d1bff5c72",
+              "tests/test_planner_admission.py": "fa0b3e9c247cb9567ea6def0c36589d3786876d31f0baf0ba1656e148a6d9731",
+              "tests/test_pre_answered_intents.py": "922018b9f7396388a405d21b6feea94832cf95ff568069fc269ae5599006a199",
+              "tests/test_probe_clipboard_config.py": "4a847ee68f391e714d87d32fb20e1ee3aba23839437f5ad372b3133f379b3142",
+              "tests/test_provenance_at_open.py": "26698c79a2477ce9f879c2feb12869f5df9b7f37d18952e394b878a4bf3ab3d5",
+              "tests/test_readme_identity.py": "d950c764d4976bf60d895903be18a9d57c9455c23f0600b9d15f6b56d7687aa6",
+              "tests/test_readonly_pack.py": "05aae135b6c6a328c86bfcd63473039b0b592773d20cac9386b7b8049817cd65",
+              "tests/test_refusal_codes.py": "463a0285b6f02e9dea1822878ed0517c0e3e709042233d6f74ebfa83a4dc8d48",
+              "tests/test_rehearsal_verbs.py": "41088634c897f85c47c40c9a1ee28af65cc657ca7e7acdc3871cbb706c710e08",
+              "tests/test_relay_verb.py": "f9174987e4811a1d6bbff88aa35c340b42a93fd80da724ae195f5ffa223321b3",
+              "tests/test_release_packaging.py": "d08bbb8e64a823410e7f08e9330faaf98169790040ee10b9f2bd38776664fcd4",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_response_lint.py": "f87f7b98657ce93dce887eb3839b577a952cfc7ddf6f8d721dd9b89c01d9a166",
+              "tests/test_revert_json.py": "358b531a9576a89eea39971aaca4b7f8b6c5d3eb61c362f5feedc72c4f61f262",
+              "tests/test_rollback_telemetry.py": "b1d51a5924c2604f48c7de138577649c6b48e1b876cbef037b4b525893a28f5e",
+              "tests/test_sanctioned_pairs.py": "4619483d955babf2a91246fbe8591898ede6dacf790a74e8491b71d4b143d32e",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6",
+              "tests/test_schema_embeds.py": "f9b7afbd84345ade5bd771e17bbe5092eeb0d542f72289a1acb24123b618a39e",
+              "tests/test_slow_gate.py": "0c90b8673ddc07ec58df2827bd409ce219569e32a3f0d8b06f205db6fda3374b",
+              "tests/test_stats_aggregation.py": "46fe0c4af5880647c7402b35efbeb42d5aa2dfb32c7f8e90e065d99eeddc5001",
+              "tests/test_stats_compaction.py": "87a984e77f34025e7af8d1f9d860d6e35ab0e5ba13b54b6b37e0f6658dbea2c8",
+              "tests/test_stats_drilldown.py": "936ed0d8c4ab4141d392ecb589df76c0ff6c6e7feabd7ac32db9b290d8e4ea18",
+              "tests/test_stats_linkage.py": "8c65d70681646e43e45bc088896c7b859f7d37bba950cb4970429d8d2648ce8f",
+              "tests/test_supersession_pack.py": "902e838d420567055ae06b120607cc05cb58ade02c6d77420a1b6c1078642a66",
+              "tests/test_telemetry_extensions.py": "dbe224896fd989a57c1eaeb5214679aa61f5b39954cd305cf02878c3785d052e",
+              "tests/test_telemetry_fields_wave1.py": "2a7fae230920f3a1a5bab3af5ce026b9f05d42f43880aee82282722c3cae6a62",
+              "tests/test_telemetry_promotion.py": "3aac77cbbe031b716ef8f44a0f9f3297cdac4730b82671dfa2460a7ebba9b5c0",
+              "tests/test_thread_status.py": "cc77b708af9111327e72b3fca17ad1c23262de8cb6fdc276e1a5ab5fddf7e107",
+              "tests/test_tree_position_echo.py": "e85a4168f099ef2e6dd85245475ab7828ee9fc6f6da37bc3f349e0da6c5e5246",
+              "tests/test_unlock_json.py": "a83feaaca398817ff4346087a29d6ee8e21cdf5d517f633a42c49ab08884be08",
+              "tests/test_upgrade_required_members.py": "2d1c3f9f3f7aeb6fe60aa29a24b176ef77f8443c9ded40e8cce9d49bcffb2223",
+              "tests/test_verbose_thread.py": "d3172d9a392532a3249ec70747856aa15b02c3d808e835c586f0c967f0acb0a7",
+              "tests/test_wizard_ui.py": "93c7138a9fa249fdce27cd7d2424fc727501d993ad54933e510e0c99f216f238",
+              "tests/test_write_forecast.py": "ceced962e27ba328a64e82f87d1e8ee1cc5818a7a9cb8e29e674302976088c52"
+            },
+            "model_identity": "anthropic:claude-fable-5-1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The suite could not be executed in this session: bin/ shipped two of its fourteen modules, so bin/bale cannot import. The unittest claim is predicted from (a) the in-process class run here against the real bin/bale with name-only stubs for the missing siblings, (b) the helper extracted from bin/bale by AST and exercised against real git repos on every branch, and (c) the E2E fixtures being lifted from tests/test_pack_guards.py and tests/test_handoff_happy.py. validation.sh runs the full suite in staging.",
+            "The changelog record follows schemas/changelog-record.schema.json and its description's Python-side rules; neither tests/test_changelog_record.py nor a prior record shipped, so the shape the test pins beyond the schema is assumed to be the schema's.",
+            "Row 1's 'tree as clean after the pack as before' is read as 'nothing about .gitignore in git status': a session open writes claude/telemetry/<sid>.json on the tracked side (BALE.md 8.9), untracked until the user's next commit, so an empty porcelain after a first pack is not achievable and the tests and validation.sh assert the .gitignore half."
+          ],
+          "judgment_calls": [
+            "Kept ensure_bale_gitignored's name, signature, return value and both call sites; the question to git lives in a new module-level helper git_check_ignore(repo, path) -> (verdict, detail) beside it, so the cannot-answer branch is unit-testable in-process with run patched, and BALE_DIR_IGNORE_QUERY names the slashed query once.",
+            "When git says not ignored although .gitignore already lists .bale/ (a later negation line), the guard logs a note and leaves the file alone rather than append a duplicate line and a commit on every pack; the old code also wrote nothing there.",
+            "The tests went into a new module, tests/test_gitignore_guard.py, rather than tests/test_pack_guards.py, whose docstring is about caps, excludes and prompts and whose gitignore cases are about the --verbose drop line; one fixture base serves the pack, handoff and in-process classes.",
+            "Both callers' comments were trued up to the new rule, so bin/bale_pack.py changes in comment only; bale_pack.py's own context-pack check-ignore call (around line 6079) was left as is rather than rerouted through the new helper.",
+            "BALE.md's two other sentences stating the old rule were updated beside step 6, and step 6 now says the append carries a logged note: the interactive confirmation it described never existed (the helper's own docstring calls it a later enhancement).",
+            "validation.sh packs two throwaway repos with the staged bin/bale (the checkpoint's shape, written independently) in addition to running the suite, so rows 1 and 2 are checked by the response's own script even if a test fixture is wrong."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_config.py",
+            "bin/bale_apply.py",
+            "bin/bale_report.py",
+            "bin/bale_validate.py",
+            "bin/bale_stats.py",
+            "bin/bale_rollback.py",
+            "bin/bale_open.py",
+            "bin/bale_relay.py",
+            "bin/_bale_toml.py",
+            "bin/bale_staging.py",
+            "bin/bale_sandbox.py",
+            "bin/bale_wizard.py",
+            "tests/test_changelog_record.py",
+            "claude/changelog/0.4.55.json"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through section 11.2",
+            "README.md (the brief, in full)",
+            "TARBALL.md sections 1, 2, 3, 4, 5, 7, 10 (read in full)",
+            "OFFICE.md section 4 (context tarball context-doctrine)",
+            "office-src-install templates walkthrough.md and delivery.md (context tarball)",
+            "home-office folder.md, profile.md, handbook/README.md, floor-plan/survey.md (context tarball)",
+            "BALE.md sections 6 and 7.1 step 6, and section 8.9 on the telemetry record",
+            "claude/context/bale-internals.md section 7 and the bale_pack paragraph",
+            "docs/CODE.md section 8.5",
+            "schemas/changelog-record.schema.json",
+            "schemas/response-manifest.schema.json feedback block",
+            "tests/harness.py",
+            "tests/test_pack_guards.py (fixture base and gitignore cases)",
+            "tests/test_handoff_happy.py",
+            "BALE_HELP.md (searched for gitignore)",
+            "tools/craft_response.py and tools/response_lint.py (headers and --help)",
+            "bin/bale sections 3 and 7, cmd_handoff; bin/bale_pack.py cmd_pack's guard call and the context-pack check-ignore"
+          ],
+          "forecast_departures": [
+            {
+              "path": "claude/changelog/0.4.56.json",
+              "why": "Brief row 7 asks for bin/VERSION 0.4.56 with its changelog record; records live at claude/changelog/<version>.json (schemas/changelog-record.schema.json, CODE.md 8.5), outside the forecast bin tests BALE.md claude/context/bale-internals.md."
+            }
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-28-gitignore-already-ignored-001.log",
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-10-28-gitignore-already-ignored-001.sh",
+          "sha256": "3a45c5c629ff94ba56502a2c342f49419d0904a33aa3f4f5c457d97e2ddc2843"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    },
+    {
+      "at": "2026-10-28T05:31:41+00:00",
+      "outcome": "rejected",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-10-28-gitignore-already-ignored-001.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/bale-internals.md",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-28-gitignore-already-ignored-001.log",
+      "cause": "[REJECT] blind checkpoint changed since pack (board 6 provenance contract): the base-tree bytes about to run \u2014 'claude/checkpoints/2026-10-28-gitignore-already-ignored-001.sh' at main's tip (0e42c4a), sha256 07f51aa0a0fc \u2014 do not match the request's pack-time provenance stamp: the request stamped sha256 3a45c5c629ff for this path. The oracle changed between pack and apply; a legitimate planner edit and interference look identical from here, and either is worth stopping for. Remedies: re-pack against the current tip so the session runs under the oracle the planner ratified; or accept the change deliberately with --accept-checkpoint-change (per-invocation), which executes the current base-tree version \u2014 the planner's latest committed oracle, never the stale stamped bytes \u2014 logs a FORCE: line, and records stamp_matched: false in the attempt's telemetry stamp."
+    },
+    {
+      "at": "2026-10-28T05:38:55+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-10-28-gitignore-already-ignored-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "bin/bale is executable": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "bin/VERSION reads 0.4.56": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "changelog record claude/changelog/0.4.56.json is well-formed": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "guard asks git: ensure_bale_gitignored calls git_check_ignore and bin/ has exactly two callers": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "docs state the new rule (bale-internals.md section 7 line, BALE.md 7.1 step 6)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "staged bale pack: already-ignored clone (.git/info/exclude) writes no .gitignore and no commit": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "staged bale pack: nothing ignores .bale/ appends it to .gitignore and commits bale: ignore .bale/": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "python3 -m unittest discover -s tests": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "bin/bale is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/VERSION reads 0.4.56": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "changelog record claude/changelog/0.4.56.json is well-formed": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "guard asks git: ensure_bale_gitignored calls git_check_ignore and bin/ has exactly two callers": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "docs state the new rule (bale-internals.md section 7 line, BALE.md 7.1 step 6)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bale pack: already-ignored clone (.git/info/exclude) writes no .gitignore and no commit": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bale pack: nothing ignores .bale/ appends it to .gitignore and commits bale: ignore .bale/": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 -m unittest discover -s tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (py, json, md)",
+          "bin/bale is executable",
+          "bin/VERSION reads 0.4.56",
+          "changelog record claude/changelog/0.4.56.json is well-formed",
+          "guard asks git: ensure_bale_gitignored calls git_check_ignore and bin/ has exactly two callers",
+          "docs state the new rule (bale-internals.md section 7 line, BALE.md 7.1 step 6)",
+          "staged bale pack: already-ignored clone (.git/info/exclude) writes no .gitignore and no commit",
+          "staged bale pack: nothing ignores .bale/ appends it to .gitignore and commits bale: ignore .bale/",
+          "python3 -m unittest discover -s tests"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/bale-internals.md",
+        "tests"
+      ],
+      "overridden_paths": [
+        "claude/changelog/0.4.56.json"
+      ],
+      "overridden_path_sources": {
+        "claude/changelog/0.4.56.json": "flag"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null,
+        "calls": null,
+        "models": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "claude/changelog/0.4.56.json",
+        "claude/context/bale-internals.md",
+        "tests/test_gitignore_guard.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.55",
+            "contract_docs": {
+              "AGENT.md": "31dcdded2a8fd175f7778c2bd1be09688e89e76b8fd4cd62b7646aacfa2782c4",
+              "TARBALL.md": "3037b905ee561af44f27cc83ec45d832feb7d429a98d4e07b4482a518cda6e94",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "a8e5714e51049768e52bb5bc0ede9338db1175e7095d9b2bdd0d314ab3e01078"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-28-gitignore-already-ignored-001.sh",
+              "sha256": "3a45c5c629ff94ba56502a2c342f49419d0904a33aa3f4f5c457d97e2ddc2843"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-28T04:49:37+00:00",
+            "base_files": {
+              "BALE.md": "c8b244ed75d180c2cba75df86cd0e46013952066f72896aed9072cb2117da3cc",
+              "bin/VERSION": "07d6c12306b34e5e81c44a255d4f31f8ee96be4fbcccee2789cc4c03b6a2db0b",
+              "bin/_bale_toml.py": "5c56a796187ff12d2e9a55fec2336b9634cbcb3478b907a1c1fc17ac22d7bdb3",
+              "bin/bale": "0bec41c9ea9afbaefa21fbc910d86de3e57087874cf5ac55bd13f6635a6f51a3",
+              "bin/bale_apply.py": "cdcea05d6264212dd2b6f5203df2424184ed7f405b35dfdc411d22d1709d498d",
+              "bin/bale_config.py": "68992ab036f8adf371ebf27a3c087b4436b3152b39eece5d1e8e37ecf1284d1e",
+              "bin/bale_open.py": "3d66f553811f065d44ccd84db2f7853fd588f6d514ef4823c79d306b1da3aaef",
+              "bin/bale_pack.py": "d8b85caf30c617b0155bb1cebc496a7123f65f21e33aed33b34e158a6e8f4c8c",
+              "bin/bale_relay.py": "c8d4e7dce763c6b0f8af69c271a0546acc97c74d17e22757d8c93798861bb0c1",
+              "bin/bale_report.py": "dc9fdc6971f4c8a32ecf0b72ef8fae3054e6b6124749fb8c27c9fc281f4e684a",
+              "bin/bale_rollback.py": "f34bb1b05c1f8e3b3899cd19161173c3cf53b18378e099a39e55b79c89094383",
+              "bin/bale_sandbox.py": "e2950ff6f736b02b564ef7d532c022279488da7703f5a339aebcd0109989b744",
+              "bin/bale_staging.py": "e0a1ea3897f20495c16f63cd37e71998922693753dcd162e88328e42a4103a89",
+              "bin/bale_stats.py": "72f4c9a6b267d313c803b9aa332e64b86ae4dd7e497258e108223f1e8c3d302e",
+              "bin/bale_validate.py": "c67ed5358eacaa2a698de081271bf00ab75b513ad2d52a17969a3988277dc8c4",
+              "bin/bale_wizard.py": "53c4641fc0f8a5d631009d09c652cab0e0cf5ef7ef67c4b8815ad4f310d2f053",
+              "claude/context/bale-internals.md": "4aea7162bb6f80b662a721dde7c9307561186f81ceadde18bc400b2b5fc80d84",
+              "tests/__init__.py": "0c44c07eb437099ccf549130ff801e000c31117eefaabca2ae20373f88606802",
+              "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json": "4317724352498ade052ad09c5ccf0b8b24e6f38a4e60b41ad1216ae0afee34a9",
+              "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json": "21bdafc2b26e0321ce28517c1100db942c528ea000d338f2704032192d06cc60",
+              "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json": "b91344cadfaf3b2d0e9846a7d2900096a0beb595b3e5feea01b6e2aaeacf9044",
+              "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json": "e63c78ba4988d0495c3e1312acd73fe2ef30cd78f4ca5ca17f5308c1219f4248",
+              "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json": "01e652a0c65d6d2682d56c045d9be8e1b58ab855ed33e6f50fb89af69d8e689d",
+              "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json": "885794e43cfeaad9b1167d428a3df206997ca8aba26bb59618f3d6001335e0b9",
+              "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json": "7015bbbd2cccb5de0115234d886c0365b440a270aeeb20c8295ce95734d8cc3b",
+              "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json": "eff576f01a3a04389b075f01f87785b85ef9cae0feabc0bd329a5a6eca42e5b3",
+              "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json": "0f6d8c0114e0ab61f067f72cdb2c3de45e31f41d05a71b698b5647a449f1e8e4",
+              "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json": "89b6b8b654d08f94634bbdc25dab5b7e39274875ec4ba2bdaed5664086a8acdc",
+              "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json": "11c4e47974cb6d72a6386303381f80b23f890e0fb7114c3426e8be52664fee45",
+              "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json": "cfc2d3243735b03fb0ef270d6ca662d5071cded88a864a9b7ab4349e734b3005",
+              "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json": "6bc97496e34d24aa944c9529d5ed7a2baf616f8f87cef5772a7aabea5600eb78",
+              "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json": "42664288d9a387c5d28667d17388b734211133cab36587d82e824272ef57239d",
+              "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json": "acff85466fea6b23e3ef4ecfdd2ea5cd824afeb7b8bf5fb644f0df4ebbcbad92",
+              "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json": "3181d4dc92910184725e2457845e3b0288bdab76df4ddfec6973c9800d5a1771",
+              "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json": "618224af3eef6f2ae4d0ea43097da46de3e318d2bda8ce1c718a0f739baf836c",
+              "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json": "cb46c8944b345533b8fea2a507623a710ef9e63ee73e3580e2f722bddc9a7691",
+              "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json": "06b770b2ada1f3a16fbc7db26000aea24ceafe5376d46a29003e138bcbd2a36a",
+              "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json": "3196136fdd9b06525a2209891cb2f9cdca0fd351cfcac975124f844f62aa4001",
+              "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json": "bf8004cc11324a7acbbb1edf209f31bdd3274c19c1f176dbebe9c3c6d55e42fe",
+              "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json": "68d42658ce69d884e705392d0f44ede04ee4dbbd9a368698692fcf30817c5c48",
+              "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json": "e1789ddf0921a01eedff7cbfce3385e728ff93495f4afebb7db6dac55c30af30",
+              "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json": "4f5ae47ea3d6941f982f8041fd3c839b214dd8509f63c25c87f256be47b5c6d4",
+              "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json": "35de4cfff3a04288b66743d66c31cbcae6128bf6404d86d78683b592808c3f5c",
+              "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json": "ad4f4a5e7d39ba584d6b0fcfea165358b1eb023f6074b7a5bed2237bea26a1a1",
+              "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json": "248676259e7ac3d2d9840c9dd6247371ff3b9147652c4f0c63884520125bfcab",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-docs-read-002.json": "0f2e4a0165fa4123aee88f0a88a6cbd68d4ce9ac376e28d96b3f85c1ae62ea19",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-handoff-origin-001.json": "7d1779afb4224f1aa1bc32410f85a370949b77521f69d7bc7a0a2711e23c2e32",
+              "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json": "1ad193e48c41da122f2f252fbe151d6dd19b65641c29ce9b3690d58ff2a6e458",
+              "tests/fixtures/stats_corpus/corrupt-record.json": "8e7d39b0534ad73130ea8a52903c20cf2851b5cbd76c49c124b81fc3d15027da",
+              "tests/harness.py": "4c2db6c2a599f5c5ae32cdd727d637a5e756dd0d35354fbb0d6f0c72d509638e",
+              "tests/test_admission_prompts.py": "683606ce60d21e555d7ddbe937b3b1bc3611318d7872579523e03153faea67f9",
+              "tests/test_admission_prompts_e2e.py": "d6b999b59bb4fa736a779b27a6b61ba85fc74130c48099411cc3b9e0e4dfaa2d",
+              "tests/test_amend_checkpoint.py": "d76176496f90e6fbb68ce88bbff0a624ed3b2b1b6f7343af8b95f06c7b4a9494",
+              "tests/test_apply_operations.py": "1fe89ee34ee9d9ada86041e1a8cee828c072d1ccb920eddf7761712022dab410",
+              "tests/test_apply_preflight.py": "1b89a0d40403dbdccf867d36bdd21c2d18089e5d1119f7b04ec8643912e2c220",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_base_drift.py": "1c2619900161d56dada5725ac8e760c25b68924c94ff0da5f154506cc17926b1",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_bundle_denylist.py": "ac8b3cf17be4794cadd7e5c2b84c84b6c2f331660ea815a2c5151fda8c6cd440",
+              "tests/test_bundle_manifest.py": "4d43e4edb9b513fb95eaf3496823cf8ea985dc948607e6efff1892e5162bd0a2",
+              "tests/test_changelog_record.py": "4c341a8b6d39d0a9b069096bb12e607a7cb8b005d72ba35b569a396bbf0d6ef5",
+              "tests/test_checkpoint_file_flag.py": "ba3af9027573055fc6a098ce9c499d8fc8025d4d763a80759c286273d630e2e6",
+              "tests/test_checkpoint_provenance.py": "3a5ec190d58ae465037d575539b65a3811f91ae89796099edba4358c43cfeda2",
+              "tests/test_clarification_status.py": "d63031badeba9e55c043381c0efe3c0cbc6807a0d1c9e0aff942faa3242c4464",
+              "tests/test_cli_help.py": "8b9e2413bae2cc903172b6600060e9d66780879c0023cde46680157296427d76",
+              "tests/test_cli_reference.py": "c99983171c671e83ac16eed985213f6e172ff60afc2f27fccb3d83a92cbb4ea6",
+              "tests/test_clipboard_key_rename.py": "3908bc98f62038ac1cf597754776af5be44fb2c4e4fde6a22484f372e972b177",
+              "tests/test_clipboard_paste_blocks.py": "cd34dd31107346dc7c8287c956a9f62051ec37645983f83f706ba17ebbc07331",
+              "tests/test_clock_discipline.py": "9d8ee645be9307f364596eb1f92f1b16acddd916c327a2c92df26d6492583165",
+              "tests/test_closure_telemetry.py": "40538646717a5ab860103a4abbb312db1c834056c9fb17f02953b7a994ef4411",
+              "tests/test_context_pack.py": "11355775ca5d1b85511f6d937c91cdfc47d1aeb62e532bb273b14267c754ba0a",
+              "tests/test_contract_verb.py": "ab404abde7aa8f52b29cbe7ca1290a2ceed1d35226aa301beca7b3345113fafe",
+              "tests/test_cost_file_flag.py": "1575fa455d69c432c6e2362192d32a0ff27862382aeaf773f84d556f8560f6b8",
+              "tests/test_craft_response.py": "6a3b2283d1f8624f4619221e4f5c47906c6021f08a7f1e21dd59e3c200c59ce6",
+              "tests/test_crlf_tolerance.py": "2ed4dbecbd928ca4de2cfacce55ebf6d35cd32dc6bf88f79adfa837a38cde94e",
+              "tests/test_doc_crossrefs.py": "500fbb3b648fe12bb2d5c27e690b64f711c946d0575fe32237ec401b28d8385f",
+              "tests/test_dotted_run_form.py": "ce5b7c303857d3ff61aba0b6d362961318f9b9068cba0dd9dd3952336f1a3a6c",
+              "tests/test_escalation_schemas.py": "513669f7bdcadef54415003f90b3f10ad1aadcf14817b9e930d5046b13555d04",
+              "tests/test_exchange_record.py": "a7a108ee4827067e1bfd5dfb2aaab342e2acd8efcf8d00adddfe2b2ac132e4ac",
+              "tests/test_forecast_ledger.py": "084b61d2a6643dc6710c02eb906ef2f050d7d771d4bb9c2a3804102ab0646e5a",
+              "tests/test_global_doc_noun.py": "199484749cfc804de5d8fff5347caea574ba46395a5755cbf2c38c9dfc063f26",
+              "tests/test_global_doc_selfcontainment.py": "ae978d27f7031ffbbea02bd6da13eccff54237d2d3be6b9aaa8f013309c7836c",
+              "tests/test_handoff_checkpoint_gates.py": "59e4e48abb28cc4dd79eb85441ea3c3d011dd41470658faa8b37cae55de6ceeb",
+              "tests/test_handoff_fixture.py": "ba6184dc8a5a654cd27b93eae9e7450f7318b5e0fae6176a44e4f18043979252",
+              "tests/test_handoff_forecast.py": "f7a4c926e103bccb30734480c67ecf128338c0a48bef982127180c7f0eb953cc",
+              "tests/test_handoff_happy.py": "c05e1a99fe840c373d69ece9286e943afb362f82fef9f7a5b1215ed661cfb652",
+              "tests/test_handoff_registry_gate.py": "b2fe8f31072bb89bb9c1ff3b69217fbd80ba086e0a4a28aa38e1f2898280de23",
+              "tests/test_harness_cli_loader.py": "649fadbc43c1690d87d62d862bc4cc1caacade1969a84c89e6792d473fef0110",
+              "tests/test_hold_retry_e2e.py": "9f44d514d68fb218945cea320f6872924ac6022ff309e27b2a3b328e9a2e1cc9",
+              "tests/test_hook_acceptance.py": "7c3b59342bac15d98f4478d6873aae2a7353e1625a88b8bab05382b5000fc101",
+              "tests/test_hook_non_tty.py": "0b0e64d8bd1e470d9328bb7a8eaa4af9f6d0b26c23fa5a4bb425f7d1e09da4dc",
+              "tests/test_include_group.py": "e6ef53519d2c3c28616d62bd00427e56af2d7aeceb6717e8071ada0eea665bec",
+              "tests/test_install_precheck.py": "f1efa65094b0081d04f97c4c51472aead85bfab9202cb35fe27a759a11712335",
+              "tests/test_layout_and_formats.py": "2e4811e1cd3d2055ff26e8d88ffb19fae6790d1286ff097af9064e0c34a65387",
+              "tests/test_lint_clock_and_prefix.py": "79d3a7484281d1c8ac9f541651aa9563524d6bc32cfb078714a3778f8448c8b4",
+              "tests/test_open_relay_json.py": "92170d3e4ec968918d83d64f4cda772b76da99eb5ae24e36c97ee4eb28ea2ada",
+              "tests/test_open_verb.py": "5ef26ea4ad88d341d1400a0a48893064b12218fed1722f424172ede556184b64",
+              "tests/test_pack_guards.py": "1ecc5570a040ffa0bd0ff78dead4c4c580166063627012752d95a4d434f1096a",
+              "tests/test_pack_opener.py": "2862c2b34cfc0bae7813ca9fb57355b15576284aacf5e9515299c9194c0432d5",
+              "tests/test_pack_telemetry_104b.py": "fd406074a46bcc83bc9f87d09fd3b183fedbbbd4766cfd514f22235d9b9e759b",
+              "tests/test_pack_wizard_ui.py": "bb4ce24e2ba6dcc7fab511c04e192f1ccc6383feddec60bfca662d7fccc6d8e2",
+              "tests/test_per_sid_checkpoint.py": "bcbc077906e7e8b524bfdb450d799ba04ee5407ad34c685c99e4d03d1bff5c72",
+              "tests/test_planner_admission.py": "fa0b3e9c247cb9567ea6def0c36589d3786876d31f0baf0ba1656e148a6d9731",
+              "tests/test_pre_answered_intents.py": "922018b9f7396388a405d21b6feea94832cf95ff568069fc269ae5599006a199",
+              "tests/test_probe_clipboard_config.py": "4a847ee68f391e714d87d32fb20e1ee3aba23839437f5ad372b3133f379b3142",
+              "tests/test_provenance_at_open.py": "26698c79a2477ce9f879c2feb12869f5df9b7f37d18952e394b878a4bf3ab3d5",
+              "tests/test_readme_identity.py": "d950c764d4976bf60d895903be18a9d57c9455c23f0600b9d15f6b56d7687aa6",
+              "tests/test_readonly_pack.py": "05aae135b6c6a328c86bfcd63473039b0b592773d20cac9386b7b8049817cd65",
+              "tests/test_refusal_codes.py": "463a0285b6f02e9dea1822878ed0517c0e3e709042233d6f74ebfa83a4dc8d48",
+              "tests/test_rehearsal_verbs.py": "41088634c897f85c47c40c9a1ee28af65cc657ca7e7acdc3871cbb706c710e08",
+              "tests/test_relay_verb.py": "f9174987e4811a1d6bbff88aa35c340b42a93fd80da724ae195f5ffa223321b3",
+              "tests/test_release_packaging.py": "d08bbb8e64a823410e7f08e9330faaf98169790040ee10b9f2bd38776664fcd4",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_response_lint.py": "f87f7b98657ce93dce887eb3839b577a952cfc7ddf6f8d721dd9b89c01d9a166",
+              "tests/test_revert_json.py": "358b531a9576a89eea39971aaca4b7f8b6c5d3eb61c362f5feedc72c4f61f262",
+              "tests/test_rollback_telemetry.py": "b1d51a5924c2604f48c7de138577649c6b48e1b876cbef037b4b525893a28f5e",
+              "tests/test_sanctioned_pairs.py": "4619483d955babf2a91246fbe8591898ede6dacf790a74e8491b71d4b143d32e",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6",
+              "tests/test_schema_embeds.py": "f9b7afbd84345ade5bd771e17bbe5092eeb0d542f72289a1acb24123b618a39e",
+              "tests/test_slow_gate.py": "0c90b8673ddc07ec58df2827bd409ce219569e32a3f0d8b06f205db6fda3374b",
+              "tests/test_stats_aggregation.py": "46fe0c4af5880647c7402b35efbeb42d5aa2dfb32c7f8e90e065d99eeddc5001",
+              "tests/test_stats_compaction.py": "87a984e77f34025e7af8d1f9d860d6e35ab0e5ba13b54b6b37e0f6658dbea2c8",
+              "tests/test_stats_drilldown.py": "936ed0d8c4ab4141d392ecb589df76c0ff6c6e7feabd7ac32db9b290d8e4ea18",
+              "tests/test_stats_linkage.py": "8c65d70681646e43e45bc088896c7b859f7d37bba950cb4970429d8d2648ce8f",
+              "tests/test_supersession_pack.py": "902e838d420567055ae06b120607cc05cb58ade02c6d77420a1b6c1078642a66",
+              "tests/test_telemetry_extensions.py": "dbe224896fd989a57c1eaeb5214679aa61f5b39954cd305cf02878c3785d052e",
+              "tests/test_telemetry_fields_wave1.py": "2a7fae230920f3a1a5bab3af5ce026b9f05d42f43880aee82282722c3cae6a62",
+              "tests/test_telemetry_promotion.py": "3aac77cbbe031b716ef8f44a0f9f3297cdac4730b82671dfa2460a7ebba9b5c0",
+              "tests/test_thread_status.py": "cc77b708af9111327e72b3fca17ad1c23262de8cb6fdc276e1a5ab5fddf7e107",
+              "tests/test_tree_position_echo.py": "e85a4168f099ef2e6dd85245475ab7828ee9fc6f6da37bc3f349e0da6c5e5246",
+              "tests/test_unlock_json.py": "a83feaaca398817ff4346087a29d6ee8e21cdf5d517f633a42c49ab08884be08",
+              "tests/test_upgrade_required_members.py": "2d1c3f9f3f7aeb6fe60aa29a24b176ef77f8443c9ded40e8cce9d49bcffb2223",
+              "tests/test_verbose_thread.py": "d3172d9a392532a3249ec70747856aa15b02c3d808e835c586f0c967f0acb0a7",
+              "tests/test_wizard_ui.py": "93c7138a9fa249fdce27cd7d2424fc727501d993ad54933e510e0c99f216f238",
+              "tests/test_write_forecast.py": "ceced962e27ba328a64e82f87d1e8ee1cc5818a7a9cb8e29e674302976088c52"
+            },
+            "model_identity": "anthropic:claude-fable-5-1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The suite could not be executed in this session: bin/ shipped two of its fourteen modules, so bin/bale cannot import. The unittest claim is predicted from (a) the in-process class run here against the real bin/bale with name-only stubs for the missing siblings, (b) the helper extracted from bin/bale by AST and exercised against real git repos on every branch, and (c) the E2E fixtures being lifted from tests/test_pack_guards.py and tests/test_handoff_happy.py. validation.sh runs the full suite in staging.",
+            "The changelog record follows schemas/changelog-record.schema.json and its description's Python-side rules; neither tests/test_changelog_record.py nor a prior record shipped, so the shape the test pins beyond the schema is assumed to be the schema's.",
+            "Row 1's 'tree as clean after the pack as before' is read as 'nothing about .gitignore in git status': a session open writes claude/telemetry/<sid>.json on the tracked side (BALE.md 8.9), untracked until the user's next commit, so an empty porcelain after a first pack is not achievable and the tests and validation.sh assert the .gitignore half."
+          ],
+          "judgment_calls": [
+            "Kept ensure_bale_gitignored's name, signature, return value and both call sites; the question to git lives in a new module-level helper git_check_ignore(repo, path) -> (verdict, detail) beside it, so the cannot-answer branch is unit-testable in-process with run patched, and BALE_DIR_IGNORE_QUERY names the slashed query once.",
+            "When git says not ignored although .gitignore already lists .bale/ (a later negation line), the guard logs a note and leaves the file alone rather than append a duplicate line and a commit on every pack; the old code also wrote nothing there.",
+            "The tests went into a new module, tests/test_gitignore_guard.py, rather than tests/test_pack_guards.py, whose docstring is about caps, excludes and prompts and whose gitignore cases are about the --verbose drop line; one fixture base serves the pack, handoff and in-process classes.",
+            "Both callers' comments were trued up to the new rule, so bin/bale_pack.py changes in comment only; bale_pack.py's own context-pack check-ignore call (around line 6079) was left as is rather than rerouted through the new helper.",
+            "BALE.md's two other sentences stating the old rule were updated beside step 6, and step 6 now says the append carries a logged note: the interactive confirmation it described never existed (the helper's own docstring calls it a later enhancement).",
+            "validation.sh packs two throwaway repos with the staged bin/bale (the checkpoint's shape, written independently) in addition to running the suite, so rows 1 and 2 are checked by the response's own script even if a test fixture is wrong."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_config.py",
+            "bin/bale_apply.py",
+            "bin/bale_report.py",
+            "bin/bale_validate.py",
+            "bin/bale_stats.py",
+            "bin/bale_rollback.py",
+            "bin/bale_open.py",
+            "bin/bale_relay.py",
+            "bin/_bale_toml.py",
+            "bin/bale_staging.py",
+            "bin/bale_sandbox.py",
+            "bin/bale_wizard.py",
+            "tests/test_changelog_record.py",
+            "claude/changelog/0.4.55.json"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through section 11.2",
+            "README.md (the brief, in full)",
+            "TARBALL.md sections 1, 2, 3, 4, 5, 7, 10 (read in full)",
+            "OFFICE.md section 4 (context tarball context-doctrine)",
+            "office-src-install templates walkthrough.md and delivery.md (context tarball)",
+            "home-office folder.md, profile.md, handbook/README.md, floor-plan/survey.md (context tarball)",
+            "BALE.md sections 6 and 7.1 step 6, and section 8.9 on the telemetry record",
+            "claude/context/bale-internals.md section 7 and the bale_pack paragraph",
+            "docs/CODE.md section 8.5",
+            "schemas/changelog-record.schema.json",
+            "schemas/response-manifest.schema.json feedback block",
+            "tests/harness.py",
+            "tests/test_pack_guards.py (fixture base and gitignore cases)",
+            "tests/test_handoff_happy.py",
+            "BALE_HELP.md (searched for gitignore)",
+            "tools/craft_response.py and tools/response_lint.py (headers and --help)",
+            "bin/bale sections 3 and 7, cmd_handoff; bin/bale_pack.py cmd_pack's guard call and the context-pack check-ignore"
+          ],
+          "forecast_departures": [
+            {
+              "path": "claude/changelog/0.4.56.json",
+              "why": "Brief row 7 asks for bin/VERSION 0.4.56 with its changelog record; records live at claude/changelog/<version>.json (schemas/changelog-record.schema.json, CODE.md 8.5), outside the forecast bin tests BALE.md claude/context/bale-internals.md."
+            }
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-28-gitignore-already-ignored-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-28-gitignore-already-ignored-001.sh",
+          "sha256": "07f51aa0a0fc165a90ab19460efb99bd601cca94c5455e3eb2b3f9f0e6448849"
+        },
+        "stamp_matched": false,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-28T05:38:55+00:00",
+  "outcome": "applied"
+}
