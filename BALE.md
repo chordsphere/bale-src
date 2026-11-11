@@ -2891,10 +2891,13 @@ Pipeline steps:
     checks that matter; this gate converts a floor of that declaration
     to contract — partially, since name membership cannot verify a
     check's content, which stays review policy. A declared check may
-    still `[SKIP]` with a reason at runtime (TARBALL.md §7.2), grading
-    `n/a` (TARBALL.md §7.3) — honest and visible rather than forced
-    work. The refusal renders BOTH sets (required and declared) so a
-    near-miss is visible, keeps the session open pre-staging with no
+    still `[SKIP]` with a reason at runtime (TARBALL.md §7.2) —
+    honest and visible rather than forced work; since 0.4.57 a skip
+    beside a `pass` claim grades `[DISAGREE]` (TARBALL.md §7.3's
+    table), named at the walk and in the planner relay (§8.7, §8.8),
+    and a skip beside an `untested` claim still grades `n/a`. The
+    refusal renders BOTH sets (required and declared) so a near-miss
+    is visible, keeps the session open pre-staging with no
     git side effects, records telemetry outcome `required-check-refused`
     (`validation: null` — nothing ran), and in `--json` mode is the
     one-line report with that outcome and a `required_checks` detail
@@ -3390,7 +3393,16 @@ calibrated-worker signal the dual stream exists to surface.
    §7.3 claims block: claims are the worker's predictions, and the
    checkpoint has no claims by construction.
 3. Place the response manifest at `staging/.bale-manifest.json` so
-   `validation.sh` can read the claims for the reconciliation block.
+   `validation.sh` can read the claims for the reconciliation block,
+   and (0.4.57) the response's `notes.md` beside it at
+   `staging/.bale-notes.md`, byte for byte, so `validation.sh` can
+   check the session's own notes sections
+   (`bale_staging.place_response_notes`). A response that ships no
+   `notes.md` gets no `.bale-notes.md`, and a stale one from an
+   earlier attempt is removed first; a `notes.md` that is not a
+   regular file is not followed. The log says which. Neither file is
+   a `changes[]` entry, so neither reaches the session commit, which
+   is built per entry (§8.6).
 4. Run `bash validation.sh` with `cwd=staging/`. Capture stdout,
    stderr, exit code, and the claims-vs-verdict reconciliation block
    (the reconciliation parse reads the worker script's captured
@@ -3474,12 +3486,25 @@ instead of scrolling back for them past a long `notes.md`.
 
 The reference block, in order:
 
-- The **claims table** — each `claims` key with the worker's prediction,
-  plus a pointer to `.bale/logs/<sid>.log` for the verdicts. The
-  per-check `[PASS] / [FAIL] / [SKIP]` lines and the TARBALL.md
-  §7.3-style claims-vs-verdict reconciliation live in that log,
-  streamed there while `validation.sh` ran (§8.5 step 4); the
-  walkthrough surfaces the claims side so review is self-contained.
+- The **claims table** — each `claims` key with the worker's
+  prediction, and since 0.4.57 its verdict and tag, read from the
+  claims-vs-verdict block `validation.sh` printed
+  (`bale_report.summarize_claimed_checks`), plus a pointer to
+  `.bale/logs/<sid>.log` for the full output. Bale reads the tag from
+  TARBALL.md §7.3's table itself, from the claim and the row's
+  verdict, and takes a printed `[DISAGREE]` too: a `pass` claim
+  beside a `skip`, beside a verdict never recorded, or with no row in
+  the block at all is a disagreement even when an older crafter's
+  script printed `[n/a]`. Under the table, one line holds `N of M
+  checks ran` (M the `claims` keys, N those that recorded `pass` or
+  `fail`; `0 of 0` with no claims; with claims and no block printed,
+  the line says the count is unknown and names nothing), then one
+  `disagree: <claims key> (...)` line per disagreeing check. With
+  claims and no block, the table is the claims side alone, as before
+  0.4.57. A disagreement is diagnostic: the verdict, the exit code
+  and the merge are unchanged (TARBALL.md §7.5), and the validation
+  roll-up in the verdict block counts the disagreements so they reach
+  the line the eye lands on.
 - A **diffstat** over `origin..bale/<sid>` — the same rev range as
   the inspection command below. PASS and HOLD alike are commits on
   the session branch (§8.6), so one range covers both outcomes.
@@ -3565,6 +3590,9 @@ acceptance store).
   vocabulary, the admissions the apply exercised (out-of-forecast
   paths with how each was admitted, required-check overrides,
   base-drift overrides, an accepted checkpoint change — or `none`),
+  the claimed checks (0.4.57: the walk's `N of M checks ran` line and
+  its `disagree:` lines, each disagreeing check by its claims key
+  verbatim, §8.7),
   and the response's `notes.md` verbatim (or a plain line saying it
   shipped none, or why it could not be read). It replaces pasting
   `notes.md` and typing "applied". A clean apply has no worker block.
@@ -3699,7 +3727,9 @@ acceptance store).
   beside it (v0.4.41), the held apply's admissions in the clean-apply
   relay's words — admitted out-of-forecast paths with their sources,
   required-check and base-drift overrides, an accepted checkpoint
-  change — or `admissions: none`, and
+  change — or `admissions: none`, then (0.4.57) the claimed checks
+  in the clean-apply relay's lines — `N of M checks ran` and one
+  `disagree:` line per disagreeing check (§8.7) — and
   this attempt's two session-log bands inlined as the log has them —
   the checkpoint band and the worker band, cut by byte offsets taken
   around the two scripts, so a retry's block never re-carries an
@@ -3798,7 +3828,14 @@ short-lived `.bale/sessions/<sid>/` directory:
   TARBALL.md §7.3 reconciliation block in the captured validation
   output (with a `reconciliation_parsed` flag, since the block is an
   authoring convention, not an enforced contract — a parse miss is
-  recorded, never silently skipped);
+  recorded, never silently skipped). The agreement is the tag the
+  script printed, never re-derived: since 0.4.57 the crafter tags a
+  `pass` claim beside a skipped or unrecorded verdict `[DISAGREE]`
+  where it printed `[n/a]` before, so the agreement rates `bale
+  stats` reads (§5.6) move for sessions packed after that release,
+  whose requests carry the new crafter, and not for earlier records.
+  The walk and the planner relay derive the table themselves (§8.7);
+  the record keeps what the session's own script said;
 - **validation exit state** (PASS/HOLD and the TARBALL.md §7.5 exit
   code);
 - the **blind checkpoint stamp** (board 6): an `attempts[].checkpoint`

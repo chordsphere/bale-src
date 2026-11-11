@@ -773,9 +773,9 @@ def reconcile_staging_against_manifest(repo: Path, staging: Path,
                 )
 
     # Catch undeclared changes — apply.sh touched something the manifest
-    # didn't authorize. The .bale-manifest.json that run_validation_sh
-    # writes is placed AFTER reconciliation (in step 8.5), so it doesn't
-    # appear here as a false positive.
+    # didn't authorize. The .bale-manifest.json and .bale-notes.md that
+    # run_validation_sh writes are placed AFTER reconciliation (in step
+    # 8.5), so they don't appear here as false positives.
     for path in sorted(actual_created - declared_paths):
         problems.append(f"undeclared created in staging: {path}")
     for path in sorted(actual_deleted - declared_paths):
@@ -1004,13 +1004,79 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+# Where validation.sh finds the response's notes.md (0.4.57), beside the
+# .bale-manifest.json run_validation_sh writes. One spelling, read by the
+# placement below and pinned by the suite.
+STAGED_NOTES_NAME = ".bale-notes.md"
+
+
+def place_response_notes(response_dir: Path,
+                         staging: Path) -> tuple[Optional[Path], str]:
+    """Place the response's notes.md at staging/.bale-notes.md, byte for
+    byte. Returns (path, message): the placed path, or None when nothing
+    was placed, and the one line the caller logs saying which.
+
+    Any `.bale-notes.md` already in staging (an earlier attempt's, say)
+    is removed first, so absence after this call always means the
+    response placed no notes. A notes.md that is not a regular file (a
+    symlink, a directory) is neither followed nor copied, and the
+    message says so. A copy failure leaves no file and the message
+    carries the error: validation.sh then sees the absence a response
+    without notes gives it, and the log says why. Never raises for
+    filesystem trouble; the caller's log line is the report. Touches
+    only those two paths.
+    """
+    dst = staging / STAGED_NOTES_NAME
+    stale_problem = ""
+    if dst.is_symlink() or dst.exists():
+        try:
+            if dst.is_dir() and not dst.is_symlink():
+                shutil.rmtree(dst)
+            else:
+                dst.unlink()
+        except OSError as e:
+            stale_problem = (f" (and a stale {STAGED_NOTES_NAME} could "
+                             f"not be cleared: {e})")
+    src = response_dir / "notes.md"
+    if src.is_symlink() or (src.exists() and not src.is_file()):
+        return None, (f"the response's notes.md is not a regular file; "
+                      f"{STAGED_NOTES_NAME} not placed in staging"
+                      f"{stale_problem}")
+    if not src.is_file():
+        return None, (f"the response ships no notes.md; no "
+                      f"{STAGED_NOTES_NAME} in staging{stale_problem}")
+    if stale_problem:
+        return None, (f"{STAGED_NOTES_NAME} not placed in staging"
+                      f"{stale_problem}")
+    try:
+        dst.write_bytes(src.read_bytes())
+    except OSError as e:
+        try:
+            dst.unlink()
+        except OSError:
+            pass  # nothing was written, or nothing more can be done
+        return None, (f"could not place {STAGED_NOTES_NAME} in staging: "
+                      f"{e}")
+    return dst, (f"placed the response's notes.md at "
+                 f"staging/{STAGED_NOTES_NAME} for validation.sh")
+
+
 def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
                       manifest: dict, sid: str, *,
                       verbose: bool = False,
                       sandbox: bool = True,
                       network: bool = False) -> tuple[int, str]:
     """Copy validation.sh into staging, place .bale-manifest.json for claims
-    access, run it, log output, return (exit code, captured output).
+    access and .bale-notes.md for the session's notes, run it, log output,
+    return (exit code, captured output).
+
+    `.bale-notes.md` (0.4.57): the response's notes.md, copied byte for
+    byte, so a validation.sh can check its own notes sections at apply
+    (TARBALL.md §7.3). A response that ships no notes.md gets none, and a
+    stale one from an earlier attempt in the same staging directory is
+    removed first, so its absence always means the response shipped none.
+    Like the manifest, it sits outside every changes[] entry, so the
+    session commit (built per entry) never carries it.
 
     The output element (v0.3.9, B2) is the same text the session log
     receives — stdout+stderr interleaved on the verbose path, stdout plus
@@ -1075,6 +1141,11 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
     (staging / ".bale-manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
     )
+    # 0.4.57: the response's notes.md beside it, for a validation.sh
+    # that checks its own notes sections (place_response_notes).
+    _notes_path, notes_message = place_response_notes(response_dir,
+                                                      staging)
+    log(notes_message)
 
     log("running validation.sh in staging"
         + ((" (confined: network "

@@ -1779,6 +1779,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         relay_send_first,
         relay_sentinels,
         split_attempt_bands,
+        summarize_claimed_checks,
         write_telemetry_record,
     )
     # The session log path as the json reports cite it (absolute) — the
@@ -3155,6 +3156,24 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             network=sandbox_network)
         log_offsets["end"] = _log_size(session_log)
         log(f"validation.sh exit code: {exit_code}")
+        # 0.4.57: the claimed checks as the walk and the planner relay
+        # read them — how many ran, and each claim that disagrees with
+        # its verdict (TARBALL.md §7.3's table: a pass claim beside a
+        # skip or an unrecorded verdict is one). Diagnostic only: it
+        # changes no exit code, state or verdict (§7.5).
+        claims_summary = summarize_claimed_checks(
+            manifest.get("claims"), val_output)
+        # Worded "claimed checks:" (never "claims vs verdict:", the
+        # header parse_claim_verdict_block looks for) so the log line
+        # cannot be read as a claims block.
+        log("claimed checks: "
+            + ("no claims" if claims_summary["claimed"] == 0 else
+               "no claims block printed" if claims_summary["ran"] is None
+               else f"{claims_summary['ran']} of "
+                    f"{claims_summary['claimed']} claimed checks ran")
+            + "".join(f"; disagree: {c['check']} (claim={c['claim']}, "
+                      f"verdict={c['verdict']})"
+                      for c in claims_summary["disagreements"]))
 
         # The D4 telemetry stamp for every validated attempt this apply
         # records (BALE.md §8.9): key presence = post-epoch; configured
@@ -3279,6 +3298,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             repo=repo,
             checkpoint=checkpoint_stamp if checkpoint_result is not None
             else None,
+            claims_summary=claims_summary,
         ))
         action = prompt_walkthrough_action(
             state, no_interact=no_interact,
@@ -3508,6 +3528,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 checkpoint=(checkpoint_stamp if checkpoint_result is not None
                             else None),
                 notes=notes_text, notes_problem=notes_problem,
+                claims_summary=claims_summary,
                 admissions={
                     "overridden_paths": list(overridden_paths),
                     "overridden_path_sources": [
@@ -3703,7 +3724,8 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                             list(base_drift_overridden),
                         "checkpoint_change_accepted":
                             readmissions["accept_checkpoint_change"],
-                    })
+                    },
+                    claims_summary=claims_summary)
             for block in relay_blocks:
                 print("")
                 print(block)
