@@ -137,7 +137,7 @@
                     "verdict": { "type": "string" },
                     "agreement": {
                       "type": "string",
-                      "description": "The bracketed tag from the reconciliation line, normalized to lowercase without brackets: 'agree', 'disagree', or 'n/a'."
+                      "description": "The bracketed tag from the reconciliation line as validation.sh printed it, normalized to lowercase without brackets: 'agree', 'disagree', or 'n/a'. Read per TARBALL.md section 7.3's table, which since bale 0.4.57 tags a 'pass' claim beside a 'skip' or a 'missing' (never recorded) verdict 'disagree', where earlier crafters printed 'n/a'; bale records the printed tag and never re-derives it, so the change reaches this field (and the agreement rates bale stats reads) only for sessions whose validation.sh was made with the 0.4.57 crafter or later, packed after that release. A 'fail' claim beside a skip or a missing verdict, and an 'untested' or 'unknown' claim beside anything, stay 'n/a'."
                     },
                     "claim_basis": {
                       "type": "string",

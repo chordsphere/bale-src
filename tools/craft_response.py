@@ -78,12 +78,13 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   fragments: the §7.3 claims reconciliation epilogue (a
   verdict-recording helper the worker's checks feed, and the
   reconciliation pass that reads `staging/.bale-manifest.json` and
-  prints the claims-vs-verdict block — diagnostic, never
-  gatekeeping), plus one §7.7 exec-bit assertion per path named with
-  `--executable` — generated from the same list that drives
-  `apply.sh`'s chmod lines, so the two emissions cannot disagree
-  within an invocation. WHICH checks run stays the worker's judgment
-  (§7.2): the emission names no checks and suggests none; it
+  prints the claims-vs-verdict block, tagging a `pass` claim beside a
+  skipped or unrecorded verdict `[DISAGREE]` as §7.3's table says —
+  diagnostic, never gatekeeping), plus one §7.7 exec-bit assertion
+  per path named with `--executable` — generated from the same list
+  that drives `apply.sh`'s chmod lines, so the two emissions cannot
+  disagree within an invocation. WHICH checks run stays the worker's
+  judgment (§7.2): the emission names no checks and suggests none; it
   mechanizes the reconciliation shape and the exec-bit assertion
   shape only, which is the ratified carve-out to the no-scaffold pin
   below — a fragment the worker pastes, never an emitted
@@ -638,9 +639,15 @@ PROBE_CLIPBOARD_FALLBACK_EPILOGUE = """\
 # the verdict-recording helper, and the reconciliation pass that reads
 # the manifest bale places at staging/.bale-manifest.json and prints
 # the claims-vs-verdict block. Semantics mirror §7.3 exactly: [agree]
-# on a matching prediction, [DISAGREE] only on a pass/fail cross,
-# [n/a] when the verdict is a skip (or missing) or the claim made no
-# prediction (untested/unknown). Diagnostic, never gatekeeping: the
+# on a matching prediction; [DISAGREE] on a pass/fail cross, and on a
+# `pass` claim whose verdict is a skip or was never recorded (`missing`)
+# — since 0.4.57, because a check claimed to pass that did not run is
+# the false PASS the slip named, not an absent prediction; [n/a] when
+# the claim made no prediction (untested/unknown) or a `fail` claim's
+# check skipped or went unrecorded (a deliberate failure that did not
+# run is not that danger). Bale holds a twin of this rule
+# (bale_report.claim_agreement) and the suite pins the two to one
+# table. Diagnostic, never gatekeeping: the
 # epilogue neither sets nor reads exit_code (§7.3, §7.5). WHICH checks
 # run is the worker's judgment (§7.2) — nothing here names or suggests
 # a check; the shape alone is mechanized. The heredoc Python runs as
@@ -705,8 +712,13 @@ for check, claim in claims.items():
         # printed line keeps the exact shape the parser expects.
         claim = claim.get("value", "?")
     verdict = verdicts.get(check, "missing")
-    if claim in ("untested", "unknown") or verdict in ("skip", "missing"):
+    # TARBALL.md 7.3's table. A pass claim beside a skip, or beside a
+    # verdict never recorded, is a disagreement: the check was claimed
+    # to pass and did not run. A fail claim beside either stays n/a.
+    if claim in ("untested", "unknown"):
         tag = "[n/a]"
+    elif verdict in ("skip", "missing"):
+        tag = "[DISAGREE]" if claim == "pass" else "[n/a]"
     elif claim == verdict:
         tag = "[agree]"
     else:

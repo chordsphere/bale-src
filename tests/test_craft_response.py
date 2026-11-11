@@ -1477,10 +1477,13 @@ class CraftValidationEpilogue(unittest.TestCase):
     and 7.7 exec-bit assertions, emitted paste-ready to stdout. The
     session-31 constraints under test: which checks run stays worker
     judgment (the emission names no checks), reconciliation semantics
-    equal 7.3's contract (agree / DISAGREE only on a pass-fail cross /
-    n/a for skip, missing, untested, unknown; diagnostic — never the
-    exit code), and the exec-bit assertions come from the same
-    --executable list as apply.sh's chmod lines."""
+    equal 7.3's contract (agree / DISAGREE on a pass-fail cross and,
+    since 0.4.57, on a pass claim beside a skip or a missing verdict /
+    n/a for untested, unknown, and a fail claim that did not run;
+    diagnostic — never the exit code), and the exec-bit assertions come
+    from the same --executable list as apply.sh's chmod lines. The
+    whole table, row by row and against bale's twin, is
+    tests/test_skipped_is_not_pass.py."""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -1551,12 +1554,16 @@ class CraftValidationEpilogue(unittest.TestCase):
         self.assertIn("claims vs verdict:", body)
         self.assertRegex(body, r"alpha check:\s+claim=pass\s+verdict=pass\s+\[agree\]")
         self.assertRegex(body, r"beta check:\s+claim=pass\s+verdict=fail\s+\[DISAGREE\]")
-        self.assertRegex(body, r"gamma check:\s+claim=pass\s+verdict=skip\s+\[n/a\]")
+        # 0.4.57: a pass claim beside a skip is a disagreement — the
+        # check was claimed to pass and did not run.
+        self.assertRegex(body, r"gamma check:\s+claim=pass\s+verdict=skip\s+\[DISAGREE\]")
         # A label containing '=' still pairs (rsplit from the right),
         # and a no-prediction claim is n/a even against a verdict.
         self.assertRegex(body, r"delta=check:\s+claim=untested\s+verdict=pass\s+\[n/a\]")
         # A claimed check whose verdict was never recorded surfaces
-        # loudly as missing rather than silently vanishing.
+        # loudly as missing rather than silently vanishing; beside a
+        # fail claim it stays n/a (a deliberate failure that did not
+        # run hides nothing).
         self.assertRegex(body, r"epsilon check:\s+claim=fail\s+verdict=missing\s+\[n/a\]")
         # Diagnostic, never gatekeeping: the DISAGREE left exit 0.
 

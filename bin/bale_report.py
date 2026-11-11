@@ -356,6 +356,7 @@ def format_walkthrough_summary(
     staging: Path,
     repo: Path,
     checkpoint: Optional[dict] = None,
+    claims_summary: Optional[dict] = None,
 ) -> str:
     """Build the BALE.md §8.7 walkthrough summary block as a single string.
 
@@ -374,6 +375,14 @@ def format_walkthrough_summary(
     checkpoint exit 2 gets its own phrasing — "the planner's checkpoint
     itself errored" — because the remedy differs: the planner's
     artifact broke, not the worker's.
+
+    `claims_summary` (0.4.57, additive) is summarize_claimed_checks's
+    result for this attempt. When given, the claims table pairs each
+    claim with its verdict and bale's tag, then prints the `N of M
+    checks ran` line and one `disagree:` line per disagreeing check
+    (TARBALL.md §7.3's table: a pass claim beside a skip or an
+    unrecorded verdict is one), and the validation row counts the
+    disagreements. None keeps the claim-only table of earlier releases.
     """
     from __main__ import git  # lazy — see module docstring
 
@@ -394,12 +403,33 @@ def format_walkthrough_summary(
     # walkthrough is self-contained for review. The exit code is rolled up
     # into the verdict block below — this is the per-check breakout.
     claims = manifest.get("claims", {}) or {}
-    if claims:
+    if claims_summary is not None and claims_summary["parsed"] and claims:
+        # 0.4.57: the verdict side too, read from validation.sh's own
+        # claims vs verdict block, tagged by bale's reading of §7.3.
+        ref.append("")
+        ref.append("  claims vs verdict (from validation.sh's claims block; "
+                   "full output in .bale/logs/{}.log):".format(sid))
+        width = max(len(str(c["check"])) for c in claims_summary["checks"])
+        tags = {"agree": "[agree]", "disagree": "[DISAGREE]",
+                "n/a": "[n/a]"}
+        for c in claims_summary["checks"]:
+            ref.append(f"    {str(c['check']):<{width}}  "
+                       f"claim={c['claim']:<9} verdict={c['verdict']:<8} "
+                       f"{tags.get(c['agreement'], c['agreement'])}")
+    elif claims:
         ref.append("")
         ref.append("  claims (verdict in .bale/logs/{}.log):".format(sid))
         width = max(len(k) for k in claims)
         for check, claim in claims.items():
-            ref.append(f"    {check:<{width}}  claim={claim}")
+            # claim_value: an annotated claim prints its word, never the
+            # object's repr (0.4.57; a bare string prints as before).
+            ref.append(f"    {check:<{width}}  claim={claim_value(claim)}")
+    if claims_summary is not None:
+        if not claims:
+            ref.append("")
+        ref.append(f"  {format_claims_ran_line(claims_summary)}")
+        for ln in format_disagreement_lines(claims_summary):
+            ref.append(f"  {ln}")
 
     # Diffstat between origin and the bale branch. Both verdicts hold a
     # session commit on the bale branch since ADR-0008 (a HOLD is a
@@ -466,6 +496,13 @@ def format_walkthrough_summary(
     # Crisp verdict block LAST — the thing the eye lands on. Origin/branch/
     # summary plus a one-line validation roll-up; the per-check table and the
     # full diff are in the reference block above.
+    # 0.4.57: a claim/verdict disagreement is diagnostic, never a HOLD
+    # (TARBALL.md §7.3, §7.5), but the roll-up counts it so it reaches
+    # the line the eye lands on; the names are in the table above.
+    n_disagree = (len(claims_summary["disagreements"])
+                  if claims_summary is not None else 0)
+    disagree_note = (f"; {n_disagree} claim/verdict disagreement(s), "
+                     f"named above" if n_disagree else "")
     if checkpoint is not None:
         # Per-source attribution (board 6 D2). Both states are named in
         # one row; the claims-count context stays because the claims
@@ -484,13 +521,13 @@ def format_walkthrough_summary(
             cp_part += "; inspect the checkpoint script"
         wk_part = _worker_attribution(exit_code)
         claims_note = (f"; {len(claims)} claim(s), per-check table "
-                       f"above, verdict in log" if claims
+                       f"above, verdict in log{disagree_note}" if claims
                        else "; no project-level claims")
         validation_row = f"{cp_part} · {wk_part}{claims_note}"
     elif claims:
         validation_row = (
             f"exit={exit_code} ({len(claims)} claim(s); "
-            f"per-check table above, verdict in log)"
+            f"per-check table above, verdict in log{disagree_note})"
         )
     else:
         validation_row = f"exit={exit_code} (no project-level claims)"
@@ -1161,7 +1198,8 @@ def format_hold_relay_planner(*, sid: str, exit_code: int,
                               held_tarball: Optional[str],
                               held_tarball_why: str = "",
                               bands: dict,
-                              admissions: Optional[dict] = None) -> str:
+                              admissions: Optional[dict] = None,
+                              claims_summary: Optional[dict] = None) -> str:
     """The planner-addressed block on a HOLD: everything the desk needs
     to rule without asking — judge line, failed probe labels, both exit
     codes, the checkpoint stamp state, the held tarball's path, and both
@@ -1174,7 +1212,12 @@ def format_hold_relay_planner(*, sid: str, exit_code: int,
     indented row each, or `admissions: none` — so the desk ruling on a
     fixture defect sees that the held apply needed, say,
     --allow-out-of-scope. None (a caller predating the rider) renders
-    no admissions line; apply's HOLD path always passes the dict."""
+    no admissions line; apply's HOLD path always passes the dict.
+
+    `claims_summary` (0.4.57) is summarize_claimed_checks's result,
+    rendered after the admissions by claims_relay_rows: the `N of M
+    checks ran` line and one `disagree:` line per disagreeing check,
+    each naming its claims key verbatim. None renders nothing."""
     begin, end = relay_sentinels(sid, RELAY_TO_PLANNER)
     judge = hold_judge(checkpoint, exit_code)
     ran = bool(checkpoint) and bool(checkpoint.get("configured"))
@@ -1205,6 +1248,7 @@ def format_hold_relay_planner(*, sid: str, exit_code: int,
             out.extend(f"  {r}" for r in rows)
         else:
             out.append("admissions: none")
+    out.extend(claims_relay_rows(claims_summary))
     if ran:
         out.append("")
         out.append("--- session log: checkpoint band ---")
@@ -1289,18 +1333,20 @@ def format_hold_relay_blocks(*, sid: str, exit_code: int,
                              held_tarball: Optional[str],
                              held_tarball_why: str = "",
                              bands: dict,
-                             admissions: Optional[dict] = None) -> list:
+                             admissions: Optional[dict] = None,
+                             claims_summary: Optional[dict] = None) -> list:
     """Both HOLD blocks, in send order (relay_send_first). The worker
     block receives the labels from the stamp's `failed_probes` — the
     same list the card and telemetry carry — never the stamp's output.
-    `admissions` (v0.4.41) goes to the planner block only; the worker
-    block is unchanged. Pure."""
+    `admissions` (v0.4.41) and `claims_summary` (0.4.57) go to the
+    planner block only; the worker block is unchanged (it carries the
+    worker's validation.sh output whole, claims block included). Pure."""
     judge = hold_judge(checkpoint, exit_code)
     ran = bool(checkpoint) and bool(checkpoint.get("configured"))
     planner = format_hold_relay_planner(
         sid=sid, exit_code=exit_code, checkpoint=checkpoint,
         held_tarball=held_tarball, held_tarball_why=held_tarball_why,
-        bands=bands, admissions=admissions)
+        bands=bands, admissions=admissions, claims_summary=claims_summary)
     worker = format_hold_relay_worker(
         sid=sid, judge_line=judge["line"], judge_case=judge["case"],
         failed_probes=(list(checkpoint.get("failed_probes") or [])
@@ -1316,7 +1362,8 @@ def format_apply_relay_planner(*, sid: str, origin_branch: str,
                                exit_code: int, checkpoint: Optional[dict],
                                notes: Optional[str],
                                notes_problem: str = "",
-                               admissions: Optional[dict] = None) -> str:
+                               admissions: Optional[dict] = None,
+                               claims_summary: Optional[dict] = None) -> str:
     """The planner-addressed block on a clean apply — the ratification
     relay, pre-assembled: the response's notes.md verbatim (or a plain
     line saying it shipped none, or why it could not be read), the
@@ -1324,7 +1371,12 @@ def format_apply_relay_planner(*, sid: str, origin_branch: str,
     admission the apply exercised. `admissions` keys: overridden_paths
     (with overridden_path_sources, parallel), required_check_overrides,
     base_drift_overrides (lists), checkpoint_change_accepted (bool).
-    No worker block exists on a clean apply. Pure."""
+    `claims_summary` (0.4.57) is summarize_claimed_checks's result,
+    rendered after the admissions by claims_relay_rows (the `N of M
+    checks ran` line and each disagreeing check by its claims key);
+    a disagreement is diagnostic, so the block still says APPLIED.
+    None renders nothing. No worker block exists on a clean apply.
+    Pure."""
     begin, end = relay_sentinels(sid, RELAY_TO_PLANNER)
     ran = bool(checkpoint) and bool(checkpoint.get("configured"))
     verdict = (f"{_checkpoint_attribution(checkpoint.get('exit_code'))} · "
@@ -1344,6 +1396,7 @@ def format_apply_relay_planner(*, sid: str, origin_branch: str,
         out.extend(f"  {r}" for r in rows)
     else:
         out.append("admissions: none")
+    out.extend(claims_relay_rows(claims_summary))
     out.append("")
     if notes is not None and notes.strip():
         out.append("--- notes.md ---")
@@ -5309,6 +5362,165 @@ def parse_claim_verdict_block(output: str) -> tuple[dict, bool]:
             "agreement": m.group("tag").strip().lower(),
         }
     return claim_verdict, bool(claim_verdict)
+
+
+# --- the claimed checks, as the walk and the planner relay read them (0.4.57) ---
+#
+# TARBALL.md §7.3's claim/verdict table, bale's twin of the crafter's
+# epilogue rule (tools/craft_response.py RECONCILE_EPILOGUE). The two are
+# separate copies on purpose: the crafter travels in every request and
+# runs inside the response's validation.sh, while bale reads the result
+# at apply; the suite (test_skipped_is_not_pass) pins both to one table.
+#
+# The telemetry record keeps the tag validation.sh PRINTED
+# (parse_claim_verdict_block, unchanged): `claim_verdict[].agreement` is
+# what the session's own script said, so `bale stats` agreement rates
+# move only for sessions whose validation.sh carries the 0.4.57 crafter.
+# The walk and the planner relay instead read summarize_claimed_checks,
+# which derives agreement from the manifest's claim and the row's verdict
+# and takes a printed [DISAGREE] too, so a validation.sh made with an
+# older crafter (printing [n/a] beside a pass and a skip) still reads as
+# a disagreement where a human looks.
+
+# The verdict words that mean the check ran. `skip` did not, and
+# `missing` (the epilogue's word for a verdict never recorded, and bale's
+# for a claimed check with no row in the block) did not either.
+CLAIM_VERDICTS_THAT_RAN = ("pass", "fail")
+
+
+def claim_value(claim) -> str:
+    """The claim word from a manifest claim: the bare string, or the
+    annotated object's `value` (TARBALL.md §5.3), "?" when it has none."""
+    if isinstance(claim, dict):
+        return str(claim.get("value", "?"))
+    return str(claim)
+
+
+def claim_agreement(claim: str, verdict: str) -> str:
+    """TARBALL.md §7.3's table: "agree", "disagree" or "n/a".
+
+    | claim              | verdict          | agreement |
+    | untested, unknown  | anything         | n/a       |
+    | pass               | skip, missing    | disagree  |
+    | fail (or other)    | skip, missing    | n/a       |
+    | X                  | X                | agree     |
+    | X                  | another word     | disagree  |
+    """
+    if claim in ("untested", "unknown"):
+        return "n/a"
+    if verdict in ("skip", "missing"):
+        return "disagree" if claim == "pass" else "n/a"
+    return "agree" if claim == verdict else "disagree"
+
+
+def summarize_claimed_checks(claims: Optional[dict],
+                             validation_output: Optional[str]) -> dict:
+    """What the walk and the planner relay say about the claimed checks.
+
+    `claims` is the response manifest's `claims`; `validation_output`
+    the worker's captured validation.sh output. Returns:
+
+      claimed        M, the number of claims keys
+      parsed         whether validation.sh printed a claims vs verdict
+                     block (parse_claim_verdict_block's flag)
+      ran            N, how many claimed checks recorded a verdict of
+                     pass or fail; None when M > 0 and no block was
+                     printed (bale cannot count what was not reported)
+      checks         one entry per claims key, in manifest order:
+                     {check, claim, verdict, has_row, printed, agreement}
+                     where `verdict` is the row's word or "missing" when
+                     the block has no row for the key, `printed` the tag
+                     the script printed (None without a row), and
+                     `agreement` claim_agreement's word, or "disagree"
+                     when the script itself printed [DISAGREE]
+      disagreements  the entries whose agreement is "disagree"; empty
+                     when no block was printed, since then no verdict is
+                     known and bale names nothing it cannot see
+
+    A claimed check with no row in a printed block reads as never
+    recorded: verdict "missing", so a disagreement beside a pass claim.
+    Pure.
+    """
+    rows, parsed = parse_claim_verdict_block(validation_output or "")
+    checks: list = []
+    for key, raw in (claims or {}).items():
+        claim = claim_value(raw)
+        # The parser strips the name it captured; the claims key is
+        # matched the same way, and reported verbatim.
+        row = rows.get(str(key).strip())
+        verdict = row["verdict"] if row is not None else "missing"
+        printed = row["agreement"] if row is not None else None
+        agreement = claim_agreement(claim, verdict)
+        if printed == "disagree":
+            agreement = "disagree"
+        checks.append({"check": key, "claim": claim, "verdict": verdict,
+                       "has_row": row is not None, "printed": printed,
+                       "agreement": agreement})
+    if checks and not parsed:
+        ran: Optional[int] = None
+        disagreements: list = []
+    else:
+        ran = sum(1 for c in checks
+                  if c["verdict"] in CLAIM_VERDICTS_THAT_RAN)
+        disagreements = [c for c in checks if c["agreement"] == "disagree"]
+    return {"claimed": len(checks), "parsed": parsed, "ran": ran,
+            "checks": checks, "disagreements": disagreements}
+
+
+def format_claims_ran_line(summary: dict) -> str:
+    """The one line holding `N of M checks ran` (the walk and the planner
+    relay print the same line). M is the number of claims keys, N how many
+    recorded pass or fail. With no claims it reads `0 of 0 checks ran`;
+    with claims but no claims vs verdict block it says the count is
+    unknown rather than print a number bale did not see."""
+    m = summary["claimed"]
+    if m == 0:
+        return ("claimed checks: 0 of 0 checks ran "
+                "(the manifest claims no checks)")
+    if summary["ran"] is None:
+        return (f"claimed checks: validation.sh printed no claims vs "
+                f"verdict block, so how many of the {m} claimed checks "
+                f"ran is unknown")
+    d = len(summary["disagreements"])
+    tail = (f"; {d} disagree with their claim" if d
+            else "; none disagrees with its claim")
+    return f"claimed checks: {summary['ran']} of {m} checks ran{tail}"
+
+
+def format_disagreement_lines(summary: dict) -> list:
+    """One `disagree: <claims key> (...)` line per disagreeing check, the
+    key verbatim, in manifest order. Says what the pair means, and when
+    validation.sh printed a tag other than [DISAGREE] (an older crafter's
+    [n/a]), says that too, so the record's printed tag and this line can
+    be told apart."""
+    lines = []
+    for c in summary["disagreements"]:
+        if c["verdict"] == "skip":
+            what = "claimed to pass, skipped" if c["claim"] == "pass" \
+                else "skipped"
+        elif c["verdict"] == "missing":
+            what = ("no row in the claims block" if not c["has_row"]
+                    else "no verdict recorded")
+            if c["claim"] == "pass":
+                what = f"claimed to pass, {what}"
+        else:
+            what = f"claimed {c['claim']}, recorded {c['verdict']}"
+        line = (f"disagree: {c['check']} (claim={c['claim']}, "
+                f"verdict={c['verdict']}: {what})")
+        if c["printed"] is not None and c["printed"] != "disagree":
+            line += f"; validation.sh tagged it [{c['printed']}]"
+        lines.append(line)
+    return lines
+
+
+def claims_relay_rows(summary: Optional[dict]) -> list:
+    """The planner relay's claimed-checks rows: the `N of M checks ran`
+    line, then one disagree line per disagreeing check. None (a caller
+    predating 0.4.57) renders nothing."""
+    if summary is None:
+        return []
+    return [format_claims_ran_line(summary)] + \
+        format_disagreement_lines(summary)
 
 
 # --- the cost block's input (v0.4.54, session cost-mirror) ---

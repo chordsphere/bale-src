@@ -1,0 +1,29 @@
+{
+  "record_version": 1,
+  "version": "0.4.57",
+  "session_id": "2026-11-11-skipped-is-not-pass-001",
+  "at": "2026-11-11T18:38:43+00:00",
+  "surfaces": [
+    {
+      "path": "tools/craft_response.py",
+      "change": "RECONCILE_EPILOGUE (--validation-epilogue) tags a pass claim beside a verdict of skip or missing (never recorded) [DISAGREE] where it printed [n/a]; a fail claim beside either stays [n/a]; [agree] and the pass/fail cross are unchanged. Row shape, tag vocabulary and the epilogue's interface are unchanged."
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "New claim_agreement (the TARBALL.md 7.3 table, twin of the crafter's rule), claim_value, summarize_claimed_checks, format_claims_ran_line, format_disagreement_lines, claims_relay_rows and CLAIM_VERDICTS_THAT_RAN (additive). format_walkthrough_summary, format_apply_relay_planner, format_hold_relay_planner and format_hold_relay_blocks take an optional claims_summary keyword: the walk's claims table pairs claim, verdict and tag and both the walk and the planner relay print a line holding 'N of M checks ran' and one 'disagree: <claims key> (...)' line per disagreeing check; None (the default) renders the pre-0.4.57 bytes. parse_claim_verdict_block is unchanged."
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "apply and retry compute the claimed-checks summary after validation.sh and pass it to the walk and both planner relays (applied and HOLD); the worker relay is unchanged. Diagnostic only: no exit code, state, verdict or merge changes, and the session log gains one 'claimed checks:' line."
+    },
+    {
+      "path": "bin/bale_staging.py",
+      "change": "run_validation_sh places the response's notes.md at staging/.bale-notes.md, byte for byte, beside .bale-manifest.json (new place_response_notes and STAGED_NOTES_NAME, additive); none when the response ships no notes.md, a stale copy removed, a non-regular notes.md not followed. Never part of the session commit."
+    },
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "claim_verdict.agreement's description says the field is the tag as printed and that since 0.4.57 a pass claim beside a skip or missing verdict prints 'disagree'; shape and enum unchanged."
+    }
+  ],
+  "notes": "Behavioral, not a schema shape change. The telemetry record keeps the tag validation.sh printed, so bale stats agreement rates move only for sessions packed after this release (their requests carry the new crafter); earlier records keep their n/a. The walk and the planner relay derive the table themselves, so a pass beside a skip from an older crafter is named there too."
+}

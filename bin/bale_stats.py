@@ -1164,8 +1164,14 @@ def _class_row(sessions: list[dict]) -> dict:
                         elif agreement == "n/a":
                             # The named residual: the §7.3 [n/a] tag —
                             # the claim made no prediction (untested,
-                            # unknown) or the verdict was a skip or
-                            # never recorded. Counted by its schema
+                            # unknown), or a fail claim's check skipped
+                            # or was never recorded. Before 0.4.57 a
+                            # pass claim beside a skip or a missing
+                            # verdict also landed here; the 0.4.57
+                            # crafter tags it [DISAGREE], so it moves
+                            # to checks_disagree for sessions packed
+                            # after that release (the record keeps the
+                            # tag as printed). Counted by its schema
                             # name; it stays inside agreement_rate's
                             # all-checks denominator (D2 — naming the
                             # bucket does not redefine the rate).

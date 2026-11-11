@@ -437,7 +437,9 @@ compaction.
 
 A claim disagreeing with its verdict doesn't reject the tarball;
 it's flagged in validation's end-of-run report (what the
-disagreement pattern is for: ADR-0013 §5.3). A check claimed
+disagreement pattern is for: ADR-0013 §5.3), and a `pass` claim
+whose check skipped or never recorded a verdict is such a
+disagreement (§7.3's table). A check claimed
 `unknown` earns a line in `notes.md`: *what would the worker need to
 know to predict?*
 
@@ -1025,13 +1027,44 @@ claimed check** — whichever checks `manifest.claims` names, the
 project-level checks and any claimed session-specific assertions
 alike (§5.3) — against its claim. Bale places the response manifest at
 `staging/.bale-manifest.json` before invoking `validation.sh`, so
-the script can read the claims and produce the reconciliation block.
+the script can read the claims and produce the reconciliation block,
+and places the response's `notes.md` beside it at
+`staging/.bale-notes.md`, byte for byte as shipped, so the script can
+check the session's own notes sections; a response that ships no
+`notes.md` finds no `.bale-notes.md` there. Neither file is ever part
+of the session's commit.
 The end-of-run summary includes a `claims` block pairing each claimed
-check's claim with its verdict: `[agree]` on a matching prediction,
-`[DISAGREE]` only on a `claim=pass, verdict=fail` or `claim=fail,
-verdict=pass` cross, and `[n/a]` when the verdict is a skip (or was
-never recorded) or the claim made no prediction (`untested`,
-`unknown`).
+check's claim with its verdict and a tag, by this table:
+
+| claim | verdict | tag |
+|-------|---------|-----|
+| `pass` | `pass` | `[agree]` |
+| `pass` | `fail` | `[DISAGREE]` |
+| `pass` | `skip` | `[DISAGREE]` |
+| `pass` | `missing` (never recorded) | `[DISAGREE]` |
+| `fail` | `fail` | `[agree]` |
+| `fail` | `pass` | `[DISAGREE]` |
+| `fail` | `skip` or `missing` | `[n/a]` |
+| `untested` or `unknown` | anything | `[n/a]` |
+
+A check claimed to pass that did not run is a disagreement, not an
+absent prediction: a `validation.sh` whose every claimed check
+skipped would otherwise read as a clean PASS. A `fail` claim beside a
+check that did not run stays `[n/a]`, since a deliberate failure that
+never ran hides nothing. The verdict word `missing` keeps a verdict
+never recorded apart from a `skip`.
+
+At apply, bale names each disagreeing check by its claims key in the
+walk's summary and in the planner's relay block, and both say how
+many claimed checks ran in one line, `N of M checks ran`: M the
+number of `claims` keys, N how many recorded `pass` or `fail`. Bale
+reads the table itself from each claim and its row's verdict, so a
+row an older crafter tagged `[n/a]` beside a pass and a skip is named
+too, and a claimed check with no row in the block reads as never
+recorded. The telemetry record's `claim_verdict` keeps the tag the
+script printed, so the agreement rates `bale stats` reads move only
+for sessions whose `validation.sh` was made with the crafter of bale
+0.4.57 or later, packed after that release.
 
 The epilogue that produces the block is mechanized:
 `tools/craft_response.py --validation-epilogue` (shipped in every
