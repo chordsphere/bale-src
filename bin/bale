@@ -155,6 +155,8 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     awaiting_side,
     copy_paste_block,
     describe_clipboard_state,
+    mask_clipboard_credentials,
+    masking_aside,
     resolve_clipboard,
     build_telemetry_attempt,
     compose_hold_successors,
@@ -6837,7 +6839,9 @@ def cmd_status(args) -> int:
 # shipping bale.toml. The probe scaffold (tools/craft_response.py
 # --probe) pipes its PROBE BEGIN/END block into this verb; the verb
 # copies its stdin through the same copy_paste_block every other paste
-# point uses. Exit codes are the scaffold's contract: 0 copied, 1 not
+# point uses, after masking the credentials in it (session clipboard,
+# 0.4.59: URL passwords and GitHub tokens; nothing else is masked).
+# Exit codes are the scaffold's contract: 0 copied, 1 not
 # copied (a notice on stderr says why), anything else means the verb
 # could not run (an older bale has no `clipboard` verb and argparse
 # exits 2) — the scaffold then says so itself.
@@ -6852,9 +6856,13 @@ def cmd_clipboard(args) -> int:
     legacy spelling [probe] clipboard_command: the project's value in a
     repo, else the global one).
 
-    Reads stdin to EOF and hands the bytes, unchanged, to
-    copy_paste_block, which prints one `[bale] clipboard:` notice on
-    stderr. Writes nothing to stdout and nothing to disk; takes no lock;
+    Reads stdin to EOF, masks each URL's password and each GitHub
+    token in the bytes (bale_report.mask_clipboard_credentials, since
+    0.4.59: this is the one copy bale makes of text it did not print,
+    and piped from a probe it is the output's only copy), and hands the
+    rest, byte for byte, to copy_paste_block, which prints one `[bale]
+    clipboard:` notice on stderr, naming what was masked. Writes
+    nothing to stdout and nothing to disk; takes no lock;
     needs no repo (outside one, the global file decides). An unset key
     prints the setup remedy (`bale config init --global`) — piping into
     this verb is asking for a copy. Refuses a terminal stdin rather than
@@ -6877,7 +6885,12 @@ def cmd_clipboard(args) -> int:
     # refuse instead — a copy is not worth refusing over).
     repo = (repo_root(Path.cwd().resolve()) if shutil.which("git")
             else None)
-    outcome = copy_paste_block(repo, block, data, announce_unset=True)
+    # Masked here and nowhere else: the other paste blocks are hashed
+    # and copied as printed (session clipboard, 0.4.59).
+    masked = mask_clipboard_credentials(data)
+    outcome = copy_paste_block(repo, block, masked.data,
+                               aside=masking_aside(masked),
+                               announce_unset=True)
     return (CLIPBOARD_EXIT_COPIED if outcome == CLIPBOARD_COPIED
             else CLIPBOARD_EXIT_NOT_COPIED)
 
@@ -8705,17 +8718,25 @@ def build_parser() -> argparse.ArgumentParser:
             "<install>/user/bale.toml. "
             "Set it once with `bale config init --global`. bale copies "
             "every operator-side paste block itself when the key is set "
-            "— pack's session opener, relay's exchange block, apply's "
-            "and retry's HOLD and APPLIED relay blocks — and this verb is "
-            "the same copy for a block bale did not print: a probe "
-            "script from `tools/craft_response.py --probe` ends by piping "
-            "its PROBE BEGIN/END block here. Nothing is detected at run "
-            "time: with the key unset nothing is copied, whatever "
-            "clipboard program is installed. Prints one '[bale] "
-            "clipboard:' line on stderr and nothing on stdout; writes no "
-            "file. Exit 0 when the block was copied, 1 when it was not "
-            "(unset, unreadable key, or the command failed — the line "
-            "says which), 2 on a terminal stdin."
+            "— pack's session opener, the exchange block (relay's, and "
+            "apply's at a clarification's landing), apply's and retry's "
+            "HOLD and APPLIED relay blocks — and this verb is the same "
+            "copy for a block bale did not print: a probe script from "
+            "`tools/craft_response.py --probe` ends by piping its PROBE "
+            "BEGIN/END block here. Nothing is detected at run time: with "
+            "the key unset nothing is copied, whatever clipboard program "
+            "is installed. A command whose first word is clip.exe (a "
+            "bare name or a path) is fed every copy as UTF-16LE with no "
+            "byte-order mark, which it keeps whole on WSL; any other "
+            "command gets the UTF-8 bytes unchanged. What this verb "
+            "copies has each URL's password (scheme://user:PASSWORD@host) "
+            "and each GitHub token masked as xxx, and its line says how "
+            "many; the other paste blocks are hashed and copied exactly "
+            "as printed. Prints one '[bale] clipboard:' line on stderr "
+            "and nothing on stdout; writes no file. Exit 0 when the block "
+            "was copied, 1 when it was not (unset, unreadable key, or the "
+            "command failed — the line says which), 2 on a terminal "
+            "stdin."
         ),
     )
     p_clipboard.add_argument(

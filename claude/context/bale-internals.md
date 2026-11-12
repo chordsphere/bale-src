@@ -366,8 +366,12 @@ is *for* — and stays stable as the per-section line numbers drift:
     clipboard-paste-blocks): `bale clipboard` copies its stdin through
     `bale_report.copy_paste_block`, the route the probe scaffold pipes
     its PROBE block into; exit 0 copied, 1 not copied (the notice says
-    why), and a terminal stdin is refused. Wiring only — the copy and
-    its notices are `bale_report`'s. By file order this cluster is
+    why), and a terminal stdin is refused. Since 0.4.59 (session
+    clipboard) it masks first: `bale_report.mask_clipboard_credentials`
+    replaces each URL's password and each GitHub token, and
+    `masking_aside` puts the count on the copied notice; it is the only
+    caller of the mask. Wiring only — the copy, the mask and the notices
+    are `bale_report`'s. By file order this cluster is
     banner section 30, placed right after Status (banner section 25)
     with a fresh number, the stable-numbering posture above.
 21. **Contract verb.** `cmd_contract` (v0.4.53, session contract-verb):
@@ -633,7 +637,21 @@ and retry's HOLD and APPLIED relay blocks, and `bale clipboard`, cluster
 `run_clipboard_command`, and printing and journaling one `[bale]
 clipboard:` notice; `describe_clipboard_state` renders `bale status`'s
 clipboard row from the same triple. It never raises and never changes
-an exit code — a copy is a side channel, not a step of the command. The
+an exit code — a copy is a side channel, not a step of the command.
+Since 0.4.59 (session clipboard) two rules sit beside it. What a
+command is fed is `clipboard_payload`'s: a command whose first word
+has the base name clip.exe (`clipboard_command_is_clip_exe`; a bare
+name or a path, any letter case) gets the block as UTF-16LE with no
+byte-order mark, which clip.exe keeps whole on WSL where UTF-8 reaches
+it through the console's code page, and every other command the UTF-8
+bytes unchanged; it is a rule about the configured command, not a
+detection. And `mask_clipboard_credentials` (URL passwords and GitHub
+tokens, with `masking_aside` for the notice) is called by `bale
+clipboard` alone: every other paste block is hashed and copied as
+printed. A clarification's landing is a paste point too since 0.4.59:
+`bale_apply._print_landed_exchange_block` prints the round it has just
+preserved through `bale_relay.render_recorded_round`, the rendering
+relay's no-file re-emit uses, and copies it as the exchange block. The
 reference-material-first / crisp-verdict-last rule that drives the
 human-facing renderers is stated once, in the module docstring; the JSON
 renderers sit outside it, being verdict-only by design. A single cohesive

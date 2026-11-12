@@ -902,6 +902,55 @@ def preserve_clarification_record(repo: Path, sid: str, record: dict) -> Path:
     return record_path
 
 
+def _print_landed_exchange_block(repo: Path, sid: str,
+                                 record_path: Path) -> None:
+    """A clarification's landing (0.4.59): print the planner-facing
+    exchange block for the round preserved at `record_path`, then copy
+    it — the one copy the landing makes, so it is the last.
+
+    The block is rendered by bale_relay.render_recorded_round from the
+    record as preserved on disk, the rendering `bale relay <sid>`'s
+    no-file re-emit uses, so the bytes are the ones relay prints for
+    this round afterwards; it is written the way relay writes it
+    (emit_stdout_block's rule: verbatim, a newline added only if the
+    block lacked one), and copied as PASTE_BLOCK_EXCHANGE, so the
+    notice is relay's. It goes to sys.stdout as the process has it: the
+    real stdout on a human run, stderr under --json, where stdout is
+    the one report line (enable_json_mode's discipline).
+
+    Never changes the landing's outcome: the round is already
+    preserved, and a block that cannot be rendered is said, with the
+    command that prints it, and the landing goes on (the copy itself
+    never raises, copy_paste_block's contract).
+    """
+    from __main__ import log  # lazy — see module docstring
+    from bale_relay import (  # lazy — sibling, loaded by bin/bale
+        UnreadableRound,
+        render_recorded_round,
+    )
+    from bale_report import (  # lazy — see module docstring
+        PASTE_BLOCK_EXCHANGE,
+        copy_paste_block,
+    )
+    try:
+        recorded = render_recorded_round(record_path, sid, 1)
+    except Exception as e:  # noqa: BLE001 — the round is preserved; say so, land on
+        detail = (e.detail if isinstance(e, UnreadableRound)
+                  else f"{type(e).__name__}: {e}")
+        log(f"clarification {sid}: the exchange block for "
+            f"{record_path.name} could not be rendered ({detail}); "
+            f"nothing was printed or copied — `bale relay {sid}` prints "
+            f"it once the record reads")
+        return
+    block = recorded.block
+    log(f"clarification {sid}: the exchange block for round "
+        f"{recorded.round} (from {recorded.side}) follows, the block "
+        f"`bale relay {sid}` re-emits")
+    sys.stdout.write(block if block.endswith("\n") else block + "\n")
+    sys.stdout.flush()
+    copy_paste_block(repo, PASTE_BLOCK_EXCHANGE, block)
+
+
 def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
     """Apply-time handler for `response_kind: "clarification"` per TARBALL.md
     §5.9.3 — the branch apply_pipeline takes when the manifest declares a
@@ -941,7 +990,14 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
          read_clarification_summary prefers over mtime. Pre-v0.3.27
          records have no stamp and read via the mtime fallback — no
          backfill.
-      2. Print the §5.9.3 banner (`print_clarification_banner`).
+      2. Print the planner-facing exchange block for the round just
+         preserved and copy it (0.4.59, `_print_landed_exchange_block`):
+         byte for byte the block `bale relay <sid>` re-emits for that
+         round afterwards, through the same rendering
+         (bale_relay.render_recorded_round) and the same copy, so the
+         block is what the clipboard holds when the landing ends.
+      2b. Print the §5.9.3 banner (`print_clarification_banner`), last,
+         so the eye lands on the verdict and the next step.
       3. Under json output mode, emit the one-line machine report — outcome
          "clarification", verdict and merge null since no validation ran and
          no walkthrough decided anything.
@@ -965,6 +1021,11 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
     # §8.10.2 step 4) leave a byte-for-byte identical thread behind.
     record_path = preserve_clarification_record(repo, sid, manifest)
     log(f"clarification manifest preserved at {record_path}")
+
+    # 0.4.59: the block to carry to the planner, printed and copied here
+    # rather than only by a second command (`bale relay <sid>`, which the
+    # banner's trailer still names, prints the same bytes again).
+    _print_landed_exchange_block(repo, sid, record_path)
 
     print_clarification_banner(manifest)
 

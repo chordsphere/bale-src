@@ -1,0 +1,25 @@
+{
+  "record_version": 1,
+  "version": "0.4.59",
+  "session_id": "2026-11-12-clipboard-001",
+  "at": "2026-11-12T01:13:14+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale_report.py",
+      "change": "copy_paste_block feeds a clipboard command whose first word has the base name clip.exe (bare or a path, any letter case; new clipboard_command_is_clip_exe and clipboard_payload) the block as UTF-16LE with no byte-order mark; every other command still gets the UTF-8 bytes unchanged. Bytes that are not UTF-8, bound for clip.exe, are read with U+FFFD and the copied notice gains '; input that was not valid UTF-8 reached clip.exe as U+FFFD'. New mask_clipboard_credentials / MaskedCopy / masking_aside (additive): URL passwords become xxx and GitHub tokens keep their prefix before xxx."
+    },
+    {
+      "path": "bin/bale",
+      "change": "`bale clipboard` masks each URL's password (scheme://user:xxx@host) and each GitHub token in what it copies, and its copied notice ends '; masked N URL password(s) [and M GitHub token(s)] before copying' when it masked any; exit codes, stdout (empty) and the one stderr notice are unchanged, and with nothing to mask the copy is the input byte for byte. Its help description names the landing's copy, the clip.exe encoding and the mask."
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "A clarification's landing (`bale apply` of a response_kind clarification) prints the planner-facing exchange block for the round it preserved, before the [CLARIFICATION] banner, byte for byte the block `bale relay SID` re-emits for that round, and copies it as the exchange block (relay's notice). Under --json the block rides stderr and stdout stays the one report line. Exit codes, the suspension and the banner's trailer are unchanged; a dry-run prints and copies nothing new."
+    },
+    {
+      "path": "bin/bale_relay.py",
+      "change": "New render_recorded_round, RecordedRound and UnreadableRound (additive): the one rendering of a preserved round as its paste block, used by the no-file re-emit and by the landing; the re-emit's output, refusals and refusal codes are unchanged."
+    }
+  ],
+  "notes": "No exit code, record, schema or vocabulary changes. A consumer that reads a clarification landing's stdout now meets the exchange block (BALE EXCHANGE BEGIN through END) ahead of the summary and the banner; a consumer of clip.exe's input sees UTF-16LE where it saw UTF-8. The other paste blocks are never masked: their bodies are hashed."
+}

@@ -1795,9 +1795,18 @@ legacy alias at both layers, with the same rules; when one file sets
 both, `[clipboard] command` wins, and `bale status`'s `clipboard` row
 says which spelling bale used. bale copies every other operator-side
 paste block it prints the same way: the session opener, the exchange
-block, and the HOLD and APPLIED relay blocks. The copy reports success
+block (relay's, and apply's at a clarification's landing), and the
+HOLD and APPLIED relay blocks. The copy reports success
 or failure loudly and never fails the probe; with no command
 configured nothing is copied, whatever clipboard program is installed.
+A command whose first word is `clip.exe` (a bare name or a path) is
+fed every copy as UTF-16LE with no byte-order mark, the one encoding
+it keeps whole on WSL; any other command gets the UTF-8 bytes. The
+probe's copy is the one copy of its output nothing downstream can
+mask, so `bale clipboard` masks each URL's password
+(`scheme://user:xxx@host`) and each GitHub token before copying, and
+its notice line says how many; the other paste blocks are hashed and
+copied exactly as printed.
 Where bale is not on PATH (or predates the verb), the script tees into
 the request's own clipboard command — either spelling, the same
 precedence — when the crafter could read one at craft time, and
