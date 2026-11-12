@@ -4195,6 +4195,18 @@ When apply encounters `response_kind: "clarification"`, it:
    manifest. If the gap invalidates the request's framing, the
    recourse is `bale unlock` and a repack — the planner's call.
 
+Once step 3 has preserved the round, the landing also prints the
+planner-facing exchange block for it (0.4.59): byte for byte the block
+`bale relay <sid>` re-emits for that round afterwards, rendered from
+the preserved record by the same function, and printed before the
+step 1 banner so the verdict and the next step still print last. It
+copies the block the way relay does, as the exchange block, so with a
+clipboard command configured the block is what the clipboard holds when
+the landing ends. The trailer still names `bale relay <sid>`, which
+prints the same block again; exit codes and the suspension are
+unchanged. Under `--json` the block rides stderr with the rest of the
+human output, and stdout stays the one report line.
+
 A clarification writes no telemetry record: it suspends the session
 rather than closing it, and the eventual normal response records
 (§8.9). The rounds still reach the ledger (v0.3.23, board 5): every

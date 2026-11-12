@@ -225,6 +225,14 @@ clipboard_command` still read): `describe_clipboard_state` renders the
 `clipboard` status row from the same five facts, naming the spelling
 when it is the legacy one or when a file sets both, and
 `format_status_json` carries them as the additive `clipboard` object.
+Session clipboard (0.4.59) adds two rules over the copy. A command
+whose first word has the base name clip.exe is fed the block as
+UTF-16LE with no byte-order mark (`clipboard_payload`), the one
+encoding it keeps whole on WSL; every other command still gets the
+UTF-8 bytes. And `mask_clipboard_credentials` masks each URL's
+password and each GitHub token in what `bale clipboard` copies, the
+one copy bale makes of text it did not print; the other paste blocks
+are hashed and copied as printed.
 
 Session cost-mirror (v0.4.54) gives the telemetry cost block its input:
 `read_cost_file` is the one reader/validator `bale apply`, `bale retry`
@@ -242,6 +250,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import textwrap
@@ -2541,6 +2550,201 @@ def _clipboard_notice(text: str) -> None:
     _journal_notice(line)
 
 
+# ---------------------------------------------------------------------------
+# What a copy feeds clip.exe (session clipboard, 0.4.59)
+# ---------------------------------------------------------------------------
+#
+# On WSL, clip.exe reads its stdin as UTF-16LE when it is fed that, and
+# otherwise as the Windows console's code page: UTF-8 fed to it arrives
+# with every non-ASCII character mangled (an em dash read as code page
+# 437 is U+0393 U+00C7 U+00F6), and a UTF-16LE byte-order mark lands on
+# the clipboard as a U+FEFF character of its own. The occupant's probe
+# clipexe-encoding (2026-11-11) showed all three: UTF-16LE with no mark
+# arrives exact, ASCII included. So a copy bound for clip.exe is
+# transcoded here, once, for every paste point; every other command is
+# fed exactly the UTF-8 bytes it was fed before. This is a rule about
+# the configured command, not run-time detection: nothing is looked up
+# on PATH, and an unset key still copies nothing.
+
+CLIP_EXE_BASENAME = "clip.exe"
+
+# The notice's aside when bytes piped into `bale clipboard` were not
+# UTF-8 and had to be read with replacement to reach clip.exe at all.
+CLIPBOARD_REPLACED_ASIDE = (
+    "; input that was not valid UTF-8 reached clip.exe as U+FFFD")
+
+
+def clipboard_command_is_clip_exe(command: Optional[str]) -> bool:
+    """True when `command`'s first word — a bare name or a path, with
+    either slash — has the base name clip.exe, in any letter case
+    (Windows resolves `CLIP.EXE` to the same program through WSL's
+    interop). The first word is read the way the shell will read it
+    (shlex, POSIX rules, so a quoted path with spaces stays one word),
+    falling back to a whitespace split for a line shlex cannot parse.
+    A command that only reaches clip.exe later (`cmd.exe /c clip`, an
+    `env FOO=1 clip.exe` prefix, a pipeline) does not count: it is fed
+    the UTF-8 bytes, as before. Pure."""
+    if not command or not command.strip():
+        return False
+    try:
+        words = shlex.split(command, posix=True)
+    except ValueError:
+        words = command.split()
+    if not words:
+        return False
+    base = re.split(r"[\\/]", words[0])[-1]
+    return base.lower() == CLIP_EXE_BASENAME
+
+
+def clipboard_payload(command: Optional[str], data: bytes) -> tuple:
+    """(bytes, aside): what to feed `command` for the block `data`
+    (UTF-8, as every paste point and `bale clipboard`'s stdin carries
+    it), and the clause the copied notice appends ("" for none). Pure.
+
+    For clip.exe (clipboard_command_is_clip_exe) the bytes are the text
+    encoded UTF-16LE with no byte-order mark; the clipboard then holds
+    every character as bale printed it. Bytes that are not valid UTF-8
+    (only `bale clipboard` can be handed such) are read with U+FFFD in
+    place of each bad sequence — UTF-16LE cannot carry raw bytes, and
+    the alternative is the mangling this rule exists to end — and the
+    aside says so. A UTF-8 byte-order mark in the input is a character
+    of the input and travels as one. Any other command: `data`, the
+    same object, unchanged.
+    """
+    if not clipboard_command_is_clip_exe(command):
+        return data, ""
+    try:
+        text = data.decode("utf-8")
+        aside = ""
+    except UnicodeDecodeError:
+        text = data.decode("utf-8", errors="replace")
+        aside = CLIPBOARD_REPLACED_ASIDE
+    return text.encode("utf-16-le"), aside
+
+
+# ---------------------------------------------------------------------------
+# Masking what `bale clipboard` copies (session clipboard, 0.4.59)
+# ---------------------------------------------------------------------------
+#
+# `bale clipboard` copies text bale did not print — a probe's output,
+# piped in by the scaffold — and when it is piped, that copy is the only
+# copy of the output there is: the office masks the output it hands
+# back, but cannot mask the block's own closing copy. So this verb masks
+# two kinds of credential before copying, and its notice says it did:
+#
+# - a URL's password: in `scheme://user:PASSWORD@host`, the bytes after
+#   the first ':' of the userinfo and before the authority's last '@'
+#   (a raw '@' in a password is common enough that the last one is the
+#   host's), replaced by URL_PASSWORD_MASK. The user name, the host and
+#   every other byte stay. A userinfo with no ':' (`https://git@host`,
+#   `ssh://deploy@host`) is a user name and is left alone, unless it is
+#   a GitHub token, below.
+# - a GitHub token (ghp_, gho_, ghu_, ghs_, ghr_, and github_pat_), the
+#   office's other masked kind: its prefix kept, the rest replaced.
+#
+# Nothing else is masked. The other paste blocks (the exchange block,
+# the opener, the relays) are never passed through here: their bodies
+# are hashed, and a masked body would fail its trailer on ingest.
+
+URL_PASSWORD_MASK = b"xxx"
+GITHUB_TOKEN_MASK = b"xxx"
+
+# A URL scheme ending right before "://" (RFC 3986's ALPHA *( ALPHA /
+# DIGIT / "+" / "-" / "." )), searched in a short window before each
+# "://" so the scan stays linear however long the input is.
+_URL_SCHEME_TAIL = re.compile(rb"[A-Za-z][A-Za-z0-9+.\-]*\Z")
+_URL_SCHEME_WINDOW = 64
+# Where a URL's authority ends: the path, query or fragment, whitespace,
+# or a character that delimits a URL in prose and shell lines.
+_URL_AUTHORITY_END = re.compile(rb"[\s/?#\"'<>\\`]")
+_GITHUB_TOKEN = re.compile(
+    rb"\b(gh[pousr]_)[A-Za-z0-9]{36,255}\b|\b(github_pat_)[A-Za-z0-9_]{22,255}")
+
+
+class MaskedCopy(NamedTuple):
+    """mask_clipboard_credentials' answer: the bytes to copy and how
+    many of each kind were masked."""
+    data: bytes
+    url_passwords: int
+    github_tokens: int
+
+    @property
+    def masked(self) -> int:
+        return self.url_passwords + self.github_tokens
+
+
+def _url_password_spans(data: bytes) -> list:
+    """(start, end) of every URL password in `data`, in order and
+    non-overlapping (each lies inside its own authority, and an
+    authority ends before the next "://"'s slashes). Pure."""
+    spans = []
+    for sep in re.finditer(rb"://", data):
+        start = sep.start()
+        window = data[max(0, start - _URL_SCHEME_WINDOW):start]
+        if not _URL_SCHEME_TAIL.search(window):
+            continue
+        auth_start = sep.end()
+        end_match = _URL_AUTHORITY_END.search(data, auth_start)
+        auth_end = end_match.start() if end_match else len(data)
+        at = data.rfind(b"@", auth_start, auth_end)
+        if at < 0:
+            continue
+        colon = data.find(b":", auth_start, at)
+        if colon < 0:
+            continue
+        pw_start, pw_end = colon + 1, at
+        if pw_start < pw_end:
+            spans.append((pw_start, pw_end))
+    return spans
+
+
+def mask_clipboard_credentials(data: bytes) -> MaskedCopy:
+    """`data` with every URL password and GitHub token masked (the
+    section comment above has the rules), plus the counts. Works on
+    bytes, so input that is not UTF-8 is masked too and every unmasked
+    byte is kept as it was; with nothing to mask the data is returned
+    unchanged. A password that already reads as the mask is not counted
+    again. Pure."""
+    out = []
+    pos = 0
+    passwords = 0
+    for pw_start, pw_end in _url_password_spans(data):
+        if data[pw_start:pw_end] == URL_PASSWORD_MASK:
+            continue
+        out.append(data[pos:pw_start])
+        out.append(URL_PASSWORD_MASK)
+        pos = pw_end
+        passwords += 1
+    out.append(data[pos:])
+    masked = b"".join(out) if passwords else data
+    tokens = 0
+
+    def _mask_token(m) -> bytes:
+        nonlocal tokens
+        tokens += 1
+        return (m.group(1) or m.group(2)) + GITHUB_TOKEN_MASK
+
+    masked = _GITHUB_TOKEN.sub(_mask_token, masked)
+    return MaskedCopy(masked, passwords, tokens)
+
+
+def masking_aside(result: MaskedCopy) -> str:
+    """The copied notice's clause for what was masked — "" when nothing
+    was, else e.g. "; masked 1 URL password before copying" or
+    "; masked 2 URL passwords and 1 GitHub token before copying".
+    Pure."""
+    parts = []
+    if result.url_passwords:
+        n = result.url_passwords
+        parts.append(f"{n} URL password{'s' if n != 1 else ''}")
+    if result.github_tokens:
+        n = result.github_tokens
+        parts.append(f"{n} GitHub token{'s' if n != 1 else ''}")
+    if not parts:
+        return ""
+    return f"; masked {' and '.join(parts)} before copying"
+
+
 # copy_paste_block's outcomes, for callers and tests.
 CLIPBOARD_COPIED = "copied"
 CLIPBOARD_FAILED = "failed"
@@ -2556,7 +2760,9 @@ def copy_paste_block(repo: Optional[Path], block: str, text, *,
     `repo` is the repo the command runs in (None outside one); `block`
     names the block in the notice (the PASTE_BLOCK_* vocabulary);
     `text` is exactly what the operator pastes — str (written UTF-8) or
-    bytes (written as-is). `aside` is appended to the copied notice (a
+    bytes (written as-is) — and a clip.exe command is fed it as
+    UTF-16LE instead, with no byte-order mark (clipboard_payload, since
+    0.4.59). `aside` is appended to the copied notice (a
     HOLD names the block it left printed). `announce_unset` makes an
     unset key print its remedy line (`bale clipboard` only — elsewhere
     an operator who never opted in sees nothing new).
@@ -2591,11 +2797,15 @@ def copy_paste_block(repo: Optional[Path], block: str, text, *,
                     f"the {block} was not copied — no clipboard command "
                     f"is configured here; " + CLIPBOARD_SETUP_REMEDY)
             return CLIPBOARD_UNSET
-        ok, detail = run_clipboard_command(command, data)
+        # clip.exe gets UTF-16LE with no mark; every other command the
+        # bytes as given (clipboard_payload, session clipboard 0.4.59).
+        payload, encoding_aside = clipboard_payload(command, data)
+        ok, detail = run_clipboard_command(command, payload)
         layer = f"{source} " if source else ""
         if ok:
             _clipboard_notice(f"copied the {block} to the clipboard "
-                              f"(`{command}`, {layer}bale.toml){aside}")
+                              f"(`{command}`, {layer}bale.toml){aside}"
+                              f"{encoding_aside}")
             return CLIPBOARD_COPIED
         _clipboard_notice(
             f"the {block} was NOT copied — `{command}` ({layer}bale.toml) "

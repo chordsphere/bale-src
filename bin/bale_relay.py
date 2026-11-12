@@ -46,9 +46,15 @@ ingest-edge rule, one implementation for every inbound surface), and
 `bale_apply`'s clarification-thread writers (`clarifications_dir`,
 `next_clarification_seq`, `preserve_clarification_record` — the same
 write apply's tarball ingest uses, so the thread is byte-identical
-whichever path a round arrives by). Dependency direction is one-way:
-`bin/bale` imports `bale_relay`; this module reaches into `bale_pack`
-and `bale_apply` lazily, and neither imports it back.
+whichever path a round arrives by). Dependency direction: `bin/bale`
+imports `bale_relay`; this module reaches into `bale_pack` and
+`bale_apply` lazily, and `bale_pack` never imports it back. One lazy
+call runs the other way, since 0.4.59: a clarification's landing in
+`bale_apply._apply_clarification` prints and copies the round it has
+just preserved through `render_recorded_round`, the rendering the
+no-file re-emit uses, so the two blocks are one by construction. It
+is a function-level import made after both modules are loaded, so
+no import cycle forms at load time.
 """
 
 from __future__ import annotations
@@ -59,7 +65,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
 
 def _fail(msg: str, *, reason: str) -> None:
@@ -470,6 +476,65 @@ def _next_step_trailer(sid: str, awaiting: str, latest_round: int) -> list[str]:
     ]
 
 
+class RecordedRound(NamedTuple):
+    """One preserved round of the thread, rendered as its paste block
+    (render_recorded_round)."""
+    block: str
+    round: int
+    kind: str           # "clarification manifest" or "exchange record"
+    side: Optional[str]  # the body record's `from`
+
+
+class UnreadableRound(Exception):
+    """A preserved round render_recorded_round cannot stand behind:
+    `detail` is why, and `not_object` is True when the file parsed as
+    JSON but not as an object (its type name in `detail`)."""
+
+    def __init__(self, detail: str, *, not_object: bool = False) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.not_object = not_object
+
+
+def render_recorded_round(path: Path, sid: str,
+                          fallback_round: int) -> RecordedRound:
+    """The paste block for the preserved round at `path`, byte for byte
+    the block its original emission printed: a preserved clarification
+    manifest renders in its `from: worker` exchange-record reading
+    (round = its NNN, created_at = the preserved stamp), a preserved
+    exchange record as itself, its `preserved_at` sidecar stripped.
+    `fallback_round` is the round for a file whose stem is not a number
+    (read_exchange_thread's positional fallback). Raises UnreadableRound
+    when the file cannot be read, is not JSON, or is not an object.
+    Reads only.
+
+    The one rendering of a recorded round: `bale relay <sid>`'s no-file
+    re-emit uses it, and so does a clarification's landing in `bale
+    apply` (0.4.59), so the block apply prints for the round it has just
+    preserved is the block relay re-emits for it afterwards.
+    """
+    try:
+        rnd = int(path.stem)
+    except ValueError:
+        rnd = fallback_round
+    try:
+        preserved = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        raise UnreadableRound(str(e)) from e
+    if not isinstance(preserved, dict):
+        raise UnreadableRound(type(preserved).__name__, not_object=True)
+    preserved_at = preserved.pop("preserved_at", None)
+    if preserved.get("response_kind") == "clarification":
+        kind = "clarification manifest"
+        body_record = _normalize_manifest_to_record(preserved, sid, rnd,
+                                                    preserved_at)
+    else:
+        kind = "exchange record"
+        body_record = preserved
+    return RecordedRound(format_exchange_block(sid, body_record), rnd, kind,
+                         body_record.get("from"))
+
+
 def _cmd_reemit(repo: Path, sid: str, *, want_json: bool = False,
                 report_sid: Optional[str] = None,
                 log_path: Optional[str] = None) -> int:
@@ -516,32 +581,20 @@ def _cmd_reemit(repo: Path, sid: str, *, want_json: bool = False,
              f"tarball, or `bale relay {sid} <file|->`).", reason="no-rounds")
     path = records[-1]
     try:
-        rnd = int(path.stem)
-    except ValueError:
-        rnd = len(records)  # read_exchange_thread's positional fallback
-    try:
-        preserved = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as e:
+        # len(records): read_exchange_thread's positional fallback.
+        recorded = render_recorded_round(path, sid, len(records))
+    except UnreadableRound as e:
+        if e.not_object:
+            fail(f"the thread's latest recorded round {path.name} is not a "
+                 f"JSON object (got {e.detail}) — nothing "
+                 f"re-emitted.", reason="unreadable-record")
         fail(f"the thread's latest recorded round {path.name} is "
-             f"unreadable ({e}) — nothing re-emitted. Fix or remove the "
-             f"record at {path} and re-run.", reason="unreadable-record")
-    if not isinstance(preserved, dict):
-        fail(f"the thread's latest recorded round {path.name} is not a "
-             f"JSON object (got {type(preserved).__name__}) — nothing "
-             f"re-emitted.", reason="unreadable-record")
-    preserved_at = preserved.pop("preserved_at", None)
-    if preserved.get("response_kind") == "clarification":
-        kind = "clarification manifest"
-        body_record = _normalize_manifest_to_record(preserved, sid, rnd,
-                                                    preserved_at)
-    else:
-        kind = "exchange record"
-        body_record = preserved
-    side = body_record.get("from")
+             f"unreadable ({e.detail}) — nothing re-emitted. Fix or remove "
+             f"the record at {path} and re-run.", reason="unreadable-record")
+    block, rnd, kind, side = recorded
     rel_path = path.relative_to(repo)
     log(f"relay: no file argument — re-emitting the thread's latest "
         f"recorded round (v0.4.22)")
-    block = format_exchange_block(sid, body_record)
     if not want_json:
         emit_stdout_block(block)
     # Session clipboard-paste-blocks: the block, BEGIN through END, to
