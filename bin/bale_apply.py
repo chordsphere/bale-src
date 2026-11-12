@@ -916,11 +916,13 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
       diagnostics.json analog to verify.
     - **The lock is NOT cleared — the session stays open.** A bailout
       consumes its session (the next step is `bale handoff` against a fresh
-      sid); a clarification suspends it. The architect answers the questions
-      in the worker's chat and the session continues to a normal response
-      applied against this same sid. If the gap invalidates the request's
-      framing, the user runs `bale unlock` and repacks — their call, not
-      ours.
+      sid); a clarification suspends it. The planner answers the questions
+      as an exchange record, `bale relay <sid> <answer.json|->` records it
+      and emits the worker's block (TARBALL.md §5.9.4; the banner's next
+      step says so since 0.4.58), and the session continues to a normal
+      response applied against this same sid. If the gap invalidates the
+      request's framing, the user runs `bale unlock` and repacks — their
+      call, not ours.
 
     What this handler does:
 
@@ -2418,8 +2420,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # ride in the manifest (already schema-validated and shape-checked
         # above); nothing is applied, and — the one deliberate divergence
         # from the bailout — the session stays OPEN: _apply_clarification
-        # does not clear the lock, because the architect answers in the
-        # worker's chat and this same sid receives the follow-up response.
+        # does not clear the lock, because the planner answers through the
+        # exchange thread (`bale relay`) and this same sid receives the
+        # follow-up response.
         # The early branch keeps the clarification path free of staging side
         # effects, exactly as the bailout branch above does.
         if manifest.get("response_kind", "normal") == "clarification":

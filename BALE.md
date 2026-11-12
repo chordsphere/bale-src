@@ -4287,6 +4287,13 @@ BALE EXCHANGE BEGIN <sid>
 BALE EXCHANGE END
 ```
 
+The planner-facing header line (after a worker record) asks for the
+answer as an exchange record and says to record it "with the relay
+of the tool that carried this block", bale's own spelled out beside
+it in parentheses (0.4.58): the block travels, and a tool that wraps
+bale has a relay verb of its own that bale cannot name. The
+worker-facing line is unchanged.
+
 The header is every leading `#` line after the BEGIN sentinel; the
 trailer is the last line inside the sentinels; the body is
 everything between, and the trailer's sha256 is computed over

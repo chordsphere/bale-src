@@ -137,6 +137,17 @@ def format_exchange_block(sid: str, record: dict) -> str:
     _normalize_manifest_to_record); the preserved copy's `preserved_at`
     sidecar is never part of the body, so the block is the record and
     only the record. Pure: the tests render and re-parse it in memory.
+
+    The planner-facing line (after a worker record) says to record the
+    answer "with the relay of the tool that carried this block", naming
+    bale's own spelling in parentheses (0.4.58). The block travels: a
+    tool that wraps bale (an office's `office relay SID FILE`, say)
+    hands it to a planner for whom a bare `bale relay` is the wrong
+    verb, and bale cannot know the wrapper's spelling, so the line
+    names the carrier's relay generically and keeps bale's for whoever
+    runs bale directly. The header is never hashed (the trailer covers
+    the body only), so its words move no digest; the crafter's
+    re-declaration in tools/craft_response.py says the same bytes.
     """
     side = record.get("from")
     rnd = record.get("round")
@@ -158,7 +169,8 @@ def format_exchange_block(sid: str, record: dict) -> str:
             + ". Planner: answer as an exchange record (from: planner,"
             f" round {rnd + 1 if isinstance(rnd, int) else '<next>'},"
             f" answers[] keyed question_round {rnd}) and record it with"
-            f" `bale relay {sid} <answer.json|->`.")
+            " the relay of the tool that carried this block (bale's own:"
+            f" `bale relay {sid} <answer.json|->`).")
     else:
         header.append(
             f"# {n_a} answer(s)"

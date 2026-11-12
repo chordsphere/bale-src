@@ -1411,6 +1411,10 @@ def format_exchange_block(sid: str, record: dict) -> str:
     would diverge silently the first time someone rendered the other
     direction; the policy belongs at the gate, not in a hole in the
     renderer. Pure: the tests render and re-parse it in memory.
+
+    The planner-facing line names "the relay of the tool that carried
+    this block", with bale's own spelling beside it (0.4.58); the why
+    is in bin/bale_relay.py's docstring for the same function.
     """
     side = record.get("from")
     rnd = record.get("round")
@@ -1432,7 +1436,8 @@ def format_exchange_block(sid: str, record: dict) -> str:
             + ". Planner: answer as an exchange record (from: planner,"
             f" round {rnd + 1 if isinstance(rnd, int) else '<next>'},"
             f" answers[] keyed question_round {rnd}) and record it with"
-            f" `bale relay {sid} <answer.json|->`.")
+            " the relay of the tool that carried this block (bale's own:"
+            f" `bale relay {sid} <answer.json|->`).")
     else:
         header.append(
             f"# {n_a} answer(s)"
