@@ -1,0 +1,21 @@
+{
+  "record_version": 1,
+  "version": "0.4.58",
+  "session_id": "2026-11-11-exchange-words-002",
+  "at": "2026-11-11T19:36:56+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale_relay.py",
+      "change": "format_exchange_block's planner-facing header line (after a worker record) ends 'and record it with the relay of the tool that carried this block (bale's own: `bale relay SID <answer.json|->`).' where it ended 'and record it with `bale relay SID <answer.json|->`.'; the ' and N answer(s)' clause, the round arithmetic, the first and last header lines, the worker-facing line, the body and the trailer are unchanged. The header is not hashed, so no digest moves and every block keeps ingesting."
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "--emit-block's re-declared format_exchange_block renders the same new planner-facing header line, byte for byte with bin/bale_relay.py (the parity the ExchangeBlockParity suite holds)."
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "print_clarification_banner's trailer at a clarification's landing (new clarification_next_step_trailer, additive) names the answer path: an exchange record from the planner, then 'bale relay SID <answer.json|->' on its own line, with 'bale relay SID' alone to print the block and the unlock-and-repack recourse; format_dry_run_report's clarification 'next step:' names the same relay line. Neither tells anyone to answer in the worker's chat any more."
+    }
+  ],
+  "notes": "Wording only: no exit code, state, record, schema or vocabulary changes. A consumer that matched the old header text or the old landing trailer text must follow; nothing in bale parses either."
+}

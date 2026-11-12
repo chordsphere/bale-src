@@ -1520,21 +1520,44 @@ def print_clarification_banner(manifest: dict) -> None:
     # Crisp banner + next step LAST. The load-bearing line is the session
     # row: unlike a bailout, the lock is retained — the session stays open
     # for the worker's follow-up response (TARBALL.md §5.9.3 step 4).
+    sid = manifest["session_id"]
     print(format_summary_block(
         [
             ("applied", "no changes — apply.sh and validation.sh were not run"),
             ("session", "still open — lock retained for the follow-up response"),
         ],
         status="CLARIFICATION",
-        sid=manifest["session_id"],
-        trailer=[
-            "  Next step:",
-            "    answer the questions in the worker's chat, then apply its",
-            "    follow-up response against this same session",
-            "    (`bale unlock` and repack if the gap invalidates the request)",
-        ],
+        sid=sid,
+        trailer=clarification_next_step_trailer(sid),
     ))
     print()
+
+
+def clarification_next_step_trailer(sid: str) -> list[str]:
+    """The `[CLARIFICATION]` banner's next step at a clarification's
+    landing (0.4.58): the answer path TARBALL.md §5.9.4 and BALE.md
+    §8.10.2 step 4 describe, the thread and `bale relay`.
+
+    Before 0.4.58 this sent the reader to answer in the worker's own chat
+    session, the very path TARBALL.md §5.9.1 calls the breach case: chat
+    carries no blocking ask. The planner answers as an
+    exchange record and `bale relay <sid> <answer.json|->` records it as
+    the thread's next round and emits the worker's block; the relay line
+    stands alone, with the real sid, so it copies whole. Run with no
+    file, relay re-emits the round apply just preserved, which is how
+    the questions reach a planner who is not reading this terminal.
+    Pure; the path `bale status`'s hint names for a thread awaiting the
+    planner (bin/bale's session-state reading).
+    """
+    return [
+        "  Next step:",
+        "    answer the questions as an exchange record (from: planner), then",
+        f"    bale relay {sid} <answer.json|->",
+        "    records it and emits the worker's block; the worker's follow-up",
+        "    response then applies against this same session",
+        f"    (`bale relay {sid}` alone prints the exchange block to carry;",
+        "    `bale unlock` and repack if the gap invalidates the request)",
+    ]
 
 
 def format_dry_run_report(manifest: dict, sid: str, *, response_kind: str) -> str:
@@ -1580,7 +1603,11 @@ def format_dry_run_report(manifest: dict, sid: str, *, response_kind: str) -> st
         lines.append(f"  apply would: print the questions banner "
                      f"({len(questions)} question(s)) and stop "
                      "(no files applied; the session stays open).")
-        lines.append("  next step:   answer the questions in the worker's chat")
+        # 0.4.58: the same answer path the live banner names
+        # (clarification_next_step_trailer), never a chat-side answer.
+        lines.append("  next step:   answer the questions as an exchange "
+                     "record (from: planner), then")
+        lines.append(f"               bale relay {sid} <answer.json|->")
         lines.append("")
         lines.append("  DRY RUN — nothing applied, working tree untouched.")
         lines.append("")
