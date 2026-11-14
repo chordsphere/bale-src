@@ -2556,6 +2556,13 @@ class CraftProbeClipboard(unittest.TestCase):
     SLUG = "fixture-probe"
     BALE_PIPE = ('emit_probe_block | PYTHONDONTWRITEBYTECODE=1 bale '
                  'clipboard --block "probe block"')
+    # Since 0.4.60 the no-bale fallback feeds the request's command
+    # bale clipboard's own copy, through the scaffold's mask program
+    # (tests/test_probe_scaffold.py pins that copy against bale's); a
+    # non-clip.exe command still gets UTF-8, so these captures, which
+    # carry no credential, are the printed block byte for byte.
+    FALLBACK_PIPE = ('emit_probe_block | python3 -I -B -c "$clip_mask_py" '
+                     'copy utf-8 2>/dev/null | ')
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -2577,7 +2584,7 @@ class CraftProbeClipboard(unittest.TestCase):
                      header="[clipboard]")
         cp = self.emit()
         self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertIn("emit_probe_block | cat >clipboard-capture.txt",
+        self.assertIn(self.FALLBACK_PIPE + "cat >clipboard-capture.txt",
                       cp.stdout)
         self.assertIn("bale.toml sets [clipboard] command", cp.stderr)
         self.assertNotIn("legacy", cp.stderr)
@@ -2591,7 +2598,7 @@ class CraftProbeClipboard(unittest.TestCase):
         self.set_key('clipboard_command = "cat >clipboard-capture.txt"')
         cp = self.emit()
         self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertIn("emit_probe_block | cat >clipboard-capture.txt",
+        self.assertIn(self.FALLBACK_PIPE + "cat >clipboard-capture.txt",
                       cp.stdout)
         self.assertIn("bale.toml sets [probe] clipboard_command, the legacy "
                       "spelling — `bale config init` moves it to "
@@ -2730,7 +2737,7 @@ class CraftProbeClipboard(unittest.TestCase):
         self.set_key('clipboard_command = "cat >clipboard-capture.txt"')
         cp = self.emit()
         self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertIn("emit_probe_block | cat >clipboard-capture.txt",
+        self.assertIn(self.FALLBACK_PIPE + "cat >clipboard-capture.txt",
                       cp.stdout)
         self.assertIn("fallback for a machine without bale on PATH: the "
                       "request's key", cp.stderr)
@@ -2772,7 +2779,7 @@ class CraftProbeClipboard(unittest.TestCase):
                      where="context/bale.toml")
         cp = self.emit()
         self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertIn("emit_probe_block | cat >/dev/null", cp.stdout)
+        self.assertIn(self.FALLBACK_PIPE + "cat >/dev/null", cp.stdout)
         self.assertIn("context/bale.toml", cp.stderr)
 
     def test_misconfigured_shapes_fall_back_to_remedy(self):

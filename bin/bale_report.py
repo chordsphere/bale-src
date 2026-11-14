@@ -2645,6 +2645,13 @@ def clipboard_payload(command: Optional[str], data: bytes) -> tuple:
 # Nothing else is masked. The other paste blocks (the exchange block,
 # the opener, the relays) are never passed through here: their bodies
 # are hashed, and a masked body would fail its trailer on ingest.
+#
+# A twin (0.4.60, session probe-scaffold): the crafter's probe scaffold
+# makes this same copy where bale is not on PATH, with a restated copy of
+# this mask and of clipboard_payload's rule (tools/craft_response.py's
+# PROBE_FALLBACK_MASK_PY and clip_command_is_clip_exe; tools/ never
+# imports bin/). tests/test_probe_scaffold.py runs the two side by side,
+# so a change here goes red there until the twin follows.
 
 URL_PASSWORD_MASK = b"xxx"
 GITHUB_TOKEN_MASK = b"xxx"

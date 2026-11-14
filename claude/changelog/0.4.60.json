@@ -1,0 +1,29 @@
+{
+  "record_version": 1,
+  "version": "0.4.60",
+  "session_id": "2026-11-12-probe-scaffold-002",
+  "at": "2026-11-12T14:06:03+00:00",
+  "surfaces": [
+    {
+      "path": "tools/craft_response.py",
+      "change": "New --run-line LINE (only with --probe; refused elsewhere): the probe scaffold's purpose header gains one line, '# ' then LINE verbatim, after '# Read-only:' and before '# Bound:'. A LINE with a line break, a blank LINE or one starting '#' is refused, exit 2, nothing on stdout. Without the flag the emission is unchanged apart from the secrets note below."
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "The probe scaffold's placeholder comments carry a secrets note naming secret files, remote URLs and git remote -v, and one comment line that is the command `git remote -v | sed -E ...`, masking each URL password as xxx and each GitHub token's characters after its prefix as xxx."
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "The no-bale clipboard fallback (a request bale.toml command read at craft time) now copies what `bale clipboard --block \"probe block\"` copies: URL passwords and GitHub tokens masked by 0.4.59's rule, UTF-16LE with no byte-order mark for a clip.exe command, UTF-8 otherwise, through a python3 program the scaffold carries (PROBE_FALLBACK_MASK_PY). Its success line on stderr gains ', as 'bale clipboard' copies it', ' (UTF-16LE with no byte-order mark, for clip.exe)' for clip.exe, and bale's '; masked N ... before copying' aside. Without python3, or when it fails, it copies nothing and says so on stderr. The bale-on-PATH path is unchanged."
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "--bundle's help carries, whole on its own line: \"A successor's bundle takes a stem no earlier bundle of its slug had.\", followed by why."
+    },
+    {
+      "path": "docs/TARBALL.md",
+      "change": "4.2 names --run-line and the header line it writes; 4.3's Secrets-aware rule names remote URLs and git remote -v beside secret files, and the fallback paragraph says the no-bale copy is bale clipboard's copy (masked, UTF-16LE for clip.exe) and copies nothing without python3."
+    }
+  ],
+  "notes": "No bale verb, exit code, record, schema or vocabulary changes. A probe crafted by 0.4.60 with a request clipboard key needs python3 for its no-bale copy; one crafted earlier keeps copying raw UTF-8, unmasked, there."
+}

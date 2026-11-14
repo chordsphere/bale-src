@@ -1739,6 +1739,14 @@ The canonical skeleton is mechanized: when a probe is the response,
 request per §3.1) emits it to stdout — the required properties above
 in their final form, the what/why header lines and the sections left
 as loud TODO placeholders.
+`--run-line LINE` gives the purpose header one more line, `# ` then
+LINE verbatim, directly after the `# Read-only:` line and before the
+`# Bound:` line: the run line, the command the courier types to run
+the block where it belongs, so one copy of the block carries how to
+run it. LINE is one line, not blank, and does not start with `#`;
+any other LINE is refused, with nothing on stdout. Without the flag
+the header keeps its four lines, `# PROBE`, `# Why:`, `# Read-only:`
+and `# Bound:`.
 
 The sections, caps, and slug vary per probe; the shape — header,
 function body, sentinels, integrity trailer — does not, and its home
@@ -1774,7 +1782,13 @@ These apply to both the paste-back shape and the §4.4 fallback:
   No argument parsing required for the happy path.
 - **Secrets-aware.** Skips `.env*`, `*.pem`, anything matching common
   secret patterns. Records *presence* (`OPENAI_API_KEY: set`), never
-  values.
+  values. Remote URLs are secrets too: a URL can hold a password or a
+  token (`https://user:PASSWORD@host`, `https://ghp_...@github.com`),
+  so `git remote -v`, and any other command that prints a remote URL,
+  runs only through a mask that blanks each URL's password and each
+  GitHub token's characters and keeps the remote's name, user, host
+  and path. The crafter's scaffold carries the note and a masked
+  `git remote -v | sed -E ...` line that runs as written.
 - **Logged.** Every step prints a line. Silent operations are bugs.
 - **Never waits on a terminal.** The body runs with its standard
   input closed (`/dev/null`) and git told neither to page nor to
@@ -1807,12 +1821,18 @@ mask, so `bale clipboard` masks each URL's password
 (`scheme://user:xxx@host`) and each GitHub token before copying, and
 its notice line says how many; the other paste blocks are hashed and
 copied exactly as printed.
-Where bale is not on PATH (or predates the verb), the script tees into
-the request's own clipboard command — either spelling, the same
-precedence — when the crafter could read one at craft time, and
+Where bale is not on PATH (or predates the verb), the script copies
+through the request's own clipboard command — either spelling, the
+same precedence — when the crafter could read one at craft time, and
 otherwise prints remedy text naming `bale config init --global`; the
 `PROBE BEGIN`/`END` banners always emit either way, as the
-dependency-free selection aid.
+dependency-free selection aid. That fallback copy is `bale
+clipboard`'s copy of the same block, byte for byte: each URL password
+and GitHub token masked the same way, UTF-16LE with no byte-order mark
+for a clip.exe command and the UTF-8 bytes for any other, and its
+`[clipboard]` line says what it masked. It masks with python3; where
+python3 is missing, it says so and copies nothing rather than copy
+unmasked.
 
 `probe.ps1` is conditional. Most environments (Linux container,
 macOS, WSL) run the bash variant natively. Offer a PowerShell variant

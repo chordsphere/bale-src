@@ -370,7 +370,14 @@ is *for* — and stays stable as the per-section line numbers drift:
     clipboard) it masks first: `bale_report.mask_clipboard_credentials`
     replaces each URL's password and each GitHub token, and
     `masking_aside` puts the count on the copied notice; it is the only
-    caller of the mask. Wiring only — the copy, the mask and the notices
+    caller of the mask. Since 0.4.60 (session probe-scaffold) the
+    crafter's no-bale fallback makes the same copy without bale: its
+    probe scaffold carries a restated twin of the mask and of
+    `clipboard_payload`'s encoding rule (`PROBE_FALLBACK_MASK_PY`, and
+    `clip_command_is_clip_exe` beside `clipboard_command_is_clip_exe`,
+    since tools/ never imports bin/), pinned to these functions by
+    tests/test_probe_scaffold.py; a change to the mask or the encoding
+    rule changes both. Wiring only — the copy, the mask and the notices
     are `bale_report`'s. By file order this cluster is
     banner section 30, placed right after Status (banner section 25)
     with a fresh number, the stable-numbering posture above.
