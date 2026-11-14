@@ -68,6 +68,7 @@ wins; this file wins on authoring practice.
 | Situation | Load |
 |-----------|------|
 | Authoring a pack command or assembling a request | Sections 1, 2; `TARBALL.md` §3.4 for the flag surface |
+| Handing the packer a line or a block to paste — a command, a probe, a bundle's line | Section 2 |
 | Authoring a request brief (README) | Sections 1, 3 |
 | Authoring a blind checkpoint | Sections 1, 4 |
 | A HOLD landed; deciding what the retry session sees | Section 5 |
@@ -140,11 +141,47 @@ practice of exercising the planner's half well.
   session it is asked to author, the bundle beside its `bale open`
   line — never a response tarball, not even an empty one
   (`TARBALL.md` §2).
+- **A planner working through a tool that wraps bale hands the packer
+  the wrapping tool's line, never bale's.** Some packers reach bale
+  through a tool that wraps it: the tool runs bale's verbs for them
+  and adds checks and records of its own around each. There the
+  `bale open` line the crafter prints beside a bundle is for the
+  courier: it still travels with the bundle, and it is not what the
+  packer is told to type. The wrapping tool may offer the bundle its
+  own way, and a bale line typed in its place skips whatever the
+  tool does around bale's verb. The planner takes the wrapping
+  tool's line from what the request carried, never from memory of
+  some tool's spelling; given none, it says so and names the bundle,
+  nothing more. A command outside the wrapping tool's guarded path
+  is not offered either: where the tool keeps one way for work to
+  leave, a raw command that reaches the same end around it — a
+  script against the git host, say — goes around every check on that
+  way. Earned at a live walkthrough, where one was offered and
+  withdrawn.
 - **Commands are single-line and space-tolerant.** One line, no
   continuations, pasteable as-is (`TARBALL.md` §3.4 states the
   form); authored so that incidental whitespace differences don't
   change what the command does. A command that breaks when a paste
   normalizes spacing is authored fragile.
+- **A line a planner hands a person to paste holds
+  no backtick and no dollar sign inside its double quotes.** The
+  shell runs both before the command sees the words: text between
+  backticks is run as a command, and a dollar sign opens a
+  substitution or names a variable. `TARBALL.md` §3.4 says so for the
+  goal string; the rule is the same for every line handed to paste,
+  whatever verb it calls, a wrapping tool's as much as bale's. Inside
+  the quotes a command or a symbol is named in plain words. Earned
+  from live traffic: two lines written for a wrapping tool's verb
+  carried backticked command names.
+- **A paste block never sits inside a list item.** The list's indent
+  travels into whatever the block is pasted into, a heredoc among
+  them: every line arrives with leading spaces, and a heredoc's
+  terminator, no longer at the start of its line, stops ending it. A
+  block the packer is to paste — a command, a probe, a block bound
+  for another session — stands flush left, outside any list; where
+  numbered steps surround it, the step names the block and the block
+  follows the list. Earned at a live walkthrough: a paste block
+  inside a list item carried its indent into a heredoc.
 - **Assume first-match path resolution, and author around it.**
   Relative file arguments (a brief via its file flag, a checkpoint
   via its delivery flag) resolve against a search path, first match
@@ -153,6 +190,15 @@ practice of exercising the planner's half well.
   distinct, session-identifying names; and at pack time, glance at
   the pack report's echoed identity — resolved path, first heading,
   sha256 — before shipping. The echo exists to be compared.
+- **A successor's bundle takes a stem no earlier bundle of its slug had.**
+  The crafter's `--bundle` help carries the same sentence. A sitting
+  that authors its successor and dates the stem from its own session
+  id repeats the stem the sitting itself was opened from, whenever
+  both bundles carry one slug and the sitting was opened the day its
+  own bundle was dated. A tool that tells an opened bundle by its
+  stem then takes the new bundle for the old one, and stops offering
+  it. What makes the stem new is the sitting's choice; that it is
+  new is the rule.
 - **A wrong fact is worse than a missing fact.** A missing fact in a
   request triggers a probe; a wrong one triggers an investigation
   the worker cannot decline, at context prices. Never state a claim
@@ -576,6 +622,44 @@ is orchestration doctrine, §14.
   proceeds, and the ledger records the question as "resolved by
   events" rather than sending it again. Re-asking spends the
   packer's attention on a question that no longer has two answers.
+- **A sitting whose goal is a showing asks in its first light block
+  when, for whom, what must be live and what may be not yet.** A
+  showing is work put in front of someone on a day, and its plan is
+  made backward from those answers: the day bounds the sessions that
+  fit, the audience sets what counts as done, and the line between
+  what must be live and what may be not yet is the scope. They are
+  three questions — the last is one line drawn, not two lists — so
+  they fit the light tier's count (`TARBALL.md` §5.10), each with the
+  sitting's best default; asked after the plan is drawn, they redraw
+  it.
+- **An as-assumed default about the packer's machine or a remote's
+  state is probed, not assumed.** A light block's default is made to
+  be ratified with a word, which suits a decision, where the packer
+  knows their own mind, and fails for a fact: "as assumed" then
+  ratifies what neither side has looked at. Whether a host can be
+  reached, whether a pull request is open — each is an environment
+  fact, and an environment fact takes a probe (`TARBALL.md` §4.1),
+  however naturally it reads as a question with a default. Earned at
+  a live walkthrough: two such defaults, a host's reach and no pull
+  request open, were wrong.
+- **A planner probe that greps for a byte pattern runs it under
+  `LC_ALL=C`.** In a UTF-8 locale grep matches characters, not bytes:
+  a pattern written as bytes — a range for every byte past ASCII,
+  say — can miss without a word, and a file holding one invalid
+  sequence may come back as "binary file matches" in place of its
+  lines. The probe runs on the packer's machine, in a locale the
+  sitting did not choose; under `LC_ALL=C` the grep means bytes
+  wherever it runs.
+- **A sitting shows the plan and its place in it, at its start and
+  whenever either changes.** The packer meets a sitting one step at
+  a time, and a step handed over without the plan around it cannot
+  be checked by the one it is handed to: not whether it is the next
+  step, not how many remain, not who moves after it. What is shown
+  is short — the steps in order, which are done, which one this is,
+  and who is waited on — and it is shown again when the plan changes
+  or the place in it does, never left for the packer to piece
+  together from the chat. Earned at a live walkthrough: the sitting
+  never showed either.
 - **A sitting's `context_included` is its reads.** A read-only pack
   names what the desk will read and nothing it will not; a design
   sitting's include set is the record of what its rulings were made

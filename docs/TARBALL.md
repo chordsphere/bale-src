@@ -1632,6 +1632,8 @@ text between them as command substitution before `bale` ever sees the
 goal. Name code symbols in plain prose inside the goal (*the useAuth
 hook*, not the backticked form); `$(...)` and an unescaped `$` carry
 the same hazard.
+`PLANNER.md` §2 carries the rule for every line a planner hands a
+person to paste, whatever verb it calls.
 
 A basic pack:
 

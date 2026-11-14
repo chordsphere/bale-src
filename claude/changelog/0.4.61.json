@@ -1,0 +1,17 @@
+{
+  "record_version": 1,
+  "version": "0.4.61",
+  "session_id": "2026-11-14-planner-practice-001",
+  "at": "2026-11-14T14:45:00+00:00",
+  "surfaces": [
+    {
+      "path": "docs/PLANNER.md",
+      "change": "Eight planner practice lines, insertions only. Section 2 gains four: a planner working through a tool that wraps bale hands the packer the wrapping tool's line, never bale's; a line handed to a person to paste holds no backtick and no dollar sign inside its double quotes; a paste block never sits inside a list item; and \"A successor's bundle takes a stem no earlier bundle of its slug had.\", the crafter's --bundle help sentence. Section 6 gains four: a sitting whose goal is a showing asks in its first light block when, for whom, what must be live and what may be not yet; an as-assumed default about the packer's machine or a remote's state is probed, not assumed; a planner probe that greps for a byte pattern runs it under LC_ALL=C; and a sitting shows the plan and its place in it. The INDEX read paths gain one row sending a line or a block handed to paste to section 2. No section is renumbered and no existing line changes."
+    },
+    {
+      "path": "docs/TARBALL.md",
+      "change": "3.4's goal-string paragraph gains one sentence pointing at PLANNER.md section 2, where the no-backtick rule now covers every line a planner hands a person to paste. Nothing else changes."
+    }
+  ],
+  "notes": "Doc only: no bale verb, exit code, record, schema or vocabulary changes, and no code changes. The carried PLANNER.md and TARBALL.md differ from 0.4.60's, so a request packed by 0.4.61 stamps new contract_docs hashes for those two."
+}
