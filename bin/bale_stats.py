@@ -24,10 +24,13 @@ each function's docstring restates the definition it implements so a
 future session can audit the code against the contract without the brief
 in hand. Two membership rules deserve their one-home statement up front:
 
-- **Read-only detection keys on `closure_reason == "closed-read-only"`,
-  never on scope** (ratified constraint). A recorded scope of `[]` is
-  overloaded in the real corpus: pre-ADR-0007 records also read `[]`, so
-  scope-keyed detection would misclassify them.
+- **Read-only detection never keys on a bare scope** (ratified
+  constraint). A recorded scope of `[]` is overloaded in the real corpus:
+  pre-ADR-0007 records also read `[]`, so scope-keyed detection would
+  misclassify them. A session is read-only on `closure_reason ==
+  "closed-read-only"`, or (v0.4.62) on an `opened` attempt recording
+  scope_kind "write-forecast" with an empty scope — the read-only pack's
+  own stamp, read-only from its pack on (is_read_only).
 - **Every rate reports its denominator, and a rate with a zero
   denominator is `None`** — honest "no data", never a fabricated 0 or a
   crash.
@@ -307,14 +310,50 @@ def session_packer(record: dict) -> str:
     return _resolve_provenance_value(record, "packer", UNATTRIBUTED)
 
 
-def is_read_only(record: dict) -> bool:
-    """D2: any attempt with closure_reason == "closed-read-only".
+def _opened_with_empty_forecast(attempt: dict) -> bool:
+    """True when `attempt` is a session-open stamp (outcome "opened")
+    recording an EMPTY write forecast: scope_kind "write-forecast" and
+    scope exactly `[]` — the read-only pack's stamp (ADR-0015; pack and
+    `bale open` of a read-only bundle both record `[]` here, a handoff
+    of a read-only parent too).
 
-    Keyed on closure_reason, NEVER on scope: the `[]` scope overload is
-    real in the corpus (pre-ADR-0007 records also read `[]`).
+    The scope_kind key is what makes the `[]` safe to read. A pre-
+    ADR-0007 record's `[]` meant "no scope recorded", and a pre-ADR-0015
+    attempt's scope was the include set; neither carries scope_kind
+    "write-forecast", and an `opened` attempt is itself post-v0.4.21,
+    long inside the forecast epoch. Every opening call site hands
+    build_telemetry_attempt a list (resolve_write_forecast, the handoff
+    resolution), so `[]` here is a declared empty forecast, never a
+    None collapsed to a list.
     """
-    return any(a.get("closure_reason") == "closed-read-only"
-               for a in record["attempts"])
+    return (attempt.get("outcome") == "opened"
+            and attempt.get("scope_kind") == FORECAST_SCOPE_KIND
+            and attempt.get("scope") == [])
+
+
+def is_read_only(record: dict) -> bool:
+    """D2, widened in v0.4.62: the session is read-only when any attempt
+    has closure_reason == "closed-read-only" (the closed reading, since
+    v0.3.24), OR when its opening attempt recorded an empty write
+    forecast (_opened_with_empty_forecast) — so a read-only session
+    reads read-only from its pack on, in flight as well as closed.
+
+    Before 0.4.62 only the closure said so, and a read-only session
+    read False until it closed (the dossier slip: `record.read_only`
+    false on a `bale open` of a read-only bundle). Never keyed on a
+    bare `[]` scope: that overload is real in the corpus (pre-ADR-0007
+    records also read `[]`), which is why the open-time reading keys on
+    the forecast epoch's scope_kind and on the `opened` outcome too.
+    Only the FIRST opened attempt counts — the session's own open; the
+    schema has one per record (retry's re-persist appends none).
+    """
+    if any(a.get("closure_reason") == "closed-read-only"
+           for a in record["attempts"]):
+        return True
+    for attempt in record["attempts"]:
+        if attempt.get("outcome") == "opened":
+            return _opened_with_empty_forecast(attempt)
+    return False
 
 
 def is_crash_debris(record: dict) -> bool:
@@ -518,17 +557,20 @@ def session_docs_read(record: dict) -> Optional[list]:
     return None
 
 
-def session_self_reported_count(record: dict, key: str) -> int:
-    """A self-reported session count (light_blocks, paste_carried_rounds):
-    the value on the LATEST attempt carrying it as a non-negative integer,
-    0 when none does.
+def session_self_reported_value(record: dict, key: str) -> Optional[int]:
+    """A self-reported session count (light_blocks, paste_carried_rounds)
+    as the session reported it: the value on the LATEST attempt carrying
+    it as a non-negative integer, None when no attempt does.
 
     Both counts are per-session by their schema descriptions ("this
     session"), so a retry's manifest restates rather than adds to them —
     the latest carrier is the session's figure (same reasoning as
     session_docs_read). Absent, null, negative, or non-integer values
-    (bool included — JSON true is not a count) read as no report: 0,
-    and never a failure to aggregate.
+    (bool included — JSON true is not a count) read as no report.
+
+    The None-preserving reader (v0.4.62) is the dossier's: a session
+    that never reported reads null there, never a fabricated 0.
+    session_self_reported_count is the aggregate's sum-side wrapper.
     """
     for attempt in reversed(record["attempts"]):
         reported = _self_reported(attempt)
@@ -538,7 +580,153 @@ def session_self_reported_count(record: dict, key: str) -> int:
         if isinstance(value, int) and not isinstance(value, bool) \
                 and value >= 0:
             return value
-    return 0
+    return None
+
+
+def session_self_reported_count(record: dict, key: str) -> int:
+    """The aggregate's reading of a self-reported session count:
+    session_self_reported_value with no report read as 0 — absence
+    contributes nothing to a sum and never fails the aggregation. The
+    rule (latest carrier, the tolerances) is session_self_reported_value's
+    alone, so the aggregate and the dossier cannot disagree on a value."""
+    value = session_self_reported_value(record, key)
+    return 0 if value is None else value
+
+
+# The self-reported counts the dossier's `record.self_reported` carries
+# (v0.4.62), each by session_self_reported_value's rule, in this order.
+SELF_REPORTED_COUNT_KEYS = ("light_blocks", "paste_carried_rounds")
+
+
+def session_self_reported_counts(record: dict) -> dict:
+    """The dossier's `record.self_reported`: each SELF_REPORTED_COUNT_KEYS
+    count by session_self_reported_value (null when no attempt reports
+    it) — the same figure the aggregate's `*_total` rows sum."""
+    return {key: session_self_reported_value(record, key)
+            for key in SELF_REPORTED_COUNT_KEYS}
+
+
+# ---------------------------------------------------------------------------
+# bale's own version per attempt (v0.4.62)
+# ---------------------------------------------------------------------------
+
+def attempt_bale_version(attempt: dict) -> Optional[str]:
+    """The running bale's version bale stamped on this attempt
+    (`bale_version`, written by build_telemetry_attempt since v0.4.62),
+    or None when the attempt carries none — every attempt written before
+    0.4.62. Only bale's own stamp counts: the worker's echo of the
+    request provenance (feedback.mechanical.provenance.bale_version) is
+    a different fact (the packing bale, as the worker copied it) and is
+    deliberately NOT read here."""
+    value = attempt.get("bale_version")
+    return value if isinstance(value, str) and value else None
+
+
+def session_bale_version(record: dict) -> Optional[str]:
+    """The session's bale version: the version on its FIRST attempt that
+    carries one (normally the `opened` attempt — the bale that packed or
+    opened it), None when no attempt does (a record written entirely
+    before 0.4.62)."""
+    for attempt in record["attempts"]:
+        value = attempt_bale_version(attempt)
+        if value is not None:
+            return value
+    return None
+
+
+# ---------------------------------------------------------------------------
+# The HOLD class per held attempt (v0.4.62)
+# ---------------------------------------------------------------------------
+
+# The four HOLD classes, in the order attempt_hold_class tests them (the
+# occupant's ratified vocabulary, 2026-11-14). A held attempt fitting none
+# reads None — counted in the aggregate's held_attempts, under no class.
+HOLD_CLASS_CHECKPOINT_DEFECT = "checkpoint-defect"
+HOLD_CLASS_BOTH = "both"
+HOLD_CLASS_CHECKPOINT = "checkpoint"
+HOLD_CLASS_VALIDATION = "validation"
+HOLD_CLASSES = (HOLD_CLASS_CHECKPOINT_DEFECT, HOLD_CLASS_BOTH,
+                HOLD_CLASS_CHECKPOINT, HOLD_CLASS_VALIDATION)
+
+
+def _exit_code(value: object) -> Optional[int]:
+    """An exit code as recorded, or None when the record holds no int
+    (absent, null, a string — and bool, which JSON true is not)."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return None
+
+
+def attempt_hold_class(attempt: dict) -> Optional[str]:
+    """Why a held attempt held, read from its own exit codes; None on an
+    attempt whose outcome is not "held", and on a held attempt that fits
+    no class.
+
+    Read from the EXIT CODES, never `validation.state`: on a held
+    attempt that state is apply's combined verdict and reads HOLD even
+    when validation.sh exited 0. The checkpoint "ran" when its stamp
+    reads configured: true with an integer exit_code (absence is the
+    pre-epoch shape, configured: false the known zero — neither ran).
+    In this order:
+
+    - "checkpoint-defect": the checkpoint ran and exited neither 0 nor 1
+      (2 is its machinery's own failure, TARBALL.md §7.5) — whatever
+      validation.sh did, since a broken oracle is the fact to fix first;
+    - "both": the checkpoint exited 1 and validation.sh exited non-zero;
+    - "checkpoint": the checkpoint exited 1 and validation.sh exited 0;
+    - "validation": validation.sh exited non-zero and the checkpoint
+      exited 0 or did not run;
+    - None otherwise. Reachable only on a record no apply writes today:
+      a held attempt with no recorded validation exit code (a null or
+      absent `validation`), a configured checkpoint stamp with no
+      integer exit_code, or both scripts exiting 0.
+
+    Because the class is read from facts every validated attempt has
+    carried since v0.3.9 (and the checkpoint stamp since v0.3.29), held
+    attempts written by earlier releases classify too.
+    """
+    if attempt.get("outcome") != "held":
+        return None
+    validation = attempt.get("validation")
+    val_exit = (_exit_code(validation.get("exit_code"))
+                if isinstance(validation, dict) else None)
+    checkpoint = attempt.get("checkpoint")
+    ck_ran = (isinstance(checkpoint, dict)
+              and checkpoint.get("configured") is True)
+    ck_exit = _exit_code(checkpoint.get("exit_code")) if ck_ran else None
+    if ck_exit is not None and ck_exit not in (0, 1):
+        return HOLD_CLASS_CHECKPOINT_DEFECT
+    if ck_exit == 1 and val_exit is not None:
+        return HOLD_CLASS_BOTH if val_exit != 0 else HOLD_CLASS_CHECKPOINT
+    if val_exit is not None and val_exit != 0 \
+            and (not ck_ran or ck_exit == 0):
+        return HOLD_CLASS_VALIDATION
+    return None
+
+
+def attempt_claimed_checks(attempt: dict) -> Optional[dict]:
+    """The derived claimed-checks counts bale wrote into this attempt's
+    validation object at apply (v0.4.62; build_telemetry_attempt computes
+    them through bale_report.summarize_claimed_checks, the reading the
+    walk's `N of M checks ran` line prints): {claimed, ran,
+    disagreements}, or None on an attempt with no validation or written
+    before 0.4.62. `ran` is null when validation.sh printed no claims
+    block beside a non-empty claims map — bale did not see the verdicts,
+    so it counts nothing and names no disagreement. Projected key by key
+    so the dossier's shape is fixed whatever else a record carries."""
+    validation = attempt.get("validation")
+    if not isinstance(validation, dict):
+        return None
+    counts = validation.get("claimed_checks")
+    if not isinstance(counts, dict):
+        return None
+    disagreements = counts.get("disagreements")
+    return {
+        "claimed": counts.get("claimed"),
+        "ran": counts.get("ran"),
+        "disagreements": (sorted(str(d) for d in disagreements)
+                          if isinstance(disagreements, list) else []),
+    }
 
 
 def session_clarification_rounds(record: dict) -> int:
@@ -1378,6 +1566,25 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
       (session_clarification_rounds): a paste-carried round counts as a
       round rather than hiding under a zero stamp.
 
+    v0.4.62 (session dossier-says-more) adds, additively:
+    - **read-only from the pack on** — is_read_only also reads the
+      opening attempt's empty write forecast, so an OPEN read-only
+      session now joins `read_only` (the context count and
+      members.read_only) and leaves every rate, the closure mix, the
+      packers and doc_epochs cuts, as a closed one always has. The
+      in-flight count and members.in_flight are deliberately unchanged:
+      an open read-only session still counts there (the window and,
+      for its resolved class, the work_class filter reach it as before).
+    - **`corpus.held_attempts`** and **`corpus.hold_classes`** — held
+      response attempts over the filtered membership, and a mapping
+      from each HOLD_CLASSES word to how many of them carry it
+      (attempt_hold_class owns the rule; every class is present, 0 when
+      none). A held attempt fitting no class counts in held_attempts
+      only, so the gap is the difference, never a guessed class.
+    - **`members.sessions`** — every session id in the loaded corpus,
+      sorted: a whole-corpus fact like `records`, outside both filters,
+      read-only and crash-debris sessions included.
+
     Returns a plain dict; `format_stats_json` in bale_report owns its
     key list as the consumer contract, and `format_stats_report` renders
     the same payload for humans.
@@ -1448,6 +1655,39 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
                 closure_mix["unlocked"].get(reason, 0) + 1)
         else:
             closure_mix[kind] += 1
+
+    # Open read-only sessions stay in the in-flight count and its sid
+    # list (v0.4.62). Before 0.4.62 a read-only session read read-only
+    # only once closed, so an open one sat in the membership and counted
+    # here; is_read_only now names it from its pack on, which takes it
+    # out of every rate, and these two lines keep the in-flight reading
+    # exactly as it was — the since-window and, for a session whose
+    # class resolves, the work_class filter reaching it as before.
+    for record in read_only:
+        if closure_category(record) is not None:
+            continue
+        if work_class is not None \
+                and session_work_class(record) != work_class:
+            continue
+        in_flight += 1
+        in_flight_sids.add(record["session_id"])
+
+    # The HOLD class per held attempt (v0.4.62; attempt_hold_class owns
+    # the rule): over the filtered membership's response attempts, the
+    # unit every attempt total beside it counts. held_attempts is the
+    # denominator the classes partition; a held attempt fitting no class
+    # counts there and under no class, never in a guessed one.
+    hold_classes = {cls: 0 for cls in HOLD_CLASSES}
+    held_attempts = 0
+    for record in membership:
+        for attempt in record["attempts"]:
+            if not is_response_attempt(attempt) \
+                    or attempt.get("outcome") != "held":
+                continue
+            held_attempts += 1
+            cls = attempt_hold_class(attempt)
+            if cls is not None:
+                hold_classes[cls] += 1
 
     # Dual-stream cross-checks (D2, deliberately minimal at v1): the
     # self-reported stream is a calibration target, reported BESIDE the
@@ -1649,6 +1889,8 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
             "light_blocks_total": light_blocks_total,
             "paste_carried_rounds_total": paste_carried_total,
             "clarification_rounds_total": clarification_rounds_total,
+            "held_attempts": held_attempts,
+            "hold_classes": hold_classes,
         },
         "classes": classes,
         "closure_mix": closure_mix,
@@ -1691,6 +1933,11 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
             "forecast_declared_only": sorted(fd_declared_only_sids),
             "bailed_with_pressure_none": sorted(bailed_with_none_sids),
             "compaction_occurred": sorted(compaction_occurred_sids),
+            # v0.4.62: every session id in the loaded corpus — the whole
+            # corpus `records` counts, outside both filters, read-only
+            # and crash-debris sessions included — so a consumer can
+            # list a repo's sessions without enumerating anything else.
+            "sessions": sorted({r["session_id"] for r in records}),
         },
     }
 
@@ -1704,6 +1951,14 @@ def _dossier_attempt(attempt: dict) -> dict:
     with light, definition-reusing annotation — nothing here is
     invented, and every value is re-derivable from the raw record with
     jq (PLANNER.md §17: the read side never owns the numbers).
+
+    v0.4.62 adds three readings, each re-derivable from the record:
+    `hold_class` (attempt_hold_class — null unless the outcome is
+    held), `bale_version` (attempt_bale_version — bale's own stamp, null
+    before 0.4.62; the worker's provenance echo never fills it), and,
+    inside `validation`, `claimed_checks` (attempt_claimed_checks —
+    {claimed, ran, disagreements} as apply derived them, null before
+    0.4.62).
 
     Key-presence semantics survive the projection: `checkpoint`,
     `clarification`, `diagnostics`, `provenance`, `superseded_by`,
@@ -1742,6 +1997,9 @@ def _dossier_attempt(attempt: dict) -> dict:
             "claims_declared": (len(claims_map)
                                 if isinstance(claims_map, dict) else 0),
             "checks": checks,
+            # v0.4.62: the derived counts apply printed, as bale wrote
+            # them (attempt_claimed_checks); null before 0.4.62.
+            "claimed_checks": attempt_claimed_checks(attempt),
         }
 
     drift_paths = None
@@ -1766,6 +2024,12 @@ def _dossier_attempt(attempt: dict) -> dict:
         "at": attempt.get("at"),
         "command": attempt.get("command"),
         "outcome": attempt.get("outcome"),
+        # v0.4.62: why a held attempt held (null on every other), read
+        # from the attempt's own exit codes — attempt_hold_class.
+        "hold_class": attempt_hold_class(attempt),
+        # v0.4.62: the running bale's version as bale stamped it, null
+        # on attempts written before the stamp (attempt_bale_version).
+        "bale_version": attempt_bale_version(attempt),
         "closure_reason": attempt.get("closure_reason"),
         "tarball": attempt.get("tarball"),
         "scope_kind": attempt.get("scope_kind"),
@@ -1849,7 +2113,14 @@ def compute_session_dossier(telemetry_dir: Path, sid: str) -> dict:
       updated_at, outcome) plus the resolved `work_class` and `packer`
       (stamp-first, the session_* resolvers) and status flags:
       `in_flight`, `closure` ({category, unlock_reason} or None),
-      `read_only`, `crash_debris`.
+      `read_only` (is_read_only — since v0.4.62 true from the pack on
+      for an empty write forecast, in flight as well as closed),
+      `crash_debris`; and (v0.4.62) `bale_version`
+      (session_bale_version: the first attempt's stamp that exists,
+      None on a record written before 0.4.62) and `self_reported`
+      ({light_blocks, paste_carried_rounds}, each by
+      session_self_reported_value — the latest carrier, None when no
+      attempt reports it, never 0).
     - `attempts` — one _dossier_attempt view per attempt, in order.
     - `lineage` — the cross-record edges recoverable from the corpus:
       `superseded_by` (this record's own closure stamp),
@@ -1916,6 +2187,11 @@ def compute_session_dossier(telemetry_dir: Path, sid: str) -> dict:
                               "unlock_reason": closure[1]}),
             "read_only": is_read_only(record),
             "crash_debris": is_crash_debris(record),
+            # v0.4.62: the bale that packed or opened the session (its
+            # first stamped attempt), and the session's self-reported
+            # counts by the aggregate's own rule, null when unreported.
+            "bale_version": session_bale_version(record),
+            "self_reported": session_self_reported_counts(record),
         },
         "attempts": [_dossier_attempt(a) for a in record["attempts"]],
         "lineage": {

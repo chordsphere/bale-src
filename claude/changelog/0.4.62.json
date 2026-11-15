@@ -1,0 +1,37 @@
+{
+  "record_version": 1,
+  "version": "0.4.62",
+  "session_id": "2026-11-14-dossier-says-more-002",
+  "at": "2026-11-14T21:30:00+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale_report.py",
+      "change": "build_telemetry_attempt stamps bale_version (install_bale_version: bin/VERSION, stripped) on every attempt of every command, and on every validated attempt writes validation.claimed_checks {claimed, ran, disagreements} through the new claimed_checks_counts over summarize_claimed_checks, the counts apply prints (additive; claim_verdict unchanged). The stats and dossier renderers carry the new keys: format_stats_report adds a 'held' summary row and leaves members.sessions out of the corpus-members block; format_session_dossier_report prints '; hold class <word>' after a held attempt's line, a 'bale:' line per stamped attempt, a 'claimed checks:' line, and 'bale version' and 'self-reported' summary rows. The two JSON key-contract docstrings list the additions."
+    },
+    {
+      "path": "bin/bale_stats.py",
+      "change": "is_read_only is also true when the session's first opened attempt records scope_kind write-forecast with scope [] (a read-only pack or bundle open), so a read-only session reads read-only while open; a bare [] scope stays not read-only. New readers (additive): attempt_hold_class and HOLD_CLASSES (checkpoint-defect, both, checkpoint, validation, read from exit codes), attempt_bale_version, session_bale_version, attempt_claimed_checks, session_self_reported_value, session_self_reported_counts; session_self_reported_count keeps its 0-for-absent result."
+    },
+    {
+      "path": "bin/bale_stats.py",
+      "change": "bale stats --json: corpus gains held_attempts and hold_classes (every class present, 0 when none); members gains sessions (every loaded sid, sorted, outside both filters); members.read_only and corpus.read_only_sessions now include open read-only sessions, which leave every rate, closure mix, packers and doc_epochs row; members.in_flight and corpus.in_flight_sessions are unchanged (an open read-only session still counts)."
+    },
+    {
+      "path": "bin/bale_stats.py",
+      "change": "bale stats --sid --json: record gains bale_version (first attempt carrying bale's stamp, null before 0.4.62) and self_reported {light_blocks, paste_carried_rounds} (latest carrier, null when unreported); each attempt gains hold_class (null unless held) and bale_version (null before 0.4.62); each attempt's validation view gains claimed_checks (null before 0.4.62). record.read_only reads the widened is_read_only."
+    },
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "attempts[] gains bale_version (string or null) and validation gains claimed_checks {claimed, ran, disagreements}; both additive, record_version stays 1."
+    },
+    {
+      "path": "BALE.md",
+      "change": "5.6 says read-only detection reads the opening attempt's empty forecast too, names the HOLD classes, members.sessions and the dossier's new readings; 8.9 gains a paragraph on bale_version and claimed_checks."
+    },
+    {
+      "path": "tests/test_dossier_says_more.py",
+      "change": "New suite pinning the six outcomes, unit and end to end."
+    }
+  ],
+  "notes": "Additive: no existing key is renamed, removed or re-meant, except that read_only (dossier record, members, the read-only count) now names an open read-only session that read false before; the in-flight count and list are unchanged for it. HOLD classes are read from records already written, so earlier held attempts classify; bale_version and claimed_checks start with records written by 0.4.62 and read null before. cause keeps its meaning (a refused attempt's first error line)."
+}

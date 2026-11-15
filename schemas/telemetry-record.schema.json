@@ -63,6 +63,10 @@
             "enum": ["apply", "retry", "revert", "unlock", "pack", "rollback", "handoff", "relay", "open"],
             "description": "Which bale command produced the event. Walkthrough reverts inside apply/retry report that command; `bale revert <sid>` reports 'revert'; `bale unlock` reports 'unlock' (v0.3.16, additive enum value); `bale pack --supersedes` reports 'pack' on the parent's superseded-by-split closure (v0.3.17, additive enum value) — the record honestly names the command that produced the event, with outcome 'unlocked' (the registry-close outcome, whatever command drove it); `bale rollback` reports 'rollback' on its clean-success paths (v0.3.18, additive enum value), with outcome 'rolled-back' or 're-applied'. The open-time stamp (v0.4.21) names the request-building command that opened the session on its 'opened' attempt: pack reports 'pack'; 'handoff' (additive enum value) is what handoff-side opens report — reserved from v0.4.21 and wired at v0.4.44, when cmd_handoff began passing its own name through persist_pack_session's command parameter (handoff opens recorded before v0.4.44 stamp 'pack', a known, bounded inaccuracy in older records). `bale relay` reports 'relay' (v0.4.41, additive enum value) on the 'relay-refused' attempt it writes when it refuses an exchange input; a relay that records its round writes no attempt, so 'relay' appears only beside that outcome. `bale open` reports 'open' (v0.4.44, additive enum value) on the second-desk 'opened' attempt it writes when a bundle whose session is still open is opened again (see desk): no pack runs on that path, so the record names the command that did; a first open, which replays pack, still stamps 'pack'."
           },
+          "bale_version": {
+            "type": ["string", "null"],
+            "description": "The running bale's version when bale wrote this attempt: the install's bin/VERSION, stripped (v0.4.62 — additive, record_version stays 1). Stamped unconditionally by build_telemetry_attempt (bin/bale_report.py), the one builder every call site goes through, so every attempt of every command written from 0.4.62 on carries it and key presence is epoch membership; null only when the install's VERSION could not be read (said on stderr), never a guessed version. Absent on every attempt written before 0.4.62 (not backfilled). bale's own fact: the worker's echo of the request's provenance under feedback.mechanical.provenance.bale_version is a different fact (the packing bale as the worker copied it) and never stands in for this one. Named consumer: the `bale stats --sid` dossier, which shows it per attempt and as the session's record.bale_version, the version on the first attempt carrying one (the bale that packed or opened the session)."
+          },
           "closure_reason": {
             "type": ["string", "null"],
             "enum": ["abandoned", "superseded-by-split", "reframed-after-clarification", "master-closeout", "crash-debris", "closed-read-only", "no_response", "malformed_response", "aborted", null],
@@ -155,6 +159,17 @@
               "reconciliation_parsed": {
                 "type": "boolean",
                 "description": "True when a section 7.3 'claims vs verdict:' block was found and parsed from validation.sh's output. False means claim_verdict is empty because the block was absent or unrecognizable — validation.sh authors the block per convention, not contract, so a parse miss is recorded rather than silently skipped."
+              },
+              "claimed_checks": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": ["claimed", "ran", "disagreements"],
+                "properties": {
+                  "claimed": { "type": "integer", "minimum": 0, "description": "M: the number of keys in the response manifest's claims." },
+                  "ran": { "type": ["integer", "null"], "minimum": 0, "description": "N: how many claimed checks recorded a verdict of pass or fail in the claims vs verdict block. Null when the claims map is non-empty and validation.sh printed no block: bale did not see the verdicts and counts none." },
+                  "disagreements": { "type": "array", "items": { "type": "string" }, "description": "The claims keys bale names as disagreeing with their verdict, sorted: TARBALL.md section 7.3's table read by bale from each claim and its row's verdict (a pass claim beside a skip, or beside a check with no row, is one), plus any row the script itself tagged [DISAGREE]. Empty when no block was printed." }
+                },
+                "description": "The derived claimed-checks counts bale prints at apply as `N of M checks ran` and its disagree lines (since 0.4.57), recorded beside the printed claim_verdict (v0.4.62 — additive, record_version stays 1; the skipped-is-not-pass fold-in). Computed by claimed_checks_counts over summarize_claimed_checks (bin/bale_report.py), the same derivation the walk and the planner relay print, so the record and the printed line agree. Present on every validated attempt written from 0.4.62 on, absent on earlier ones. claim_verdict keeps its meaning: the tags validation.sh printed, never re-derived. Named consumer: the `bale stats --sid` dossier's attempt validation view, as claimed_checks."
               }
             }
           },

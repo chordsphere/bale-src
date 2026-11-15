@@ -5966,6 +5966,57 @@ def read_cost_file(path: Path) -> dict:
     return block
 
 
+# The running bale's version, as bin/bale reads it: bin/VERSION, the
+# one-line sibling of this module (bin/bale exits before any command runs
+# when the file is unreadable or empty, so under bin/bale this read cannot
+# miss). Read here rather than imported from __main__ so the builder keeps
+# working when bale_report is imported without bin/bale (the unit suites).
+_INSTALL_VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
+
+
+def install_bale_version() -> Optional[str]:
+    """This install's bale version — bin/VERSION's content, stripped —
+    the value build_telemetry_attempt stamps as every attempt's
+    `bale_version` (v0.4.62). None when the file cannot be read or is
+    empty, and then the reason goes to stderr (never a silent miss); the
+    attempt records null rather than a guessed version. Read on each
+    call (one small file per telemetry write), so a test or an upgrade
+    never sees a stale cached value."""
+    try:
+        value = _INSTALL_VERSION_FILE.read_text(encoding="utf-8").strip()
+    except OSError as e:
+        sys.stderr.write(f"[bale] telemetry: could not read "
+                         f"{_INSTALL_VERSION_FILE}: {e}; the attempt "
+                         f"records bale_version null\n")
+        return None
+    if not value:
+        sys.stderr.write(f"[bale] telemetry: {_INSTALL_VERSION_FILE} is "
+                         f"empty; the attempt records bale_version null\n")
+        return None
+    return value
+
+
+def claimed_checks_counts(claims: Optional[dict],
+                          validation_output: Optional[str]) -> dict:
+    """The derived claimed-checks counts the telemetry attempt records
+    (v0.4.62): {claimed, ran, disagreements}, read off
+    summarize_claimed_checks — the same derivation the walk and the
+    planner relay print as `N of M checks ran` — so the record and the
+    printed line cannot disagree. `disagreements` is the sorted claims
+    keys bale names as disagreeing. When validation.sh printed no claims
+    block beside a non-empty claims map, `ran` is null and
+    `disagreements` empty, as the walk says the count is unknown and
+    names nothing it cannot see. Pure."""
+    summary = summarize_claimed_checks(
+        claims if isinstance(claims, dict) else None, validation_output)
+    return {
+        "claimed": summary["claimed"],
+        "ran": summary["ran"],
+        "disagreements": sorted(str(c["check"])
+                                for c in summary["disagreements"]),
+    }
+
+
 def build_telemetry_attempt(
     *,
     outcome: str,
@@ -6191,6 +6242,23 @@ def build_telemetry_attempt(
     a session packed by hand carries no key. Both are recorded as
     handed; telemetry-record.schema.json owns their contracts and names
     their consumer (the close desk's reconstruction).
+
+    `bale_version` (v0.4.62, session dossier-says-more) is the running
+    bale's version (install_bale_version: bin/VERSION), stamped
+    UNCONDITIONALLY here like scope_kind — every attempt of every
+    command written from 0.4.62 on carries it, so key presence is epoch
+    membership; null only when the install's VERSION could not be read
+    (said on stderr). It is bale's own fact, distinct from the worker's
+    echo of the request provenance under feedback.mechanical.provenance.
+    Named consumer: the `bale stats --sid` dossier (each attempt's
+    `bale_version`, and the record's from its first stamped attempt).
+
+    `validation.claimed_checks` (v0.4.62, the skipped-is-not-pass
+    fold-in) rides inside the validation object on every validated
+    attempt: claimed_checks_counts over the manifest's claims and the
+    captured validation output — the counts apply prints beside the
+    printed claim_verdict, which keeps its meaning (the tag the script
+    printed). Named consumer: the dossier's attempt `validation` view.
     """
     validation: Optional[dict] = None
     if validation_state is not None:
@@ -6209,10 +6277,16 @@ def build_telemetry_attempt(
         if manifest is not None and "validation_will_run" in manifest:
             validation["validation_will_run"] = manifest[
                 "validation_will_run"]
+        # v0.4.62: the derived claimed-checks counts (docstring above).
+        validation["claimed_checks"] = claimed_checks_counts(
+            (manifest or {}).get("claims"), validation_output)
     attempt = {
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "outcome": outcome,
         "command": command,
+        # v0.4.62: the running bale's version (docstring above) —
+        # unconditional, the scope_kind posture.
+        "bale_version": install_bale_version(),
         "closure_reason": closure_reason,
         "tarball": tarball,
         "validation": validation,
@@ -6703,12 +6777,18 @@ def format_stats_json(stats: dict) -> str:
                                             skipped, counted, named on
                                             stderr
                   filtered_record_versions  record_version > 1 files
-                  read_only_sessions        closure_reason
-                                            "closed-read-only" sessions
-                                            in the since-window (context
-                                            count; excluded from every
-                                            rate — detection keys on
-                                            closure_reason, never scope)
+                  read_only_sessions        read-only sessions in the
+                                            since-window (context count;
+                                            excluded from every rate):
+                                            closure_reason
+                                            "closed-read-only", or since
+                                            v0.4.62 an `opened` attempt
+                                            recording an empty write
+                                            forecast (scope_kind
+                                            "write-forecast", scope []),
+                                            so an open read-only session
+                                            counts here too — never a
+                                            bare [] scope
                   crash_debris_sessions     "crash-debris" sessions in
                                             the window (hygiene count)
                   sessions                  classed membership after all
@@ -6723,7 +6803,12 @@ def format_stats_json(stats: dict) -> str:
                                             open-time records read as
                                             in-flight, per the
                                             schema) — counted beside,
-                                            never inside, the mix
+                                            never inside, the mix; an
+                                            open read-only session
+                                            still counts here (v0.4.62
+                                            keeps the count as it was
+                                            when such a session sat in
+                                            the membership)
                   response_attempts / validated_attempts / checks
                                             membership attempt totals
                                             (D2 units)
@@ -6766,6 +6851,23 @@ def format_stats_json(stats: dict) -> str:
                                             session_docs_read,
                                             session_self_reported_count,
                                             session_clarification_rounds)
+                  held_attempts             (v0.4.62, additive)
+                                            membership response
+                                            attempts with outcome
+                                            "held" — the count
+                                            hold_classes partitions
+                  hold_classes              (v0.4.62, additive)
+                                            {checkpoint-defect, both,
+                                            checkpoint, validation:
+                                            count}, every class present
+                                            (0 when none): how many
+                                            held attempts carry each
+                                            HOLD class, read from their
+                                            own exit codes
+                                            (bale_stats
+                                            .attempt_hold_class); a held
+                                            attempt fitting no class is
+                                            in held_attempts only
       classes   per-work-class rate rows keyed by resolved class
                 (including "unclassed"); each row carries every
                 numerator and denominator beside its rate, rates null
@@ -6962,7 +7064,13 @@ def format_stats_json(stats: dict) -> str:
                 compaction_occurred (v0.4.38, board 37, additive — the
                 sids behind cross_checks.budget.compaction
                 .occurred_sessions). The counts these compose are
-                unchanged and stay where they were.
+                unchanged and stay where they were. Since v0.4.62
+                (additive) also sessions: every session id in the
+                loaded corpus, sorted — a whole-corpus fact like
+                corpus.records, outside both filters, read-only and
+                crash-debris sessions included — and read_only names
+                open read-only sessions too (see read_only_sessions),
+                while in_flight is unchanged.
 
     Emitted as a single compact line (no indent) so the consumer
     contract stays line-oriented. Pure: builds a string, prints
@@ -6974,6 +7082,21 @@ def format_stats_json(stats: dict) -> str:
     """
     payload = {"outcome": STATS_OUTCOME, **stats}
     return _keyed_line(STATS_REPORT_KEYS, payload, surface="stats")
+
+
+def _format_hold_classes_value(corpus: dict) -> str:
+    """The stats summary's `held` row (v0.4.62): the held-attempt count
+    and its HOLD classes, each class named with its count, then any
+    held attempts no class fits — e.g. `3 attempts (checkpoint 1,
+    validation 2)`. The numbers are bale_stats's; this only words them."""
+    held = corpus.get("held_attempts", 0)
+    classes = corpus.get("hold_classes") or {}
+    parts = [f"{cls} {n}" for cls, n in classes.items() if n]
+    unclassed = held - sum(classes.values())
+    if unclassed:
+        parts.append(f"no class {unclassed}")
+    noun = "attempt" if held == 1 else "attempts"
+    return f"{held} {noun}" + (f" ({', '.join(parts)})" if parts else "")
 
 
 def format_stats_report(stats: dict, *,
@@ -7254,9 +7377,12 @@ def format_stats_report(stats: dict, *,
             f"  docs read: {docs_read['sessions']} reporting sessions "
             f"[" + ", ".join(f"{token} {count}"
                              for token, count in ranked) + "]")
+    # members.sessions (v0.4.62) is every sid in the corpus, not an
+    # anomaly bucket: the JSON line carries it, and the human report
+    # counts it in the records row rather than print the whole corpus.
     corpus_members = [(bucket, sids)
                       for bucket, sids in stats["members"].items()
-                      if sids]
+                      if sids and bucket != "sessions"]
     if corpus_members:
         lines.append("  corpus members:")
         for bucket, sids in corpus_members:
@@ -7290,6 +7416,9 @@ def format_stats_report(stats: dict, *,
          f" stamped + {corpus['paste_carried_rounds_total']} "
          f"paste-carried)"),
         ("light blocks", str(corpus["light_blocks_total"])),
+        # v0.4.62: the held attempts and their HOLD classes, always
+        # rendered (a computed zero, like the rows above).
+        ("held", _format_hold_classes_value(corpus)),
         ("filters", "; ".join(filter_bits) if filter_bits else "none"),
     ]
     body = "\n".join(lines)
@@ -7344,17 +7473,37 @@ def format_session_dossier_json(dossier: dict) -> str:
                   created_at, updated_at, outcome, the resolved
                   work_class and packer (open-time stamp first,
                   feedback echo second), in_flight, closure
-                  ({category, unlock_reason} or null), read_only,
-                  crash_debris.
+                  ({category, unlock_reason} or null), read_only (since
+                  v0.4.62 true from the pack on for an empty write
+                  forecast, in flight as well as closed), crash_debris,
+                  and (v0.4.62, additive) bale_version — the version on
+                  the session's first attempt carrying bale's own
+                  stamp, null on a record written before 0.4.62 (the
+                  worker's provenance echo never fills it) — and
+                  self_reported: {light_blocks, paste_carried_rounds},
+                  each the session's figure by the aggregate's rule
+                  (latest attempt carrying it), null when no attempt
+                  reports it.
       attempts    one view per attempts[] entry, in order: at,
-                  command, outcome, closure_reason, tarball,
+                  command, outcome, hold_class (v0.4.62: null unless
+                  the outcome is "held"; then checkpoint-defect, both,
+                  checkpoint or validation, read from the attempt's own
+                  exit codes, or null when none fits), bale_version
+                  (v0.4.62: bale's stamp, null before 0.4.62),
+                  closure_reason, tarball,
                   scope_kind, scope, change_paths, overridden_paths,
                   required_check_overrides, base_drift_overrides,
                   forecast_drift_paths
                   (computed for post-epoch response attempts, null
                   otherwise), validation (null, or {state, exit_code,
                   reconciliation_parsed, claims_declared, checks:
-                  [{check, claim, verdict, agreement, claim_basis}]}),
+                  [{check, claim, verdict, agreement, claim_basis}],
+                  claimed_checks (v0.4.62: {claimed, ran,
+                  disagreements} — the counts apply printed, recorded
+                  in telemetry; ran null when validation.sh printed no
+                  claims block beside a non-empty claims map;
+                  disagreements the sorted claims keys; the whole
+                  object null on an attempt written before 0.4.62)}),
                   checkpoint (the stamp, or null when the record
                   carries none), linkage, clarification (the promoted
                   stamp with rounds and records[], or null),
@@ -7387,6 +7536,16 @@ def format_session_dossier_json(dossier: dict) -> str:
                            surface="stats-dossier")
     return _keyed_line(STATS_DOSSIER_MISS_REPORT_KEYS, payload,
                        surface="stats-dossier-miss")
+
+
+def _format_self_reported_value(counts: dict) -> str:
+    """The dossier summary's `self-reported` row (v0.4.62): each count
+    with its figure, or `unreported` when the session reported none."""
+    def word(value) -> str:
+        return "unreported" if value is None else str(value)
+    return (f"light blocks {word(counts.get('light_blocks'))}, "
+            f"paste-carried rounds "
+            f"{word(counts.get('paste_carried_rounds'))}")
 
 
 def format_session_dossier_report(
@@ -7430,8 +7589,14 @@ def format_session_dossier_report(
     lines: list[str] = []
     record = dossier["record"]
     for n, attempt in enumerate(dossier["attempts"], start=1):
+        hold_class = attempt.get("hold_class")
         lines.append(f"  attempt {n}: {attempt['outcome']} "
-                     f"({attempt['command']}) at {attempt['at']}")
+                     f"({attempt['command']}) at {attempt['at']}"
+                     # v0.4.62: the HOLD class beside a held outcome.
+                     + (f"; hold class {hold_class}" if hold_class
+                        else ""))
+        if attempt.get("bale_version"):
+            lines.append(f"    bale: {attempt['bale_version']}")
         if attempt["closure_reason"]:
             lines.append(f"    closure reason: "
                          f"{attempt['closure_reason']}")
@@ -7451,6 +7616,18 @@ def format_session_dossier_report(
                     f"      {check['check']}: claim {check['claim']} / "
                     f"verdict {check['verdict']} [{check['agreement']}]"
                     f" basis {check['claim_basis']}")
+            # v0.4.62: the derived counts apply printed, as recorded.
+            counts = validation.get("claimed_checks")
+            if counts is not None:
+                ran = counts.get("ran")
+                lines.append(
+                    f"    claimed checks: "
+                    + (f"{ran} of {counts.get('claimed')} ran"
+                       if ran is not None else
+                       f"{counts.get('claimed')} claimed, how many ran "
+                       f"unknown (no claims block)")
+                    + (f"; disagree: {', '.join(counts['disagreements'])}"
+                       if counts.get("disagreements") else ""))
         checkpoint = attempt["checkpoint"]
         if checkpoint is not None:
             if checkpoint.get("configured") is True:
@@ -7559,6 +7736,11 @@ def format_session_dossier_report(
         ("status", status + (f" [{', '.join(flags)}]" if flags else "")),
         ("work class", record["work_class"]),
         ("packer", record["packer"]),
+        # v0.4.62: bale's own version stamp, and the self-reported
+        # counts (unreported, never a fabricated 0).
+        ("bale version", record.get("bale_version") or "unrecorded"),
+        ("self-reported", _format_self_reported_value(
+            record.get("self_reported") or {})),
         ("attempts", str(len(dossier["attempts"]))),
         ("created", record["created_at"]),
         ("updated", str(record["updated_at"])),
