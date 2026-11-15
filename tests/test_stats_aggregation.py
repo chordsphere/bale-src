@@ -159,6 +159,16 @@ class StatsAggregationTest(unittest.TestCase):
             "light_blocks_total": 2,
             "paste_carried_rounds_total": 1,
             "clarification_rounds_total": 5,
+            # v0.4.62: six held attempts (fx-hold-retry's first, the
+            # fx-inflight hold, and the four checkpoint shapes), each
+            # classed from its own exit codes: validation.sh non-zero
+            # with no checkpoint or a passing one (fx-hold-retry,
+            # fx-inflight, fx-ckpt-workerhold), checkpoint 1 beside
+            # validation 0 (fx-ckpt-hold), both 1 (fx-ckpt-bothhold),
+            # and checkpoint 2 (fx-ckpt-errored).
+            "held_attempts": 6,
+            "hold_classes": {"checkpoint-defect": 1, "both": 1,
+                             "checkpoint": 1, "validation": 3},
         })
 
         # Epoch: minimum created_at, and the pre-epoch statement is the

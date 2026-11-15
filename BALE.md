@@ -856,9 +856,25 @@ Blind-checkpoint outcomes never enter the claim/verdict counts: the
 checkpoint has no claims by construction (§8.5), so agreement is the
 worker's calibration stream alone.
 Read-only sessions — detected by `closure_reason ==
-"closed-read-only"`, never by an empty scope, whose `[]` reading is
-overloaded by pre-ADR-0007 records — and crash-debris sessions are
-excluded from every rate and reported as context and hygiene counts.
+"closed-read-only"` or, since v0.4.62, by the opening attempt's empty
+write forecast (an `opened` attempt with `scope_kind`
+"write-forecast" and scope `[]`, so a read-only session reads
+read-only from its pack on, in flight as well as closed), never by a
+bare empty scope, whose `[]` reading is overloaded by pre-ADR-0007
+records — and crash-debris sessions are excluded from every rate and
+reported as context and hygiene counts. An open read-only session
+still counts in the in-flight count and its sid list, as it did
+before 0.4.62 named it read-only.
+Held attempts carry a HOLD class (v0.4.62), read from each held
+attempt's own exit codes, never from `validation.state` (on a held
+attempt that is the combined verdict): `checkpoint-defect` when the
+blind checkpoint ran and exited neither 0 nor 1, `both` when it
+exited 1 and `validation.sh` exited non-zero, `checkpoint` when it
+exited 1 and `validation.sh` exited 0, and `validation` when
+`validation.sh` exited non-zero and the checkpoint passed or did not
+run; a held attempt fitting none has no class. The corpus counts the
+held attempts and how many carry each class, and records from before
+the release classify too.
 Around the table: the corpus epoch (first sid and date; pre-epoch
 sessions exist only in git and are not counted — stats does not mine
 git), the key-presence coverage rows for the `closure_reason`,
@@ -896,7 +912,11 @@ required-check refusals, checkpoint HOLDs and catches, forecast
 drift, bailouts, empty-claims attempts), and the corpus level names
 the in-flight, read-only, crash-debris, cross-check-disagreement, and
 bailed-with-pressure-none sids. Sid-granular and sorted; non-anomalous
-counts carry no membership — nominate, never curate.
+counts carry no membership — nominate, never curate. One list is not
+an anomaly bucket (v0.4.62): `members.sessions` names every session in
+the loaded corpus, read-only and crash-debris included and outside
+both filters, so a consumer can list a repo's sessions from the
+aggregate alone; the human report counts it in the records row.
 
 *Level 2 — the session dossier.* One sid rendered whole
 (`compute_session_dossier` / the dossier rendering pair): the
@@ -909,7 +929,17 @@ provenance stamp, the sweeper and the refusal cause and the opened-from
 bundle each attempt carries (v0.4.41: the human report prints `swept by
 <sid>` beside `superseded by:`, a `cause:` line, and an `opened from
 bundle:` line; the `--json` attempt view carries `swept_by`, `cause`,
-`bundle`, null when absent), and the lineage edges the corpus records
+`bundle`, null when absent), since v0.4.62 the running bale's
+version bale stamps on every attempt it writes (`bale_version` per
+attempt, and the record's `bale_version` from the first attempt
+carrying one — null on records written before the stamp; the worker's
+provenance echo never fills it), each held attempt's HOLD class
+(`hold_class`, printed beside the outcome), the derived claimed-checks
+counts apply prints (`N of M checks ran` and the disagreeing claims),
+which apply now writes into the attempt's telemetry and the attempt's
+`validation` view carries as `claimed_checks`, and the session's
+self-reported `light_blocks` and `paste_carried_rounds` (the record's
+`self_reported`, null when unreported), and the lineage edges the corpus records
 (`superseded_by` in both directions; the `corrects` pair is read
 tolerantly and is honestly null on every record bale writes today —
 the manifest field is not yet promoted into telemetry) — so a
@@ -4068,6 +4098,23 @@ the field absent), and with `[apply] sweep` on is committed as its own
 `[bale sweep <sid>] superseded_by <child>` or `swept_by <pack>` event
 (§8.8), so the record the close already committed is not left
 modified.
+
+**bale's version and the claimed-checks counts (v0.4.62).** Every
+attempt bale writes from 0.4.62 on carries `bale_version`, the running
+install's `bin/VERSION`, stamped by the one attempt builder whatever
+the command, so the record says which bale wrote each event; it is
+null only when the install's VERSION could not be read (said on
+stderr), and it is absent on earlier attempts. It is bale's fact, not
+the worker's: the provenance the worker echoes under
+`feedback.mechanical.provenance` is a separate copy and never fills
+it. Every validated attempt's `validation` also carries
+`claimed_checks`, `{claimed, ran, disagreements}`: the counts apply
+prints as `N of M checks ran` and the claims it names as disagreeing
+(§7.3's table read by bale since 0.4.57), recorded beside the printed
+`claim_verdict`, which keeps the script's own tags. `ran` is null when
+validation printed no claims block beside a non-empty claims map, as
+the walk says the count is unknown. `bale stats --sid` reads both
+(§5.6).
 
 **Update semantics: one file per sid, append per event.** The first
 apply-close event creates the record; every later one against the

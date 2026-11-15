@@ -773,8 +773,10 @@ and named on stderr — silent skips are bugs; a `record_version` above
 the supported version is filtered, counted, and likewise named), the
 brief-D2 unit model — response-attempt and validated-attempt detection,
 work-class resolution, read-only detection (keyed on
-`closure_reason == "closed-read-only"`, never on scope: a recorded
-scope of `[]` is overloaded, since pre-ADR-0007 records also read `[]`),
+`closure_reason == "closed-read-only"` or, since v0.4.62, on an
+`opened` attempt recording `scope_kind` "write-forecast" with an empty
+scope — never on a bare scope: a recorded scope of `[]` is overloaded,
+since pre-ADR-0007 records also read `[]`),
 crash-debris detection, and closure categorization — the epoch and
 coverage rows, and the per-class rate computation, where every rate
 reports its denominator and a zero-denominator rate is `None`: honest
