@@ -323,7 +323,15 @@ is *for* — and stays stable as the per-section line numbers drift:
     output unchanged), under the shared json-mode stream discipline —
     cmd_status calls `enable_json_mode` before gathering, so any
     `[bale] ` line gathering emits goes to stderr and stdout carries
-    exactly the JSON line. `bale status` is read-only — no lock, no git
+    exactly the JSON line. Since 0.4.63 the gather classifies every
+    open session, each on its own facts (`_gather_open_session`, the
+    lock session's reading generalised; the lock session's dict fills
+    the `session_*` fields), and lists for each the response tarballs
+    the named search would find (`status_response_files` over
+    `numbered_copies`, the grammar `newer_numbered_copy_note` shares
+    with it); `format_status_json` emits them as `open_sessions`,
+    beside `config.search_dirs` and `clipboard.encoding`. `bale
+    status` is read-only — no lock, no git
     or filesystem writes, no clean-tree requirement — and degrades
     gracefully outside a git repo and on a malformed `bale.toml` (config
     summary catches the `fail()`-driven `SystemExit` so the rest of the
@@ -392,7 +400,12 @@ is *for* — and stays stable as the per-section line numbers drift:
     renderings (`format_contract_json`, whose docstring owns the key
     contract; `format_contract_report`). By file order this cluster is
     banner section 31, after Stats (banner section 27) and before the
-    CLI tail, a fresh number per the stable-numbering posture.
+    CLI tail, a fresh number per the stable-numbering posture. Every
+    code-homed vocabulary is a tuple constant of `bale_report`, save
+    the ones homed in a sibling named in
+    `CONTRACT_SIBLING_CODE_HOMES` (0.4.63): `hold-class` is
+    `bin/bale_stats.py`'s `HOLD_CLASSES`, which `_contract_code_tuple`
+    reads by importing `bale_stats` lazily — the words keep one home.
 
 `bin/bale_config.py` has four sections (with its own index header).
 **1, constants:** the paths above, `HOOK_NAMES`, one key tuple per
@@ -652,13 +665,18 @@ name or a path, any letter case) gets the block as UTF-16LE with no
 byte-order mark, which clip.exe keeps whole on WSL where UTF-8 reaches
 it through the console's code page, and every other command the UTF-8
 bytes unchanged; it is a rule about the configured command, not a
-detection. And `mask_clipboard_credentials` (URL passwords and GitHub
+detection (`clipboard_encoding` names the result, `utf-16le` or
+`utf-8`, for `bale status`'s row and its `clipboard.encoding`, 0.4.63).
+And `mask_clipboard_credentials` (URL passwords and GitHub
 tokens, with `masking_aside` for the notice) is called by `bale
 clipboard` alone: every other paste block is hashed and copied as
 printed. A clarification's landing is a paste point too since 0.4.59:
 `bale_apply._print_landed_exchange_block` prints the round it has just
 preserved through `bale_relay.render_recorded_round`, the rendering
-relay's no-file re-emit uses, and copies it as the exchange block. The
+relay's no-file re-emit uses, and copies it as the exchange block.
+Since 0.4.63 the landing also appends a `clarification` attempt to the
+session's telemetry record (`_apply_clarification`, after the round is
+preserved), which `bale_stats` reads as in flight. The
 reference-material-first / crisp-verdict-last rule that drives the
 human-facing renderers is stated once, in the module docstring; the JSON
 renderers sit outside it, being verdict-only by design. A single cohesive

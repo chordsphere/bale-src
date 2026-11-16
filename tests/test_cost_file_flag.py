@@ -27,8 +27,8 @@ internals):
 - **apply and retry, end to end** (``ApplyRetryCostFileE2ETest``): one
   stub response through the staging pipeline per verb, each closing
   attempt carrying the file; a bad file refusing before the pipeline
-  with no attempt appended; a clarification — which writes no attempt —
-  logging that the validated file was not stamped.
+  with no attempt appended; a clarification's landing attempt (since
+  0.4.63) carrying the file, the session still open.
 - **help** (``CostFileHelpTest``): ``bale help apply``, ``bale help
   retry`` and ``bale help unlock`` each name ``--cost-file``.
 
@@ -518,17 +518,24 @@ class ApplyRetryCostFileE2ETest(_ScratchRepoCase):
                     (self.repo / "hello.txt").read_text(encoding="utf-8"),
                     "hello\n", msg="nothing applied")
 
-    def test_clarification_logs_not_stamped(self) -> None:
+    def test_clarification_attempt_carries_the_cost(self) -> None:
+        """Since 0.4.63 a clarification landing writes a `clarification`
+        attempt (session status-says-more, slip 3), so the validated
+        block rides it like every other attempt's; the session stays
+        open. (Before 0.4.63 the file was logged as not stamped.)"""
         sid = self.pack()
         before = self.attempts(sid)
         result = self.bale("apply", str(self.clarification(sid)),
                            "--no-interact", "--cost-file",
                            str(self.cost_file(FULL)))
         self.assert_exit(result, 0)
-        self.assertIn("valid, not stamped — a clarification writes no "
-                      "attempt", result.stdout)
-        self.assertEqual(self.attempts(sid), before,
-                         msg="a clarification writes no attempt")
+        self.assertNotIn("not stamped", result.stdout)
+        after = self.attempts(sid)
+        self.assertEqual(after[:len(before)], before)
+        self.assertEqual(len(after), len(before) + 1)
+        self.assertEqual(after[-1]["outcome"], "clarification")
+        self.assertEqual(after[-1]["command"], "apply")
+        self.assertEqual(after[-1]["cost"], FULL)
         self.assertEqual(self.open_sids(), [sid])
 
 

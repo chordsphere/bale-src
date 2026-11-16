@@ -951,7 +951,10 @@ def _print_landed_exchange_block(repo: Path, sid: str,
     copy_paste_block(repo, PASTE_BLOCK_EXCHANGE, block)
 
 
-def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
+def _apply_clarification(repo: Path, manifest: dict, sid: str, *,
+                         tarball_basename: Optional[str] = None,
+                         invoked_by: str = "apply",
+                         cost: Optional[dict] = None) -> int:
     """Apply-time handler for `response_kind: "clarification"` per TARBALL.md
     §5.9.3 — the branch apply_pipeline takes when the manifest declares a
     clarification: blocking intent-gap questions, nothing to apply.
@@ -996,11 +999,27 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
          round afterwards, through the same rendering
          (bale_relay.render_recorded_round) and the same copy, so the
          block is what the clipboard holds when the landing ends.
+      1b. Append a `clarification` attempt to the session's telemetry
+         record (0.4.63, session status-says-more — slip 3: before it
+         the round was visible on `bale status` for the lock session
+         only). The attempt's `command` is the verb that landed it
+         (`invoked_by`: "apply", or "retry" when a retry carried the
+         clarification), its `clarification` the summary of
+         `.bale/clarifications/<sid>/` as it stands AFTER step 1
+         preserved this round (read_clarification_summary — rounds 1 on
+         the first round), and its `cost` the invocation's validated
+         --cost-file block, as on every other attempt. The outcome is
+         in flight, never a closure (bale_stats.IN_FLIGHT_OUTCOMES), so
+         the session stays open in the dossier as in the registry, and
+         the later normal response appends its own attempt and closes
+         it. Best-effort like every telemetry write: a failure is logged
+         inside write_telemetry_record and the landing stands.
       2b. Print the §5.9.3 banner (`print_clarification_banner`), last,
          so the eye lands on the verdict and the next step.
       3. Under json output mode, emit the one-line machine report — outcome
          "clarification", verdict and merge null since no validation ran and
-         no walkthrough decided anything.
+         no walkthrough decided anything; `telemetry` names the record
+         step 1b wrote (null when the write failed).
       4. Return 0. No `apply.sh`, no staging, no validation, no branch, no
          lock change.
 
@@ -1008,12 +1027,15 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
     written — same as the bailout, nothing was applied so there is nothing
     for `bale revert` to chase.
     """
-    from __main__ import log  # lazy — see module docstring
+    from __main__ import log, read_session_scope  # lazy — see module docstring
     from bale_report import (  # lazy — see module docstring
+        build_telemetry_attempt,
         emit_json_line,
         format_apply_json,
         json_mode,
         print_clarification_banner,
+        read_clarification_summary,
+        write_telemetry_record,
     )
     # Preserve the manifest for the aggregation surface — the shared
     # thread write (preserve_clarification_record), which `bale relay`
@@ -1021,6 +1043,21 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
     # §8.10.2 step 4) leave a byte-for-byte identical thread behind.
     record_path = preserve_clarification_record(repo, sid, manifest)
     log(f"clarification manifest preserved at {record_path}")
+
+    # Step 1b (0.4.63): the landing's own attempt, read after the round
+    # above was preserved so its clarification summary counts it.
+    telemetry_rel = write_telemetry_record(
+        repo, sid, build_telemetry_attempt(
+            outcome="clarification", command=invoked_by,
+            tarball=tarball_basename, manifest=manifest,
+            scope=read_session_scope(repo, sid),
+            log_path=f".bale/logs/{sid}.log",
+            clarification=read_clarification_summary(repo, sid),
+            cost=cost,
+        ))
+    if telemetry_rel:
+        log(f"telemetry: recorded {telemetry_rel} (a clarification "
+            f"attempt; the session stays in flight)")
 
     # 0.4.59: the block to carry to the planner, printed and copied here
     # rather than only by a second command (`bale relay <sid>`, which the
@@ -1042,6 +1079,7 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
         emit_json_line(format_apply_json(
             outcome="clarification", sid=sid,
             log_path=repo / ".bale" / "logs" / f"{sid}.log",
+            telemetry=telemetry_rel,
         ))
     return 0
 
@@ -1763,9 +1801,10 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     fork) also appends an attempt to <agent_dir>/telemetry/<sid>.json via
     build_telemetry_attempt + write_telemetry_record (BALE.md §8.9),
     renders the returned path as one summary row, and passes it to
-    format_apply_json's additive `telemetry` key. Dry-run and clarification
-    write no record: a dry-run has no outcome, and a clarification suspends
-    rather than closes its session — the eventual normal response records.
+    format_apply_json's additive `telemetry` key. A dry-run writes no
+    record: it has no outcome. A clarification (since 0.4.63) writes a
+    `clarification` attempt that leaves its session open and in flight
+    (_apply_clarification); the eventual normal response closes it.
 
     `cost` (v0.4.54, session cost-mirror; cmd_apply/cmd_retry
     --cost-file) is the harness's spend block, already read and
@@ -1778,7 +1817,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     run behind its own tarball, never a prior attempt's. The two exits
     that write no attempt (dry-run, clarification) log that the
     validated block was not stamped — loud, never a silent drop. None
-    stamps the all-null block.
+    stamps the all-null block. (Since 0.4.63 a clarification writes a
+    `clarification` attempt, which carries the block; only a dry-run
+    logs it as not stamped.)
 
     Returns the apply exit code: 0 on PASS (or a clean dry-run), 1 on HOLD.
     """
@@ -2503,13 +2544,13 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                         log_path=session_log,
                     ))
                 return 0
-            if cost is not None:
-                # A clarification suspends its session and writes no
-                # attempt (docstring above), so there is nowhere to stamp
-                # this run's spend; say so rather than drop it silently.
-                log("cost file: valid, not stamped — a clarification "
-                    "writes no attempt (the session stays open)")
-            return _apply_clarification(repo, manifest, locked_sid)
+            # Since 0.4.63 the landing writes a `clarification` attempt
+            # (session status-says-more, slip 3), so a validated
+            # --cost-file block rides it like every other attempt's.
+            return _apply_clarification(
+                repo, manifest, locked_sid,
+                tarball_basename=tarball_path.name,
+                invoked_by=invoked_by, cost=cost)
 
         # 8.1 steps 8, 9, 10: file presence, sha256, path safety (incl.
         # .baleignore match per BALE.md §11 rule 14).
@@ -4163,6 +4204,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
         fail,
         load_cost_file,
         log,
+        newer_numbered_copy_note,
         open_sessions,
         refuse_system_dir,
         repo_root,
@@ -4196,6 +4238,11 @@ def cmd_apply(args: argparse.Namespace) -> int:
         # the check that stood here could not run.
         tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
                                             verb="apply")
+        # 0.4.63 (slip 5): a newer `<name> (N).tar.gz` beside the named
+        # file is said, never taken — logged once json mode is settled
+        # below, so `--json` stdout stays the one report line.
+        newer_copy_note = newer_numbered_copy_note(
+            args.tarball, tarball_path, cwd, search_paths, "apply")
     else:
         # Bare form (board 51): resolved below, after the inspection and
         # json branches — the inspection flags refuse the bare form (they
@@ -4204,6 +4251,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
         # the bare path's identity echo and prompt so those land on stderr
         # per the stream discipline.
         tarball_path = None
+        newer_copy_note = None
 
     # `--show-apply-script` / `--show-validator`: pure inspection. Print the
     # requested deliverable(s) from the tarball and exit. Deliberately ahead
@@ -4233,6 +4281,8 @@ def cmd_apply(args: argparse.Namespace) -> int:
     # pipeline emits at its terminal reporting point.
     if args.json:
         enable_json_mode()
+    if newer_copy_note is not None:
+        log(newer_copy_note)
 
     # --cost-file (v0.4.54, session cost-mirror): the harness's record of
     # what the worker run behind this tarball spent, stamped into the
@@ -4307,8 +4357,9 @@ def cmd_apply(args: argparse.Namespace) -> int:
             log(f"cost file {cost_path}: valid, not stamped — a dry-run "
                 f"writes no attempt")
         else:
-            # "accepted", not "stamped": a clarification writes no
-            # attempt either, and the pipeline says so at that fork.
+            # "accepted", not "stamped": the pipeline's terminal point
+            # writes the attempt that carries it (a clarification's
+            # landing attempt too, since 0.4.63).
             log(f"cost file {cost_path} accepted: "
                 f"{describe_cost_block(cost)}")
 

@@ -1,0 +1,57 @@
+{
+  "record_version": 1,
+  "version": "0.4.63",
+  "session_id": "2026-11-16-status-says-more-001",
+  "at": "2026-11-16T23:45:00+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale",
+      "change": "bale status classifies every open session on its own facts (_gather_open_session: its bale/<sid> branch, its outbox tarball, its clarification records, its stamped manifest), the lock session's facts filling the session_* fields as before; StatusReport gains search_dirs (the configured apply.search_paths list beside its count) and open_session_facts, each with the response tarballs the named search would find (status_response_files over the new numbered_copies). New newer_numbered_copy_note: when bale apply, bale retry or bale handoff is given a relative name that resolves and a numbered copy of it ('<name> (N).tar.gz') newer than the file sits in cwd or any search directory, the verb logs the copy's name, the word newer and the paste-ready line for it, and still uses the file it was named; an older copy, an absolute name or a missing copy changes nothing. Help texts: apply's resolution paragraph names the note and the clarification attempt, status --json names the new keys, contract names the HOLD classes, and the --cost-file help no longer says a clarification writes no attempt."
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "bale status --json gains the top-level open_sessions (appended after clipboard; one entry per open sid, keys exactly the sessions list, each {state, goal, expects_probe, clarification, responses}, null outside a repo), config.search_dirs (appended after summary_failed) and clipboard.encoding ('utf-16le' for clip.exe, 'utf-8' otherwise, null when nothing is copied; the new clipboard_encoding over clipboard_command_is_clip_exe); STATUS_REPORT_KEYS lists open_sessions last so every earlier key keeps its place. The human clipboard row for clip.exe ends ', fed to it as UTF-16LE'; another command's row is unchanged. bale contract publishes the vocabulary hold-class (home bin/bale_stats.py, pointer HOLD_CLASSES), read from bale_stats's own tuple through the new CONTRACT_SIBLING_CODE_HOMES; _contract_code_tuple takes the entry's home. A clarification's bale apply --json line names its telemetry record."
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "A clarification landing appends a clarification attempt to the session's telemetry record after preserving the round: outcome clarification, command the landing verb (apply, or retry), the clarification summary {rounds, records} as it then stands (rounds 1 on the first round), and the invocation's validated --cost-file block, which a clarification used to log as not stamped. The session stays open; its later normal response appends the attempt that closes it."
+    },
+    {
+      "path": "bin/bale_stats.py",
+      "change": "clarification joins IN_FLIGHT_OUTCOMES: a session whose latest attempt is a clarification landing is in flight, never a closure. Its command is apply or retry, so it counts in response_attempts beside a bailout's; it is never validated, so no agreement, hold or checkpoint rate moves. The dossier shows it among the attempts with its clarification rounds. HOLD_CLASSES' comment names bale contract as its publisher."
+    },
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "The envelope and attempt outcome enums gain clarification (additive, record_version stays 1); the outcome, command and clarification descriptions say what a clarification landing now writes."
+    },
+    {
+      "path": "BALE.md",
+      "change": "5.5 names open_sessions, search_dirs and the clip.exe encoding; 5.9 names the hold-class vocabulary and its home; 8.1's tarball resolution names the newer-copy note; 8.9 and 8.10.2 say a clarification landing writes a clarification attempt (and carries --cost-file) instead of nothing; 8.11's relay paragraph keeps a recorded relay round writing no attempt."
+    },
+    {
+      "path": "claude/context/bale-internals.md",
+      "change": "The status, contract and clipboard notes name the new keys, the hold-class vocabulary's sibling home and the clarification attempt."
+    },
+    {
+      "path": "tests/test_status_says_more.py",
+      "change": "New suite pinning the eight outcomes, unit and end to end."
+    },
+    {
+      "path": "tests/test_cost_file_flag.py",
+      "change": "The clarification case now pins the attempt carrying the cost file, where it pinned the not-stamped log line."
+    },
+    {
+      "path": "tests/test_clipboard_key_rename.py",
+      "change": "The status --json clipboard object's key set includes encoding."
+    },
+    {
+      "path": "tests/test_contract_verb.py",
+      "change": "A code-homed vocabulary may name bin/bale_stats.py and is read from that module."
+    },
+    {
+      "path": "tests/test_dossier_says_more.py",
+      "change": "The 0.4.62 release pin checks its own changelog record and an install at or past 0.4.62, not bin/VERSION equal to it."
+    }
+  ],
+  "notes": "Additive: no key is renamed, removed or re-meant. bale status --json's sid and session still describe the lock session (sessions[0], the first sid in sorted order); open_sessions describes every open session. A recorded bale relay round still writes no attempt. Records written before 0.4.63 carry no clarification attempt for their landings; a session whose latest attempt is a clarification reads in flight."
+}

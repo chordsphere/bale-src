@@ -2596,6 +2596,27 @@ def clipboard_command_is_clip_exe(command: Optional[str]) -> bool:
     return base.lower() == CLIP_EXE_BASENAME
 
 
+# The two encodings bale feeds a clipboard command (0.4.63, the
+# clipboard fold's status words): clip.exe gets UTF-16LE with no
+# byte-order mark (since 0.4.59, clipboard_payload), every other command
+# the UTF-8 bytes unchanged. The status row and `bale status --json`'s
+# clipboard.encoding read them through clipboard_encoding.
+CLIPBOARD_ENCODING_UTF16LE = "utf-16le"
+CLIPBOARD_ENCODING_UTF8 = "utf-8"
+
+
+def clipboard_encoding(command: Optional[str]) -> Optional[str]:
+    """How bale feeds `command` each copy: CLIPBOARD_ENCODING_UTF16LE when
+    it is clip.exe (clipboard_command_is_clip_exe, the one rule),
+    CLIPBOARD_ENCODING_UTF8 for any other command, None when `command` is
+    None (nothing is copied). Pure."""
+    if command is None:
+        return None
+    if clipboard_command_is_clip_exe(command):
+        return CLIPBOARD_ENCODING_UTF16LE
+    return CLIPBOARD_ENCODING_UTF8
+
+
 def clipboard_payload(command: Optional[str], data: bytes) -> tuple:
     """(bytes, aside): what to feed `command` for the block `data`
     (UTF-8, as every paste point and `bale clipboard`'s stdin carries
@@ -2845,7 +2866,10 @@ def describe_clipboard_state(command: Optional[str], source: Optional[str],
     want it: a value read from the legacy `[probe] clipboard_command`
     says so (the next `bale config init` moves it), and a file that
     sets both spellings is never silent — the row says which one bale
-    used and which it ignored (the desk's precedence pin).
+    used and which it ignored (the desk's precedence pin). Since 0.4.63
+    a clip.exe command's row ends ", fed to it as UTF-16LE"
+    (clipboard_encoding), the bytes bale has fed it since 0.4.59; any
+    other command's row names no encoding.
     """
     if problem is not None:
         return (f"UNREADABLE — nothing is copied until it is fixed: "
@@ -2859,8 +2883,13 @@ def describe_clipboard_state(command: Optional[str], source: Optional[str],
                        f"ignored")
     aside = f"; {'; '.join(spelled)}" if spelled else ""
     if command is not None:
+        # 0.4.63 (the clipboard fold): clip.exe's row says how bale feeds
+        # it; any other command's row is as it was, naming no UTF-16.
+        fed = (", fed to it as UTF-16LE"
+               if clipboard_encoding(command) == CLIPBOARD_ENCODING_UTF16LE
+               else "")
         return (f"{command} ({source or 'unknown'} layer{aside}) — every "
-                f"paste block is copied")
+                f"paste block is copied{fed}")
     if source == "project":
         return (f"suppressed here (this project's bale.toml sets "
                 f"{clipboard_key_display(key)} = \"\"{aside}) — nothing is "
@@ -3949,7 +3978,9 @@ def format_apply_json(
       telemetry (v0.3.9, additive) repo-relative path of the telemetry
                record written for this apply-close event
                (<agent_dir>/telemetry/<sid>.json, BALE.md §8.9), or null when
-               none was written (dry-run, clarification, write failure).
+               none was written (dry-run, write failure). A clarification
+               writes its `clarification` attempt since 0.4.63, so its
+               line names the record too.
       drift    (v0.3.10, additive) the own-scope refusal detail on the
                scope-drift-refused outcome, null on every other. An
                object:
@@ -4116,16 +4147,17 @@ def format_apply_json(
     return _keyed_line(APPLY_REPORT_KEYS, payload, surface="apply")
 
 
-# The status report's one outcome word and its line's thirteen keys in
+# The status report's one outcome word and its line's fourteen keys in
 # emission order (v0.4.53; meanings in format_status_json's docstring).
 # The renderer emits in this order (_keyed_line) and `bale contract
-# --json` publishes both.
+# --json` publishes both. `open_sessions` (0.4.63) is appended last, so
+# every earlier key keeps its place.
 STATUS_OUTCOME = "status"
 STATUS_OUTCOMES = (STATUS_OUTCOME,)
 STATUS_REPORT_KEYS = (
     "outcome", "version", "sid", "repo", "session", "staging", "outbox",
     "applied", "sessions", "scopes", "integration_lock", "config",
-    "clipboard",
+    "clipboard", "open_sessions",
 )
 
 
@@ -4351,8 +4383,17 @@ def format_status_json(report) -> str:
                                  could not be computed (malformed
                                  bale.toml). The presence facts above
                                  are still valid; hooks_wired /
-                                 search_paths are then empty/zero —
-                                 unknown rather than known-absent.
+                                 search_paths / search_dirs are then
+                                 empty/zero — unknown rather than
+                                 known-absent.
+                 search_dirs     (additive, 0.4.63 — slip 1) the
+                                 configured [apply] search_paths
+                                 directories, in order, as bale uses
+                                 them (get_apply_search_paths: tilde and
+                                 variables expanded) — the list
+                                 `search_paths` counts. The directories
+                                 a relative tarball name is looked for
+                                 in after the current directory.
       clipboard  (additive, session clipboard-key-rename — session D's
                deferred Proposal 3) always an object, in and out of a
                repo (the global layer exists everywhere): the machine
@@ -4387,6 +4428,53 @@ def format_status_json(report) -> str:
                            then command is null and nothing is copied
                            until it is fixed. The human row's prose
                            around these facts is not in the contract.
+                 encoding  (additive, 0.4.63 — the clipboard fold)
+                           how bale feeds `command` each copy:
+                           "utf-16le" when it is clip.exe
+                           (clipboard_command_is_clip_exe: no
+                           byte-order mark, since 0.4.59), "utf-8" for
+                           any other command, null when command is null
+                           (nothing is copied) — clipboard_encoding.
+      open_sessions  (additive, 0.4.63 — slips 7 and 1) null outside a
+               git repository; else an object with one entry per open
+               session, its keys exactly the `sessions` list, in that
+               order (empty when nothing is open). `sid` and `session`
+               keep describing the lock session (sessions[0]) as
+               before; this key describes EVERY open session, the lock
+               session included, each classified on its own facts (its
+               bale/<sid> branch, its outbox tarball, its clarification
+               records, its stamped manifest). Each entry:
+                 state          the lifecycle state, the `session.state`
+                                vocabulary and meaning — "packed",
+                                "held", "clarification", "orphan" —
+                                for this session, whichever holds the
+                                lock
+                 goal           its stamped manifest's goal, or null
+                 expects_probe  its stamped manifest's expects_probe,
+                                or null
+                 clarification  null, or the `session.clarification`
+                                object (rounds, questions,
+                                latest_record, from, answers, awaiting)
+                                for this session's own records
+                 responses      the response tarballs `bale apply
+                                response-<sid>.tar.gz` would consult
+                                for this session when run where status
+                                ran: every file named
+                                `response-<sid>.tar.gz` or
+                                `response-<sid> (N).tar.gz` in the
+                                current directory and each
+                                config.search_dirs directory, newest
+                                first by modification time, each once.
+                                Each is an object: path (absolute),
+                                name, copy (N for a browser's numbered
+                                copy, null for the plain name),
+                                modified_at (ISO 8601 UTC, seconds).
+                                An empty list when there are none. A
+                                `response-<sid>-*.tar.gz` variant is
+                                not listed (the named search does not
+                                resolve it, and its prefix can be
+                                another session's sid). Read by name
+                                and stat only; no tarball is opened.
 
     Pure: builds a string, prints nothing; the caller emits it, which
     supplies the trailing newline.
@@ -4399,6 +4487,7 @@ def format_status_json(report) -> str:
     sessions = None
     scopes = None
     integration_lock_obj = None
+    open_sessions_obj = None
     if report.repo_root is not None:
         repo_obj = {
             "root": str(report.repo_root),
@@ -4416,20 +4505,15 @@ def format_status_json(report) -> str:
             # rounds/questions/latest_record object the docstring
             # documents. Independent of `state` by design (a held
             # session's earlier round is still a fact).
-            "clarification": (
-                {
-                    "rounds": report.clarification_rounds,
-                    "questions": report.clarification_questions,
-                    "latest_record": report.clarification_latest,
-                    # Additive (v0.4.18, BALE.md §8.11): the thread's
-                    # direction — the latest record's side, its answer
-                    # count, and the side the thread waits on.
-                    "from": report.clarification_from,
-                    "answers": report.clarification_answers,
-                    "awaiting": awaiting_side(report.clarification_from),
-                }
-                if report.clarification_rounds else None
-            ),
+            # The shared builder (0.4.63) keeps this object and each
+            # open_sessions entry's one shape; v0.4.18 (BALE.md §8.11)
+            # added the thread's direction — from, answers, awaiting.
+            "clarification": _status_clarification_json(
+                report.clarification_rounds,
+                report.clarification_questions,
+                report.clarification_latest,
+                report.clarification_from,
+                report.clarification_answers),
         }
         staging_obj = {
             "present": report.staging_present,
@@ -4475,6 +4559,13 @@ def format_status_json(report) -> str:
                 "acquired_at": report.integration_lock.get("acquired_at"),
                 "path": report.integration_lock.get("path"),
             }
+        # Additive (0.4.63): every open session, in `sessions` order —
+        # the docstring's open_sessions entry.
+        facts_by_sid = getattr(report, "open_session_facts", None) or {}
+        open_sessions_obj = {
+            str(sid): _status_open_session_json(facts_by_sid.get(sid) or {})
+            for sid in report.open_sids
+        }
     payload = {
         "outcome": STATUS_OUTCOME,
         "version": report.version,
@@ -4496,6 +4587,9 @@ def format_status_json(report) -> str:
             "search_paths": report.search_path_count,
             "baleignore": report.baleignore,
             "summary_failed": report.config_summary_failed,
+            # Additive (0.4.63): the directories the count counts.
+            "search_dirs": [str(d) for d in
+                            (getattr(report, "search_dirs", None) or [])],
         },
         # Additive (session clipboard-key-rename): the clipboard row as
         # data — see the docstring's `clipboard` entry.
@@ -4505,9 +4599,51 @@ def format_status_json(report) -> str:
             "key": report.clipboard_key,
             "shadowed": report.clipboard_shadowed,
             "problem": report.clipboard_problem,
+            # Additive (0.4.63): how the command is fed each copy.
+            "encoding": clipboard_encoding(report.clipboard_command),
         },
+        "open_sessions": open_sessions_obj,
     }
     return _keyed_line(STATUS_REPORT_KEYS, payload, surface="status")
+
+
+def _status_clarification_json(rounds: int, questions, latest, side,
+                               answers) -> Optional[dict]:
+    """The `clarification` object of a status session view — null when
+    the session has no preserved records, else rounds, questions,
+    latest_record, from, answers, awaiting (format_status_json's
+    docstring). One builder for the lock session's `session` object and
+    each `open_sessions` entry, so the two shapes cannot drift. Pure."""
+    if not rounds:
+        return None
+    return {
+        "rounds": rounds,
+        "questions": questions,
+        "latest_record": latest,
+        "from": side,
+        "answers": answers,
+        "awaiting": awaiting_side(side),
+    }
+
+
+def _status_open_session_json(facts: dict) -> dict:
+    """One `open_sessions` entry from bin/bale's per-session facts
+    (_gather_open_session's dict, `responses` filled): state, goal,
+    expects_probe, clarification, responses. A missing fact reads as
+    null (the list as empty), never a KeyError, so a report built
+    without per-session facts still renders. Pure."""
+    return {
+        "state": facts.get("state"),
+        "goal": facts.get("goal"),
+        "expects_probe": facts.get("expects_probe"),
+        "clarification": _status_clarification_json(
+            facts.get("clarification_rounds") or 0,
+            facts.get("clarification_questions"),
+            facts.get("clarification_latest"),
+            facts.get("clarification_from"),
+            facts.get("clarification_answers")),
+        "responses": [dict(r) for r in (facts.get("responses") or [])],
+    }
 
 
 # The `bale config hooks --json` line's six keys, in emission order
@@ -6133,9 +6269,12 @@ def build_telemetry_attempt(
     close. `clarification` is the bale-computed summary of
     `.bale/clarifications/<sid>/` (read_clarification_summary), passed
     by every CLOSING call site — outcomes applied / reverted / bailout /
-    unlocked — and by no other: a held, drift-refused, rejected, or
-    rollback attempt is not a closure, so the closing attempt is the
-    one place the stamp lives.
+    unlocked — and by one other: the `clarification` attempt a
+    clarification landing writes (0.4.63), which carries the summary as
+    it stands after the round it landed was preserved. A held,
+    drift-refused, rejected, or rollback attempt is not a closure and
+    carries none; the closing attempt stays the stamp the closure
+    aggregates read (bale_stats._closing_attempt).
 
     `checkpoint` (board 6 session A) is the blind checkpoint stamp,
     ALWAYS present on every validated attempt post-epoch and absent on
@@ -7761,9 +7900,22 @@ def format_session_dossier_report(
 # module constant by that name), never from a second list. Repo-free: the
 # only inputs are the install's own files.
 
-# The code home every non-schema entry below points into: this module.
+# The code home every non-schema entry below points into: this module —
+# save the entries homed in a sibling module (CONTRACT_SIBLING_CODE_HOMES).
 CONTRACT_CODE_HOME = "bin/bale_report.py"
 CONTRACT_TELEMETRY_SCHEMA = "schemas/telemetry-record.schema.json"
+# A closed word list that lives in a bin/ sibling rather than here
+# (0.4.63, session status-says-more — the dossier fold): the home is the
+# sibling's repo-relative file, published as is, and the words are read
+# from the sibling's own constant, never copied into this module. The
+# value is the module name the sibling is imported by (bin/ is on
+# sys.path wherever this module runs: bin/bale puts it there, and the
+# test harness does too). bale_stats is stdlib-only and imports nothing
+# from here, so the lazy import cannot cycle.
+CONTRACT_STATS_HOME = "bin/bale_stats.py"
+CONTRACT_SIBLING_CODE_HOMES = {
+    CONTRACT_STATS_HOME: "bale_stats",
+}
 
 # The `bale contract` line's one outcome word, part of the one-place outcome
 # vocabulary (format_pack_json's docstring).
@@ -7774,9 +7926,13 @@ CONTRACT_OUTCOMES = (CONTRACT_OUTCOME,)
 # pointer starting "/" is a JSON pointer into the schema `home`, whose node
 # carries an `enum` (published without its null: null is a field's
 # absence, never a word); any other pointer names a tuple constant of this
-# module. The first three names are fixed by the session that added the
-# verb (they are twine's axis names); the rest are every closed word list
-# this module owns, named `<surface>-outcome` for a line's outcome words.
+# module, or of the sibling module the home names
+# (CONTRACT_SIBLING_CODE_HOMES). The first three names are fixed by the
+# session that added the verb (they are twine's axis names); the rest are
+# every closed word list this module owns, named `<surface>-outcome` for
+# a line's outcome words, and — since 0.4.63 — `hold-class`, the four
+# HOLD classes the dossier emits (bin/bale_stats.py's HOLD_CLASSES, the
+# words' one home).
 # The two `*-source` entries are writer-side mirrors here (the tuples of
 # the same values, SANDBOX_OFF_SOURCES and SCOPE_ADMISSION_SOURCES) whose
 # one home is the telemetry schema, exactly as closure-reason's is.
@@ -7803,6 +7959,7 @@ CONTRACT_VOCABULARIES = (
     ("scope-admission-source", CONTRACT_TELEMETRY_SCHEMA,
      "/properties/attempts/items/properties/overridden_path_sources"
      "/additionalProperties"),
+    ("hold-class", CONTRACT_STATS_HOME, "HOLD_CLASSES"),
 )
 
 # The refusal-reason sets, (verb, tuple constant), in publication order —
@@ -7884,15 +8041,28 @@ def resolve_json_pointer(document, pointer: str):
     return node
 
 
-def _contract_code_tuple(pointer: str) -> list:
-    """The values of this module's tuple constant named `pointer`, as a
-    list — ValueError when the name is not a module-level tuple of
-    strings, so a renamed constant fails the verb loudly rather than
-    publishing a stale pointer."""
-    value = globals().get(pointer)
+def _contract_code_tuple(pointer: str,
+                         home: str = CONTRACT_CODE_HOME) -> list:
+    """The values of the tuple constant named `pointer` in the code
+    `home` — this module by default, or a bin/ sibling named in
+    CONTRACT_SIBLING_CODE_HOMES (0.4.63), imported by name and read from
+    its own globals — as a list. ValueError when the home is neither,
+    or the name is not a module-level tuple of strings there, so a
+    renamed constant fails the verb loudly rather than publishing a
+    stale pointer."""
+    if home == CONTRACT_CODE_HOME:
+        namespace = globals()
+    elif home in CONTRACT_SIBLING_CODE_HOMES:
+        import importlib  # lazy — only the sibling-homed entries need it
+        module = importlib.import_module(CONTRACT_SIBLING_CODE_HOMES[home])
+        namespace = vars(module)
+    else:
+        raise ValueError(f"{home} is not a code home `bale contract` "
+                         f"reads")
+    value = namespace.get(pointer)
     if not isinstance(value, tuple) or not all(
             isinstance(v, str) for v in value):
-        raise ValueError(f"{CONTRACT_CODE_HOME} has no tuple of strings "
+        raise ValueError(f"{home} has no tuple of strings "
                          f"named {pointer!r}")
     return list(value)
 
@@ -7931,7 +8101,7 @@ def build_contract_payload(*, version: str, schemas: dict) -> dict:
     for name, home, pointer in CONTRACT_VOCABULARIES:
         values = (_contract_schema_enum(schemas, home, pointer)
                   if pointer.startswith("/")
-                  else _contract_code_tuple(pointer))
+                  else _contract_code_tuple(pointer, home))
         vocabularies[name] = {"home": home, "pointer": pointer,
                               "values": values}
     refusal_reasons = {
