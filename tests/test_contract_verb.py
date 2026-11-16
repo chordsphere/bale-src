@@ -284,10 +284,16 @@ class ContractValuesTest(unittest.TestCase):
                                      [v for v in node["enum"]
                                       if v is not None])
                 else:
-                    self.assertEqual(entry["home"], "bin/bale_report.py")
+                    # A code home is this module, or (0.4.63) the bin/
+                    # sibling the entry names — bale_stats for
+                    # hold-class — read from that module's own constant.
+                    homes = {"bin/bale_report.py": self.report,
+                             "bin/bale_stats.py": _load_module("bale_stats")}
+                    self.assertIn(entry["home"], homes)
                     self.assertEqual(
                         entry["values"],
-                        list(getattr(self.report, entry["pointer"])))
+                        list(getattr(homes[entry["home"]],
+                                     entry["pointer"])))
                 self.assertTrue(entry["values"])
                 self.assertEqual(len(entry["values"]),
                                  len(set(entry["values"])))

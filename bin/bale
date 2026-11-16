@@ -2238,6 +2238,144 @@ def resolve_retry_sibling(arg: str, cwd: Path, search_paths: list[str]
                    f"(newest sibling by mtime in {directory})")
 
 
+# The suffix the newer-copy check and the status response listing engage
+# on (0.4.63): the verbs' inbound files are tarballs, and
+# numbered_sibling_parts' grammar reads every other name too.
+NUMBERED_COPY_SUFFIX = ".tar.gz"
+
+
+def _consulted_dirs(cwd: Path, search_paths: list[str],
+                    subdir: Path = Path(".")) -> list[Path]:
+    """The directories a relative name is looked for in, in the order
+    locate_inbound_path consults them — cwd, then each configured search
+    path — each joined with the name's own directory component. With no
+    search paths configured that is cwd alone, as the resolver's
+    pre-search-paths branch has it. Pure."""
+    return [base / subdir for base in [cwd, *(Path(sp) for sp in search_paths)]]
+
+
+def numbered_copies(base: str, directories: list[Path]) -> list[tuple]:
+    """Every regular file named `<base>.tar.gz` or `<base> (N).tar.gz` in
+    `directories` (numbered_sibling_parts' grammar, the one `bale retry`
+    resolves by), as (st_mtime_ns, counter, resolved path) — counter 0
+    for the plain name — newest first, the file name breaking a tie so
+    the order is stable, each file once however many of the directories
+    it sits in (cwd is often also a search path).
+
+    Read by name and stat only: no file is opened, and an unreadable or
+    absent directory contributes nothing, never an exception. Shared by
+    the newer-copy note (newer_numbered_copy_note) and `bale status`'s
+    per-session response listing (status_response_files), so the two
+    read one grammar. A name that is merely prefixed by `base` — a
+    `<base>-variant.tar.gz`, or another session's sid that extends this
+    one — is not a copy: the grammar takes `<base>` whole."""
+    seen: set = set()
+    hits: list[tuple] = []
+    for directory in directories:
+        try:
+            entries = list(directory.iterdir())
+        except OSError:
+            continue
+        for entry in entries:
+            counter = numbered_sibling_counter(entry.name, base,
+                                               NUMBERED_COPY_SUFFIX)
+            if counter is None:
+                continue
+            try:
+                if not entry.is_file():
+                    continue
+                resolved = entry.resolve()
+                mtime_ns = entry.stat().st_mtime_ns
+            except OSError:
+                continue
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            hits.append((mtime_ns, counter, resolved))
+    hits.sort(key=lambda h: (-h[0], h[2].name))
+    return hits
+
+
+def newer_numbered_copy_note(arg: str, resolved: Path, cwd: Path,
+                             search_paths: list[str], verb: str
+                             ) -> Optional[str]:
+    """The note a verb logs when the relative name it was given resolved
+    to an existing file and a numbered copy of the same name is newer
+    (0.4.63, session status-says-more — slip 5); None otherwise.
+
+    A browser saves a corrected response after a HOLD as
+    `response-<sid> (1).tar.gz` beside the first download; the named
+    search (locate_inbound_path) still takes the plain name first, in
+    the first directory that has it. Resolution is unchanged — a file
+    the operator named and has is never replaced (resolve_retry_sibling's
+    rule) — so this only SAYS so: every copy of the resolved file's name
+    (`<base> (N).tar.gz`, or the plain `<base>.tar.gz` when the name
+    given was a numbered one) whose modification time is later than the
+    resolved file's, across every directory the search consults (cwd,
+    then each search path; the name's own directory component applied
+    to each), newest first, each with the paste-ready `bale <verb>` line
+    for it. A copy no newer than the named file is not mentioned, and a
+    name that is absolute, not a `.tar.gz`, or has no newer copy yields
+    None, so the verb's output is byte for byte what it was.
+
+    The caller logs the note where bale's log lines go — after json
+    mode's switch, so under `--json` it rides stderr and stdout stays
+    the one report line. Reads names and stats only. Pure otherwise."""
+    typed = Path(arg)
+    if typed.is_absolute():
+        return None
+    base, _, suffix = numbered_sibling_parts(typed.name)
+    if suffix != NUMBERED_COPY_SUFFIX or not base:
+        return None
+    try:
+        named = resolved.resolve()
+        named_mtime = named.stat().st_mtime_ns
+    except OSError:
+        return None
+    newer = [(mtime, path) for mtime, _, path in
+             numbered_copies(base, _consulted_dirs(cwd, search_paths,
+                                                   typed.parent))
+             if path != named and mtime > named_mtime]
+    if not newer:
+        return None
+    names = ", ".join(path.name for _, path in newer)
+    one = len(newer) == 1
+    lines = [f"{'a newer copy' if one else 'newer copies'} of the named "
+             f"tarball: {names} {'is' if one else 'are'} newer than "
+             f"{named.name}, and bale {verb} uses the file it was named "
+             f"({named}). To use {'the copy' if one else 'a copy'} "
+             f"instead:"]
+    for _, path in newer:
+        lines.append(f"    bale {verb} {shlex.quote(str(path))}")
+    return "\n".join(lines)
+
+
+def status_response_files(sid: str, cwd: Path,
+                          search_paths: list[str]) -> list[dict]:
+    """The response tarballs `bale apply response-<sid>.tar.gz` would
+    consult for `sid` when run from `cwd` (0.4.63, session
+    status-says-more — slip 1): every file named `response-<sid>.tar.gz`
+    or `response-<sid> (N).tar.gz` in cwd and each search directory,
+    newest first by modification time (numbered_copies). Each entry is
+    {path (absolute), name, copy (N, or null for the plain name),
+    modified_at (ISO 8601 UTC, seconds)}. A `response-<sid>-*.tar.gz`
+    variant is not listed: the named search does not resolve it, and its
+    prefix can be another session's sid. Read by name and stat; nothing
+    is opened. Never raises."""
+    entries: list[dict] = []
+    for mtime_ns, counter, path in numbered_copies(
+            f"response-{sid}", _consulted_dirs(cwd, search_paths)):
+        entries.append({
+            "path": str(path),
+            "name": path.name,
+            "copy": counter or None,
+            "modified_at": datetime.fromtimestamp(
+                mtime_ns / 1e9, tz=timezone.utc).isoformat(
+                    timespec="seconds"),
+        })
+    return entries
+
+
 # ---------------------------------------------------------------------------
 # 9. Editor invocation
 # ---------------------------------------------------------------------------
@@ -3080,6 +3218,14 @@ def cmd_retry(args: argparse.Namespace) -> int:
                                                     search_paths)
     tarball_path = resolve_inbound_path(retry_arg, cwd, search_paths,
                                         verb="retry")
+    # 0.4.63 (slip 5): a newer numbered copy of the name given is said,
+    # never taken. Only for a name the operator gave and has: when
+    # resolve_retry_sibling resolved a missing name, it already chose
+    # the newest sibling of that directory and said so.
+    newer_copy_note = (
+        newer_numbered_copy_note(args.tarball, tarball_path, cwd,
+                                 search_paths, "retry")
+        if sibling_note is None else None)
 
     # json output mode (v0.3.14, retry parity): same two-part contract as
     # `bale apply --json` (v0.2.8) — stdout carries exactly the one-line
@@ -3094,6 +3240,8 @@ def cmd_retry(args: argparse.Namespace) -> int:
         enable_json_mode()
     if sibling_note is not None:
         log(sibling_note)
+    if newer_copy_note is not None:
+        log(newer_copy_note)
 
     # --cost-file (v0.4.54, session cost-mirror): the harness's record of
     # what the worker run behind this tarball spent. Validated here, ahead
@@ -3114,8 +3262,9 @@ def cmd_retry(args: argparse.Namespace) -> int:
     set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
     log(f"retrying session {locked_sid} with {tarball_path.name}")
     if cost is not None:
-        # "accepted", not "stamped": a clarification writes no attempt,
-        # and the pipeline says so at that fork.
+        # "accepted", not "stamped": the pipeline's terminal point writes
+        # the attempt that carries it (a clarification's too, since
+        # 0.4.63).
         log(f"cost file {cost_path} accepted: {describe_cost_block(cost)}")
 
     # Non-interactive mode: same resolution and logging contract as
@@ -4499,6 +4648,12 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     # fail_not_found → fail() → sys.exit.
     tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
                                         verb="handoff")
+    # 0.4.63 (slip 5): a newer numbered copy of the name given is said,
+    # never taken. Handoff has no --json, so the note logs here.
+    newer_copy_note = newer_numbered_copy_note(
+        args.tarball, tarball_path, cwd, search_paths, "handoff")
+    if newer_copy_note is not None:
+        log(newer_copy_note)
 
     # --checkpoint-file (v0.4.28, board 73 path 2): the same front-loaded
     # read and base-shape gate cmd_pack runs, sited pre-tarball so a
@@ -6200,6 +6355,13 @@ class StatusReport:
     global_config: Optional[Path] = None
     hooks_wired: list[str] = field(default_factory=list)
     search_path_count: int = 0
+    # 0.4.63 (slip 1): the configured [apply] search_paths directories, in
+    # order, as bale uses them (get_apply_search_paths: tilde and
+    # variables expanded) — the list search_path_count counts, set beside
+    # it, so the two always agree. Empty when none are configured, and
+    # when the config could not be read (config_summary_failed says so:
+    # unknown, not known-absent — the count's own posture).
+    search_dirs: list[str] = field(default_factory=list)
     config_summary_failed: bool = False
     baleignore: bool = False
     # Default staging state (v0.2.9; per-session since v0.3.3): staging_path
@@ -6304,6 +6466,16 @@ class StatusReport:
     clipboard_problem: Optional[str] = None
     clipboard_key: Optional[str] = None
     clipboard_shadowed: Optional[str] = None
+    # 0.4.63 (slips 7 and 1): every open session's own facts, keyed by
+    # sid in open_sids order — the classification the session_* fields
+    # above carry for the lock session, made for each open sid on that
+    # sid's own facts (_gather_open_session), plus the response tarballs
+    # the named search would find for it (status_response_files). Each
+    # value is a dict: state, desc, hint, goal, expects_probe, the
+    # clarification facts (rounds, questions, latest, from, answers),
+    # and responses. Consumed by the json renderer only, like the
+    # staging fields; the human block is unchanged.
+    open_session_facts: dict = field(default_factory=dict)
 
 
 def _branch_exists(repo: Path, branch: str) -> bool:
@@ -6397,7 +6569,9 @@ def _summarise_config(repo: Optional[Path], report: StatusReport) -> None:
             name for name in bale_config.HOOK_NAMES
             if bale_config.get_hook(cfg, name) is not None
         ]
-        report.search_path_count = len(bale_config.get_apply_search_paths(cfg))
+        # 0.4.63: the list itself beside its count, one read.
+        report.search_dirs = list(bale_config.get_apply_search_paths(cfg))
+        report.search_path_count = len(report.search_dirs)
         if repo is not None:
             # The effective pair the renderers fan out per open sid —
             # the same merged-config resolution apply and retry perform
@@ -6456,16 +6630,17 @@ def _gather_status(cwd: Path) -> StatusReport:
     report.bale_initialised = (repo / ".bale").is_dir()
 
     # Open session(s) + lifecycle state, read from the ADR-0006 session
-    # registry. The lifecycle classification below stays a single-session
-    # concern: it classifies the OLDEST open session (open_sids[0]) — with
-    # at most one open, the registry's sole entry, exactly what the
-    # current_session pointer used to say; with several open (reachable
-    # since ADR-0007's pack gate landed) the remainder ride in open_sids
-    # for the listing row, unclassified.
+    # registry. The lock session is open_sids[0] — with at most one open,
+    # the registry's sole entry, exactly what the current_session pointer
+    # used to say — and its facts fill the session_* fields the human
+    # block and the json `session` object read, as before. Since 0.4.63
+    # (slip 7) every open sid is classified, each on its own facts
+    # (_gather_open_session), into open_session_facts for the json
+    # report's `open_sessions`; the lock session's entry IS the facts
+    # the session_* fields are copied from, so the two cannot disagree.
     report.open_sids = open_sessions(repo)
     lock_sid = report.open_sids[0] if report.open_sids else None
     report.session_sid = lock_sid
-    has_branch = _branch_exists(repo, f"bale/{lock_sid}") if lock_sid else False
 
     # Per-session scope (ADR-0007, v0.3.2), one read per open sid.
     # read_session_scope owns the degradation story: a missing or
@@ -6509,78 +6684,140 @@ def _gather_status(cwd: Path) -> StatusReport:
         report.outbox_tarballs = sorted(
             p.name for p in outbox_dir.glob("request-*.tar.gz")
         )
-    has_outbox = (
-        lock_sid is not None
-        and f"request-{lock_sid}.tar.gz" in report.outbox_tarballs
-    )
 
-    # Clarification suspension (v0.3.22, board 32): a preserved record under
-    # .bale/clarifications/<sid>/ (written by apply's §8.10.2 handler, which
-    # keeps the session open) marks the classified session suspended on
-    # blocking questions. Presence drives the state; the round/question
-    # facts feed the dedicated row and the json report. Read-only,
-    # best-effort like the stamped-manifest read below: a record that won't
-    # parse still counts as a round (presence is the suspension fact), only
-    # the question count degrades to unknown — logged, never silent.
+    # Each open session's own facts and lifecycle state (0.4.63; the
+    # lock session's are what the pre-0.4.63 single classification read,
+    # gathered the same way).
+    report.open_session_facts = {
+        sid: _gather_open_session(repo, sid, report.outbox_tarballs)
+        for sid in report.open_sids
+    }
     if lock_sid is not None:
-        clar_dir = clarifications_dir(repo, lock_sid)
-        if clar_dir.is_dir():
-            records = sorted(clar_dir.glob("*.json"))
-            if records:
-                report.clarification_rounds = len(records)
-                latest = records[-1]
-                report.clarification_latest = str(latest.relative_to(repo))
-                try:
-                    cm = json.loads(latest.read_text(encoding="utf-8"))
-                    # The shared reading (bale_report.exchange_record_view):
-                    # a preserved clarification manifest is a `from:
-                    # worker` record; an exchange record names its side.
-                    view = exchange_record_view(cm, len(records))
-                    report.clarification_questions = (
-                        len(view["questions"])
-                        if view["questions"] is not None else None
-                    )
-                    report.clarification_answers = (
-                        len(view["answers"])
-                        if view["answers"] is not None else None
-                    )
-                    report.clarification_from = view["from"]
-                except (OSError, json.JSONDecodeError):
-                    log(f"status: could not read {latest}; "
-                        f"omitting question count and thread direction")
-    has_clarification = report.clarification_rounds > 0
-
-    state, desc, hint = _session_state_and_hint(
-        lock_sid, has_branch, has_outbox, has_clarification,
-        awaiting=awaiting_side(report.clarification_from),
-        rounds=report.clarification_rounds)
-    report.session_state = state
-    report.session_desc = desc
-    report.next_hint = hint
-
-    # Pull goal + expects_probe off the stamped request manifest when one is
-    # open. Best-effort: a hand-created or partial lock may have no manifest, in
-    # which case the goal line is simply omitted.
-    if lock_sid is not None:
-        manifest_path = repo / ".bale" / "sessions" / lock_sid / "manifest.json"
-        if manifest_path.exists():
-            try:
-                m = json.loads(manifest_path.read_text(encoding="utf-8"))
-                goal = (m.get("goal") or "").strip()
-                report.session_goal = goal or None
-                report.session_expects_probe = m.get("expects_probe")
-            except (OSError, json.JSONDecodeError):
-                # A stamped manifest that won't parse is worth surfacing, but
-                # not worth aborting status over; leave the fields None so the
-                # rows drop out, and let pack/apply be the ones to hard-fail on
-                # a corrupt manifest.
-                log(f"status: could not read {manifest_path}; "
-                    f"omitting goal", )
+        lock = report.open_session_facts[lock_sid]
+        report.clarification_rounds = lock["clarification_rounds"]
+        report.clarification_questions = lock["clarification_questions"]
+        report.clarification_latest = lock["clarification_latest"]
+        report.clarification_from = lock["clarification_from"]
+        report.clarification_answers = lock["clarification_answers"]
+        report.session_state = lock["state"]
+        report.session_desc = lock["desc"]
+        report.next_hint = lock["hint"]
+        report.session_goal = lock["goal"]
+        report.session_expects_probe = lock["expects_probe"]
+    else:
+        state, desc, hint = _session_state_and_hint(None, False, False)
+        report.session_state = state
+        report.session_desc = desc
+        report.next_hint = hint
 
     report.applied_count, report.applied_latest = applied_tags(repo)
     _summarise_config(repo, report)
+    # The response tarballs the named search would find for each open
+    # session (0.4.63, slip 1), read after the config summary because the
+    # search directories come from it: cwd (where status runs, which is
+    # where `bale apply response-<sid>.tar.gz` would resolve from), then
+    # each search directory.
+    for sid, facts in report.open_session_facts.items():
+        facts["responses"] = status_response_files(sid, cwd,
+                                                   report.search_dirs)
     _gather_clipboard(repo, report)
     return report
+
+
+def _gather_open_session(repo: Path, sid: str,
+                         outbox_tarballs: list[str]) -> dict:
+    """Read one open session's own facts and classify its lifecycle state
+    (0.4.63, session status-says-more — slip 7; before it only the lock
+    session was classified, by this same reading inlined in
+    _gather_status). Read-only, best-effort, never raises.
+
+    The facts are the session's: its bale/<sid> branch, its own request
+    tarball in the outbox, its preserved clarification records under
+    .bale/clarifications/<sid>/, and its stamped request manifest's goal
+    and expects_probe. The classification is the pure
+    _session_state_and_hint over them, so a session suspended on a
+    clarification reads "clarification" with its rounds, a held one
+    "held", a packed one "packed" — whichever session holds the lock.
+
+    Returns a dict: state, desc, hint (the classifier's triple); goal and
+    expects_probe (None when the manifest is absent or unreadable);
+    clarification_rounds / _questions / _latest / _from / _answers (the
+    StatusReport clarification fields' meanings, for this sid); and
+    responses, an empty list _gather_status fills once the search
+    directories are known.
+    """
+    facts: dict = {
+        "clarification_rounds": 0,
+        "clarification_questions": None,
+        "clarification_latest": None,
+        "clarification_from": None,
+        "clarification_answers": None,
+        "goal": None,
+        "expects_probe": None,
+        "responses": [],
+    }
+    has_branch = _branch_exists(repo, f"bale/{sid}")
+    has_outbox = f"request-{sid}.tar.gz" in outbox_tarballs
+
+    # Clarification suspension (v0.3.22, board 32): a preserved record under
+    # .bale/clarifications/<sid>/ (written by apply's §8.10.2 handler, which
+    # keeps the session open) marks the session suspended on blocking
+    # questions. Presence drives the state; the round/question facts feed
+    # the dedicated row and the json report. Read-only, best-effort like
+    # the stamped-manifest read below: a record that won't parse still
+    # counts as a round (presence is the suspension fact), only the
+    # question count degrades to unknown — logged, never silent.
+    clar_dir = clarifications_dir(repo, sid)
+    if clar_dir.is_dir():
+        records = sorted(clar_dir.glob("*.json"))
+        if records:
+            facts["clarification_rounds"] = len(records)
+            latest = records[-1]
+            facts["clarification_latest"] = str(latest.relative_to(repo))
+            try:
+                cm = json.loads(latest.read_text(encoding="utf-8"))
+                # The shared reading (bale_report.exchange_record_view):
+                # a preserved clarification manifest is a `from:
+                # worker` record; an exchange record names its side.
+                view = exchange_record_view(cm, len(records))
+                facts["clarification_questions"] = (
+                    len(view["questions"])
+                    if view["questions"] is not None else None
+                )
+                facts["clarification_answers"] = (
+                    len(view["answers"])
+                    if view["answers"] is not None else None
+                )
+                facts["clarification_from"] = view["from"]
+            except (OSError, json.JSONDecodeError):
+                log(f"status: could not read {latest}; "
+                    f"omitting question count and thread direction")
+    has_clarification = facts["clarification_rounds"] > 0
+
+    state, desc, hint = _session_state_and_hint(
+        sid, has_branch, has_outbox, has_clarification,
+        awaiting=awaiting_side(facts["clarification_from"]),
+        rounds=facts["clarification_rounds"])
+    facts["state"], facts["desc"], facts["hint"] = state, desc, hint
+
+    # Pull goal + expects_probe off the stamped request manifest.
+    # Best-effort: a hand-created or partial lock may have no manifest, in
+    # which case the goal line is simply omitted.
+    manifest_path = repo / ".bale" / "sessions" / sid / "manifest.json"
+    if manifest_path.exists():
+        try:
+            m = json.loads(manifest_path.read_text(encoding="utf-8"))
+            goal = (m.get("goal") or "").strip()
+            facts["goal"] = goal or None
+            facts["expects_probe"] = m.get("expects_probe")
+        except (OSError, json.JSONDecodeError):
+            # A stamped manifest that won't parse is worth surfacing, but
+            # not worth aborting status over; leave the fields None so the
+            # rows drop out, and let pack/apply be the ones to hard-fail on
+            # a corrupt manifest.
+            log(f"status: could not read {manifest_path}; "
+                f"omitting goal", )
+    return facts
 
 
 def _gather_clipboard(repo: Optional[Path], report: StatusReport) -> None:
@@ -7555,13 +7792,21 @@ def build_parser() -> argparse.ArgumentParser:
             "amend-checkpoint` first). A bailout response prints the "
             "`bale handoff` next step and closes the session; a "
             "clarification response records its questions as a round of "
-            "the session's exchange thread and keeps the session open "
-            "for `bale relay`.\n\n"
+            "the session's exchange thread, writes a `clarification` "
+            "attempt to the session's telemetry record (shown by `bale "
+            "stats --sid`), and keeps the session open for `bale "
+            "relay`.\n\n"
             "The tarball argument is "
             "resolved against apply.search_paths in bale.toml when set: "
             "relative names are tried against cwd first, then each "
             "configured directory in order, first match wins. Absolute "
-            "paths bypass search. Configure via `bale config init`.\n\n"
+            "paths bypass search. Configure via `bale config init`. When "
+            "a relative name resolves and a numbered copy of it "
+            "(`<name> (N).tar.gz`, a browser's second download) newer "
+            "than the file sits in any searched directory, apply says so "
+            "with the line that applies the copy, and still applies the "
+            "file it was named (since 0.4.63; retry and handoff "
+            "too).\n\n"
             "The tarball argument may be omitted entirely (bare `bale "
             "apply`, v0.4.16; widened v0.4.29; bounded v0.4.32): bale "
             "lists the response-*.tar.gz files in cwd and each "
@@ -7760,9 +8005,9 @@ def build_parser() -> argparse.ArgumentParser:
         help=COST_FILE_HELP.format(
             verb="apply",
             exits="the attempt this apply writes (applied, held, "
-                  "reverted, bailout, a gate refusal, or rejected); a "
-                  "clarification or a --dry-run writes no attempt, so "
-                  "the file is validated and logged as not stamped"),
+                  "reverted, bailout, clarification, a gate refusal, or "
+                  "rejected); a --dry-run writes no attempt, so the "
+                  "file is validated and logged as not stamped"),
     )
     p_apply.set_defaults(func=cmd_apply)
 
@@ -7938,8 +8183,7 @@ def build_parser() -> argparse.ArgumentParser:
             verb="retry",
             exits="the attempt this retry writes — the spend of the run "
                   "behind THIS tarball, never carried from a prior "
-                  "attempt (a clarification writes no attempt, so the "
-                  "file is validated and logged as not stamped); "
+                  "attempt, a clarification's landing attempt included; "
                   "`bale revert` takes no such flag: the held attempt's "
                   "spend already rode its apply"),
     )
@@ -8692,7 +8936,14 @@ def build_parser() -> argparse.ArgumentParser:
              "(lifecycle state, goal, expects_probe), staging (the default "
              ".bale/staging root plus per-open-session staging state and "
              "stale entries), outbox, applied, "
-             "config. Stream discipline matches pack/apply --json: "
+             "config (search_dirs lists the apply.search_paths "
+             "directories), clipboard (encoding says how the command is "
+             "fed), and open_sessions (every open session's lifecycle "
+             "state, goal, expects_probe, clarification, and the "
+             "response tarballs the named search would find for it). The "
+             "format_status_json docstring in bin/bale_report.py owns the "
+             "keys; `bale contract --json` lists them. Stream discipline "
+             "matches pack/apply --json: "
              "'[bale] ' lines go to stderr and stdout carries exactly the "
              "JSON line. Gathering is unchanged — still read-only, still "
              "exit 0 on a successful read.",
@@ -8810,12 +9061,14 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Print the contract a consumer of bale's --json lines reads: "
             "every closed vocabulary (outcome words, the telemetry "
-            "schema's outcome and closure_reason enums, and the rest), "
+            "schema's outcome and closure_reason enums, the dossier's "
+            "HOLD classes, and the rest), "
             "the refusal-reason codes of open, relay, unlock and revert, "
             "and the ordered top-level keys of every --json line bale "
             "emits — each with its home in the install and a pointer "
             "into it (a JSON pointer into a schema, or a constant's "
-            "name in bin/bale_report.py). Repo-free: reads only the "
+            "name in bin/bale_report.py, or in bin/bale_stats.py for the "
+            "HOLD classes). Repo-free: reads only the "
             "install it runs from, works in any directory, takes no "
             "lock, prompts for nothing, writes nothing, and exits 0."
         ),

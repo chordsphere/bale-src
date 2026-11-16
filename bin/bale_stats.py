@@ -124,6 +124,17 @@ IN_FLIGHT_OUTCOMES = frozenset({
     # attempt's command is `relay`, outside RESPONSE_COMMANDS, so it
     # never enters the response-attempt counts either.
     "relay-refused",
+    # clarification (0.4.63, session status-says-more — slip 3): `bale
+    # apply` landed a clarification response and wrote this attempt
+    # after preserving the round. The session stays open and suspended
+    # on the exchange thread, so a session whose latest outcome is the
+    # landing is in-flight, never a closure; its later normal response
+    # appends the attempt that closes it. The attempt's command is the
+    # landing verb (apply, or retry), so it IS a response attempt: it
+    # counts in response_attempts beside a bailout's, the response
+    # tarball apply processed. It is never validated (validation null),
+    # so no agreement, hold or checkpoint rate moves.
+    "clarification",
 })
 
 # The work_class vocabulary the pack surface stamps (BALE.md §7), plus the
@@ -641,6 +652,9 @@ def session_bale_version(record: dict) -> Optional[str]:
 # The four HOLD classes, in the order attempt_hold_class tests them (the
 # occupant's ratified vocabulary, 2026-11-14). A held attempt fitting none
 # reads None — counted in the aggregate's held_attempts, under no class.
+# This tuple is the words' one home: since 0.4.63 `bale contract`
+# publishes it as the `hold-class` vocabulary, reading it from here
+# (bale_report.CONTRACT_SIBLING_CODE_HOMES), never from a copy.
 HOLD_CLASS_CHECKPOINT_DEFECT = "checkpoint-defect"
 HOLD_CLASS_BOTH = "both"
 HOLD_CLASS_CHECKPOINT = "checkpoint"

@@ -615,7 +615,11 @@ class DossierSaysMoreE2ETest(unittest.TestCase):
 class ReleaseTest(unittest.TestCase):
 
     def test_version_and_changelog_record(self) -> None:
-        self.assertEqual(INSTALL_VERSION, "0.4.62")
+        # The release's own record stays; bin/VERSION moved on at 0.4.63
+        # (tests/test_status_says_more.py pins the current release), so
+        # the pin is that the install is at or past this one.
+        self.assertGreaterEqual(
+            tuple(int(n) for n in INSTALL_VERSION.split(".")), (0, 4, 62))
         record = json.loads(
             (REPO_ROOT / "claude" / "changelog" / "0.4.62.json").read_text(
                 encoding="utf-8"))

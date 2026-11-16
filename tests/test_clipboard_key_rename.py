@@ -211,11 +211,16 @@ class InFilePrecedenceTest(_RenameFixture):
 
 class StatusJsonClipboardTest(_RenameFixture):
 
-    KEYS = ("command", "source", "key", "shadowed", "problem")
+    # `encoding` joined in 0.4.63 (the clipboard fold): "utf-8" beside
+    # any command that is not clip.exe, null when nothing is copied —
+    # tests/test_status_says_more.py pins the clip.exe reading.
+    KEYS = ("command", "source", "key", "shadowed", "problem", "encoding")
 
     def test_every_state_in_and_out_of_a_repo(self) -> None:
         def expect(**kw):
             want = {k: None for k in self.KEYS}
+            if kw.get("command") is not None:
+                want["encoding"] = "utf-8"
             want.update(kw)
             return want
 

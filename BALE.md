@@ -725,9 +725,9 @@ The following flags apply across multiple commands:
   refusal line carries reason `cost-file`, and apply and retry refuse
   like their other pre-pipeline refusals (stderr, nothing on stdout).
   Apply and retry stamp whichever attempt the invocation writes
-  (applied, held, reverted, bailout, a gate refusal, rejected); a
-  clarification or a `--dry-run` writes no attempt, so the validated
-  file is logged as not stamped. Unlock stamps the closing attempt of
+  (applied, held, reverted, bailout, clarification since 0.4.63, a
+  gate refusal, rejected); a `--dry-run` writes no attempt, so the
+  validated file is logged as not stamped. Unlock stamps the closing attempt of
   the session it closes (a run that stopped or was abandoned before
   any response); the flag is refused beside `--integration`, and the
   no-op unlock logs it as not stamped. Per invocation, like every
@@ -792,7 +792,19 @@ go to stderr and stdout carries exactly the JSON line. **The
 contract** — the stable key set (existing keys never renamed or
 removed; additions only), including the per-session staging-posture
 keys added in v0.3.11. This doc deliberately does not duplicate the
-key list; consult the docstring, not a copy here.
+key list; consult the docstring, not a copy here. Since 0.4.63 the
+line says more about open sessions, all additively: `config.search_dirs`
+lists the configured `apply.search_paths` directories as bale uses
+them (beside `config.search_paths`, still their count); the top-level
+`open_sessions`, appended last, carries every open session — not only
+the lock session `sid` and `session` describe — each classified on its
+own facts (`state`, `goal`, `expects_probe`, `clarification`), with
+`responses`, the `response-<sid>.tar.gz` and `response-<sid> (N).tar.gz`
+files the named search would find for it from where status ran (cwd,
+then each search directory), newest first, read by name only; and
+`clipboard.encoding` says how the copy command is fed — `utf-16le` for
+clip.exe, `utf-8` otherwise. The human `clipboard` row for clip.exe ends
+"fed to it as UTF-16LE".
 
 ### 5.6 `bale stats`
 
@@ -820,7 +832,10 @@ post-v0.4.21 `opened` attempts, which is what resolves sessions that
 close without a feedback-bearing attempt), falling back to the class
 on their latest feedback-bearing attempt, with an `unclassed` bucket
 for sessions carrying neither; `opened` records read as in-flight,
-never a closure — with the headline rates: claim/verdict agreement
+never a closure, and so (since 0.4.63) does a record whose latest
+attempt is a clarification landing, which counts as a response
+attempt beside a bailout's and is never validated — with the
+headline rates: claim/verdict agreement
 over checks, the unparsed-reconciliation share (a parse miss is a
 tooling fact, never folded into agreement), HOLD rate, the blind
 checkpoint's rows (v0.3.29, board 6 session D) — the
@@ -1195,7 +1210,10 @@ bale contract [--json]
   carry (pack, context pack, open, relay, apply and retry, unlock,
   revert, status, stats and its dossier, contract itself), the other
   closed word lists `bin/bale_report.py` owns (open's rehearsals, pack's
-  sweep events, the include group's states), and the telemetry schema's
+  sweep events, the include group's states), the dossier's HOLD classes
+  (`hold-class`, since 0.4.63: `checkpoint-defect`, `both`, `checkpoint`,
+  `validation`, homed in `bin/bale_stats.py` as `HOLD_CLASSES` and read
+  from there), and the telemetry schema's
   enums a consumer dispatches on (`outcome`, `closure_reason`, and the
   two admission-source enums). Each names its **home** — a
   repo-relative file of the install — and a **pointer**: a JSON pointer
@@ -2744,6 +2762,7 @@ form work at a desk whose read-only master is always open beside the
 worker.
 On a miss, apply, retry, and handoff list every near-name candidate in the searched directories — the typed name minus its .tar.gz suffix as a prefix — as complete quoted command lines, newest first.
 Since v0.4.51 retry first resolves a missing `response-<sid>[ (N)].tar.gz` to the newest such sibling in the named path's own directory (the `bale retry` row of §5's command table), so retry reaches this listing only when that directory holds none.
+On a hit, since 0.4.63, apply, retry, and handoff say when a newer copy sits beside the file they found: given a relative `<name>.tar.gz` (or a `<name> (N).tar.gz`) that resolves, every copy of that name — `<name> (N).tar.gz`, or the plain name when a numbered one was given — whose modification time is later than the resolved file's, in cwd or any search directory, is named in one `[bale]` line with the word "newer", followed by its paste-ready `bale <verb> '<path>'` line, newest first. The verb still uses the file it was named: resolution never replaces a file the operator named and has. A copy no newer than the named file, an absolute name, and a name with no copy add nothing, so the output is as before. The note is a log line, so under `--json` it rides stderr.
 
 The pipeline below describes a normal response. Bailout and
 clarification responses branch off after pre-flight and are never
@@ -4024,9 +4043,11 @@ and made the corpus structurally apply-only). The unlock event
 appends to the same one-file-per-sid record as every apply-close
 event; command is `unlock`, tarball and validation are null, and
 the scope is read before the session-dir wipe destroys it.
-A clarification writes nothing: it suspends the session rather than
-closing it, and the eventual normal response records. `--dry-run`
-writes nothing: no outcome occurred.
+A clarification suspends the session rather than closing it: since
+0.4.63 its landing appends a `clarification` attempt (command `apply`,
+or `retry`), which readers count in flight, and the eventual normal
+response's attempt closes the session (§8.10.2). `--dry-run` writes
+nothing: no outcome occurred.
 
 **closure_reason: why a session closed.** Unlock and revert events
 carry a nullable `closure_reason` (v0.3.16, additive):
@@ -4254,9 +4275,19 @@ prints the same block again; exit codes and the suspension are
 unchanged. Under `--json` the block rides stderr with the rest of the
 human output, and stdout stays the one report line.
 
-A clarification writes no telemetry record: it suspends the session
-rather than closing it, and the eventual normal response records
-(§8.9). The rounds still reach the ledger (v0.3.23, board 5): every
+A clarification suspends the session rather than closing it. Since
+0.4.63 (slip 3) its landing still writes to the telemetry record: once
+step 3 has preserved the round, apply appends a `clarification`
+attempt — command the landing verb (`apply`, or `retry`), the
+`clarification` summary as it stands after the round (`rounds` 1 on
+the first round), and the invocation's `--cost-file` block — so the
+round reads in `bale stats --sid` for any session, not only on `bale
+status` for the lock session. The outcome is in flight, never a
+closure: the session stays open, and its later normal response
+appends the attempt that closes it (the attempts then end
+`clarification`, `applied`). A recorded `bale relay` round writes no
+attempt (§8.11). The rounds reach the closure aggregates (v0.3.23,
+board 5) as before: every
 closing event — apply/retry terminal closes, `bale revert`, and
 every unlock-outcome close, whatever command drives it — stamps a
 bale-computed `clarification` summary (`{rounds, records[]}`, read
@@ -4266,8 +4297,9 @@ absent. The always-stamp rule is the disambiguation: post-epoch, key
 presence with `rounds: 0` means *known zero*, key absence means
 *pre-epoch unknown* — so aggregation never conflates "no
 clarifications" with "no data". The stamp lives on closing attempts
-only (a `held`, `scope-drift-refused`, `rejected`, or rollback
-attempt is not a closure), and it is what makes step 3's
+(a `held`, `scope-drift-refused`, `rejected`, or rollback
+attempt is not a closure) and, since 0.4.63, on the landing's own
+`clarification` attempt, and it is what makes step 3's
 survives-the-session preservation pay off: the directory outlives
 the session by design, and the close happens on the machine that
 holds it (§3.5) — a close on a different checkout stamps that
@@ -4426,8 +4458,10 @@ gains the thread length — its `rounds` counts every preserved record
 on either side, not only worker rounds — and each `records[]` entry
 gains `from` and `answers` additively (`record_version` stays 1;
 `telemetry-record.schema.json`); a relay that records its round writes
-no telemetry record of its own, for the same reason a clarification
-apply writes none. A relay that refuses its input does (v0.4.41): any
+no telemetry record of its own: the round is the planner's answer, not
+a response bale processed, and the next attempt's `clarification`
+summary counts it (a clarification apply has written its own
+`clarification` attempt since 0.4.63, §8.10.2). A relay that refuses its input does (v0.4.41): any
 refusal of the ingest, the trailer, the sentinel's sid, the schema, the
 sequencing or the answers' resolvability appends a `relay-refused`
 attempt, command `relay`, whose `cause` is the refusal's first line —
